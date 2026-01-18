@@ -8,7 +8,7 @@ Contents
 
 Magic Dice.
 
-[The Magic Curve.](#_Toc219576489)
+[The Magic Curve.](#The Magic Curve)
 
 [Basic Dice Check Roll](#_Toc219576490)
 
@@ -3098,5 +3098,6 @@ The following text is the property of Wizards of the Coast, Inc. and is Copyrigh
 Open Game License v 1.0a Copyright 2000, Wizards of the Coast, Inc.
 
 Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
+
 
 END OF LICENSE
