@@ -9,29 +9,32 @@ Contents
 Magic Dice.
 
 [The Magic Curve](#The-Magic-Curve)
+
 [Basic Dice Check Roll](#Basic-Dice-Check-Roll)
+
 [Alignment](#Alignment)
-[Character Abilities.](#_Toc219576492)
 
-[Money.](#_Toc219576493)
+[Character Abilities.](#Character-Abilities)
 
-[Encumbrance.](#_Toc219576494)
+[Money.](#Money)
 
-[Equipment](#_Toc219576495)
+[Encumbrance.](#Encumbrance)
 
-[Indoor Adventuring.](#_Toc219576496)
+[Equipment](#Equipment)
 
-[Rounds and Turns.](#_Toc219576497)
+[Indoor Adventuring.](#Indoor-Adventuring)
 
-[Movement](#_Toc219576498)
+  - [Rounds and Turns.](#Rounds-and-Turns)
 
-[Random Encounters.](#_Toc219576499)
+  - [Movement](#Movement)
 
-[Adventuring Party.](#_Toc219576500)
+  - [Random Encounters.](#Random-Encounters)
 
-[Outdoor Adventuring.](#_Toc219576501)
+  - [Adventuring Party.](#Adventuring-Party)
 
-[Movement](#_Toc219576502)
+[Outdoor Adventuring.](#Outdoor-Adventuring)
+
+  - [Movement](#Movement)
 
 [Random Encounters.](#_Toc219576503)
 
@@ -3098,5 +3101,6 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
