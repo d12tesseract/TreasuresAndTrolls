@@ -38,97 +38,77 @@ Magic Dice.
 
   - [Random Encounters.](#Random-encounters-1)
 
-[Treasure.](#_Toc219576504)
+[Treasure.](#Treasure)
 
-[Money.](#_Toc219576505)
+  - [Money.](#Money)
 
-[Gems and Jewelry.](#_Toc219576506)
+  - [Gems and Jewelry.](#Gems-and-Jewelry)
 
-[Magic items.](#_Toc219576507)
+  - [Magic items.](#Magic items)
 
-[Combat](#_Toc219576508)
+[Combat](#Combat)
 
-[Initiative.](#_Toc219576509)
+  - [Initiative.](#Initiative)
 
-[Movement Phase.](#_Toc219576510)
+  - [Movement Phase.](#Movement-Phase)
 
-[Combat Phase.](#_Toc219576511)
+  - [Combat Phase.](#Combat-Phase)
 
-[Healing.](#_Toc219576512)
+  - [Healing.](#Healing)
 
-[Saving Throws.](#_Toc219576513)
+  - [Saving Throws.](#Saving-Throws)
 
-[Poison.](#_Toc219576514)
+  - [Poison.](#Poison)
 
-[Falling Damage.](#_Toc219576515)
+  - [Falling Damage.](#Falling-Damage)
 
-[Races.](#_Toc219576516)
+[Races.](#Races)
 
-[Human.](#_Toc219576517)
+  - [Human.](#Human)
 
-[Halfling.](#_Toc219576518)
+  - [Halfling.](#Halfling)
 
-[Elf](#_Toc219576519)
+  - [Elf](#Elf)
 
-[Dwarf](#_Toc219576520)
+  - [Dwarf](#Dwarf)
 
-[Classes.](#_Toc219576521)
+[Classes.](#Classes)
 
-[Experience and Levels.](#_Toc219576522)
+  - [Experience and Levels.](#Experience-and-Levels)
 
-[Fighter.](#_Toc219576523)
+  - [Fighter.](#Fighter)
 
-[Magic User.](#_Toc219576524)
+  - [Magic User.](#Magic User)
 
-[Thief](#_Toc219576525)
+  - [Thief](#Thief)
 
-[Cleric.](#_Toc219576526)
+  - [Cleric.](#Cleric)
 
-[Spells.](#_Toc219576527)
+[Spells.](#Spells)
 
-[Clerical](#_Toc219576528)
+  - [Clerical](#Clerical)
 
-[Level 1.](#_Toc219576529)
+  - [Magic User.](#Magic-User)
 
-[Level 2.](#_Toc219576530)
+[Creatures.](#Creatures)
 
-[Level 3.](#_Toc219576531)
+  - [Beasts.](#Beasts)
 
-[Level 4.](#_Toc219576532)
+  - [Mythical Creatures.](#Mythical-Creatures)
 
-[Level 5.](#_Toc219576533)
+  - [Undead.](#Undead)
 
-[Magic User.](#_Toc219576534)
+  - [Demons.](#Demons)
 
-[Level 1.](#_Toc219576535)
+  - [Humanoids.](#Humanoids)
 
-[Level 2.](#_Toc219576536)
+  - [Dragons.](#Dragons)
 
-[Level 3.](#_Toc219576537)
+  - [Unique.](#Unique)
 
-[Level 4.](#_Toc219576538)
+[Appendix A - D20 System..](#Appendix-A-D20-System)
 
-[Level 5.](#_Toc219576539)
-
-[Creatures.](#_Toc219576540)
-
-[Beasts.](#_Toc219576541)
-
-[Mythical Creatures.](#_Toc219576542)
-
-[Undead.](#_Toc219576543)
-
-[Demons.](#_Toc219576544)
-
-[Humanoids.](#_Toc219576545)
-
-[Dragons.](#_Toc219576546)
-
-[Unique.](#_Toc219576547)
-
-[Appendix A - D20 System..](#_Toc219576548)
-
-[License.](#_Toc219576549)
+[License.](#License)
 
   
 
@@ -3101,6 +3081,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
