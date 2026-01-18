@@ -8,7 +8,7 @@ Contents
 
 Magic Dice.
 
-[The Magic Curve.](#The Magic Curve)
+[The Magic Curve](#The-Magic-Curve)
 
 [Basic Dice Check Roll](#_Toc219576490)
 
@@ -3101,3 +3101,4 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
