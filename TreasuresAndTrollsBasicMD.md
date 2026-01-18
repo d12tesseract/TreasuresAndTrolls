@@ -36,7 +36,7 @@ Magic Dice.
 
   - [Movement](#Movement)
 
-[Random Encounters.](#_Toc219576503)
+  - [Random Encounters.](#Random-encounters-1)
 
 [Treasure.](#_Toc219576504)
 
@@ -3101,6 +3101,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
