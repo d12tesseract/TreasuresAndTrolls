@@ -78,7 +78,7 @@ Magic Dice.
 
   - [Fighter.](#Fighter)
 
-  - [Magic User.](#Magic User)
+  - [Magic User.](#Magic-User)
 
   - [Thief](#Thief)
 
@@ -3081,6 +3081,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
