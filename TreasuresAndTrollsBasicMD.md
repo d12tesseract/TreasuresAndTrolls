@@ -8,9 +8,11 @@ Contents
 
 [Magic Dice](#Magic-Dice)
 
-[The Magic Curve](#The-Magic-Curve)
+  - [The Magic Curve](#The-Magic-Curve)
 
-[Basic Dice Check Roll](#Basic-Dice-Check-Roll)
+  - [Basic Dice Check Roll](#Basic-Dice-Check-Roll)
+
+  - [Basic Dice Rolls](#Basic-Dice-Rolls)
 
 [Alignment](#Alignment)
 
@@ -197,7 +199,7 @@ The standard actions are meant for actions where there is reasonable chance of f
 | 10% | 9   |
 
 
-Using regular 12 sided dice:
+**Using regular 12 sided dice:**
 If standard Treasure and Trolls dice are not available, of course the game can be played with any common 12 sided dice, with the following substitutions:  
 
 | **Roll** | **Substitution** |
@@ -208,38 +210,43 @@ If standard Treasure and Trolls dice are not available, of course the game can b
 
 #### Basic Dice Rolls
 T&T is meant to be played using only T&T magic dice, although other kinds of dice can be included.  When needed, the T&T d12 can be used to substitute for other kinds of dice as well, and this is often needed when playing the game if you need to generate random outcomes other than 1-12.  The notation d4, d6, etc. is used for a number between 1 and the number of outcomes, so d4 is 1-4.  The notation 2d4, etc. is used when you want to add the result of multiple dice, so for 2d4, roll d4 2 times and add the result.  And, often the result can be modified by adding or subtracting a number, like d3-1 would be a d3 minus 1, resulting in a range of -1 to +1.
-Roll	d2	d3	d4	d6	d12
-0	1	1	1	1	12
-1	1	1	1	1	1
-2	1	1	1	2	2
-3	1	1	2	2	3
-4	1	2	2	3	4
-5	1	2	2	3	5
-6	2	2	3	4	6
-7	2	2	3	4	7
-8	2	3	3	5	8
-9	2	3	4	5	9
-10	2	3	4	6	10
-⬡	2	3	4	6	11
 
+| **Roll** | **d2** | **d3** | **d4** | **d6** | **d12** |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 1 | 1 | 1 | 1 | 12 |
+| 1 | 1 | 1 | 1 | 1 | 1 |
+| 2 | 1 | 1 | 1 | 2 | 2 |
+| 3 | 1 | 1 | 2 | 2 | 3 |
+| 4 | 1 | 2 | 2 | 3 | 4 |
+| 5 | 1 | 2 | 2 | 3 | 5 |
+| 6 | 2 | 2 | 3 | 4 | 6 |
+| 7 | 2 | 2 | 3 | 4 | 7 |
+| 8 | 2 | 3 | 3 | 5 | 8 |
+| 9 | 2 | 3 | 4 | 5 | 9 |
+| 10 | 2 | 3 | 4 | 6 | 10 |
+| ⬡ | 2 | 3 | 4 | 6 | 11 |
 
 Sometimes you want a roll to start from 0 instead of 1, especially when combining with other rolls. Use this table for 0 based rolls, using the notation z instead of d to be clear the numbering starts at 0.
-Roll	z2	z3	z4	z6	z12
-0	0	0	0	0	0
-1	0	0	0	0	1
-2	0	0	0	1	2
-3	0	0	1	1	3
-4	0	1	1	2	4
-5	0	1	1	2	5
-6	1	1	2	3	6
-7	1	1	2	3	7
-8	1	2	2	4	8
-9	1	2	3	4	9
-10	1	2	3	5	10
-⬡	1	2	3	5	11
+
+| **Roll** | **z2** | **z3** | **z4** | **z6** | **z12** |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 0 | 0 | 0 | 0 | 0 |
+| 1 | 0 | 0 | 0 | 0 | 1 |
+| 2 | 0 | 0 | 0 | 1 | 2 |
+| 3 | 0 | 0 | 1 | 1 | 3 |
+| 4 | 0 | 1 | 1 | 2 | 4 |
+| 5 | 0 | 1 | 1 | 2 | 5 |
+| 6 | 1 | 1 | 2 | 3 | 6 |
+| 7 | 1 | 1 | 2 | 3 | 7 |
+| 8 | 1 | 2 | 2 | 4 | 8 |
+| 9 | 1 | 2 | 3 | 4 | 9 |
+| 10 | 1 | 2 | 3 | 5 | 10 |
+| ⬡ | 1 | 2 | 3 | 5 | 11 |
 
 Its not uncommon to need a larger range than d12 allows on its own, but if you just add the result of multiple dice, it creates a bell curve in the results.  If you need a flat or uniform distribution larger than d12, results can be combined to generate larger ranges, such as d18 or d24, by combining multiple rules.  For example, d18 is d6 + z3 x 6, and d24 is d12 + z2 x 12. In order to have the total outcome range starting from 1, the second roll has to start from 0 to make a sliding window to add to the first roll to expand the result across the desired ranges  The second roll is always multiplied by the number of sides of the first die.  For example, if you need a d24, first roll d12, then roll a z2, and if the result of the second roll is 1, add 12 to the first roll.  For d18, roll a d6, then z3.  If the z3 results in 1, add 6 to the first roll, and if it’s a 2, add +12.
-Bell Curve Rolls
+
+**Bell Curve Rolls**
+
 Bell curve rolls result whenever you directly add the results of multiple dice.  The more dice you add the more the curve is weighted to the middle of the range. This is noted by b2 or b3 to denote adding 2 or 3 dice.  In this notation, it is always a standard T&T d12.  Bell curve rolls always use zero based roles, z12, which makes the math simpler. A basic roll in fact is the same as b3, except when rolling b3, you dont reroll any dice if you roll ⬡.  Bell curve rolls normally are just trying to get a range weighted to the middle and using a reroll for ⬡ would just skew the outcome for no reason.  To create a bell curve and also reduce the range, this is done by starting with z4 or z6 instead of z12, which is noted by /2 or /3, for example b2/2 is b2 rolled with z6 instead of z12, resulting in a range 0-10, and b3/3 is b3 rolled using z4 instead of z12, resulting in a 0-9 range.  This is an important difference, for example 2d6 and b2/2 are essentially the same role, but 2d6 results in a 2-12, and b2/2 results in 0-10.  b2/2 +2 would be identical to 2d6. 
 
 
@@ -3049,6 +3056,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
