@@ -163,20 +163,19 @@ Use the following chart to determine the DC roll for a standard action.- If fine
 
 Some common activities can be grouped easily into these difficulty classes.- These are just examples which can be used as guidelines for other actions. Also, most actions should be modified based on the specific circumstances. For example, is it dark out?-- Is the character being chased?
 
-|     |     |     |
-| --- | --- | --- |
 | **Difficulty** | **Actions** | **Ability Modifier** |
+| --- | --- | --- |
 | Very Easy | Climb a ladder | Dex |
 | Easy | Jump over a 5 foot gap | Dex |
 | Medium | Locate secret doors | Wis |
-| Find traps | Wis |
-| Hide in shadows | Dex |
-| Move Silently | Dex |
-| Vault over a 5 foot wall | Dex |
+| | Find traps | Wis |
+| | Hide in shadows | Dex |
+| | Move Silently | Dex |
+| | Vault over a 5 foot wall | Dex |
 | Hard | Jump a 10 foot gap | Dex |
-| Climb a castle wall | Dex |
-| Take an object without being noticed | Dex |
-| Know when someone is lying | Wis |
+| | Climb a castle wall | Dex |
+| | Take an object without being noticed | Dex |
+| | Know when someone is lying | Wis |
 | Very Hard | Do a backflip | Dex |
 
 Each action has different consequences for failure. Failure to find a secret door only means that action failed. But failure to jump a 10 foot gap would mean the character would fall into the gap. When actions fail, the TM must determine what the consequences are, usually by specifying additional actions and difficulties necessary. For example, if they fail to successfully jump across a deep chasm, they would require another hard difficulty action to grab onto the ledge, and another medium difficulty to climb back up, or else fall into the chasm to certain death.
@@ -3076,6 +3075,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
