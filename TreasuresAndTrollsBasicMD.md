@@ -122,7 +122,7 @@ The most important rule in T&T is there are no rules. Everything is this guide b
 
 In order to resolve actions into outcomes, the TM uses dice to represent the whims of chance. If every character knew the outcome of their actions before they make a decision, there would be no risk, and no adventure.
 
-T&T uses a special type of 12‑sided die based on the geometry of a tesseract. A tesseract is a four‑dimensional hypercube, and when it’s projected into three dimensions it forms a 12‑sided solid called a rhombic dodecahedron. Unlike common 12‑sided dice, which use pentagonal faces, tesseract dice use rhombus‑shaped faces—essentially squares that have been stretched or skewed into a diamond shape. This shape comes directly from the projection: the faces of a tesseract are squares, and when those squares are mapped from four dimensions down to three, they become the rhombus faces of the die.
+T&T uses a special type of 12‑sided die based on the geometry of a tesseract. A tesseract is a four‑dimensional hypercube, and when it’s projected into three dimensions it forms a 12‑sided solid called a rhombic dodecahedron. Unlike common 12‑sided dice, which use pentagonal faces, tesseract dice use rhombus‑shaped faces, essentially squares that have been stretched or skewed into a diamond shape. This shape comes directly from the projection: the faces of a tesseract are squares, and when those squares are mapped from four dimensions down to three, they become the rhombus faces of the die.
 
 The other interesting effect of using a tesseract is they can been stacked in 3 dimensions. Just like a cube can be stacked together in 3 dimensions, tesseracts can be stacked the same way in 4 dimensions. This is called a tessellation. So, this is why when you project the tesseract back to 3 dimensions, the rhombic dodecahedron can also be stacked in 3 dimensions, just like a cube.
 
@@ -3075,6 +3075,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
