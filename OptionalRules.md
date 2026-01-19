@@ -1,5 +1,5 @@
 [Alignment.](#Alignment)
-- [Ethos](#Ethos}
+- [Ethos](#Ethos)
 - [Personality Traits](#Personality-Traits)
 
 ### Alignment
