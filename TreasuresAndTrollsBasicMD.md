@@ -54,7 +54,7 @@ Contents
 
   - [Combat Phase.](#Combat-Phase)
 
-  - [Ranged](Ranged)
+  - [Ranged](#Ranged)
 
   - [Healing.](#Healing)
 
@@ -3087,6 +3087,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
