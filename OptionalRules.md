@@ -1,3 +1,7 @@
+[Alignment.](#Alignment)
+- [Ethos](#Ethos}
+- [Personality Traits](#Personality-Traits)
+
 ### Alignment
 Character alignment can apply to an individual or also monster species.  Alignment determines the moral choices a character will make.  Alignment iis made up of two dimensions, law and chaos and good and evil.
 
