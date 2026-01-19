@@ -106,7 +106,7 @@ Magic Dice.
 
   - [Unique.](#Unique)
 
-[Appendix A - D20 System](#Appendix-A-D20-System)
+[Appendix A - D20 System](#Appendix-A---D20-System)
 
 [License.](#License)
 
@@ -3011,7 +3011,7 @@ For example, lets say you start with a creature at level 5, so the base toughnes
 
 # Appendix A - D20 System
 
-Converting d20 to hit rolls to T&T is easy, it's meant to be as close to a 1-1 conversion as possible.
+There are many different fantasy role playing games built on the D20 system, which was meant to be interchangeable between game systems.  As long as a game is based on hit points and a d20, it should be easy to share content between games.  So much content has been created in the various D20 game systems, Treasures and Trolls was designed to make it as easy as possible to convert content, monsters, spells, items, or even whole adventure moduels across T&T and D20 games.  For that reason, these rules have been created to help convert from one system to the other.  Converting d20 to T&T is meant to be as close to a 1-1 conversion as possible.
 
 - **To hit, dice checks, saving throws and other rolls:**  To hit rolls and other dice checks use a straight 1:1 conversion. So, a +1 modifier for to hit, saving throws, or other dice checks are +1 in T&T. However, the median roll in a T&T basic roll is 16, compared to 10 in D20 rolls. So, add +6 to any D20 DC check to convert to T&T, and subtract 6 to convert from T&T to D20. So, a DC 16 in T&T requires a 10 on D20, and a dice check of 10 in D2 would require DC 16 in T&T.
 
@@ -3019,7 +3019,7 @@ Converting d20 to hit rolls to T&T is easy, it's meant to be as close to a 1-1 c
 
 - **Hit points:** Hit points need a special conversion because T&T does not use hit point based damage. However, the effect of hit points can be converted based on the number of times you would need to hit an opponent with a certain number of hit points to bring it down to 0 hp. The simple answer is each monster level is with 1d8 hit points is equivalent to a T&T toughness of 2. So, an opponent with 5d8 hit points would be a toughness of 10 in T&T. The way this works is based on hitting an opponent with a typical weapon that does 1d8 damage. If the opponent has 1d8 hit points, you would have a 50% chance to bring it to 0hp in 1 hit. If it had 2d8 hit points, there would be a 50% chance after 2 hits, etc. You can compare this to the odds of scoring a serious or mortal wound using a similar AP weapon in T&T, after X number of attacks. The conversion is not exact, because you are comparing statistical probabilities to an actual hit point counter in a D20 system, but the result is each additional 1d8 hit points for an opponent would increase the toughness by about +2. Also, items which grant bonus hit points would be converted based on +2 toughness for every 4.5 hp. This is also why a fighter class gets +2 toughness bonus per level, equivalent more or less to a 1d8 hit dice for D20. Again, this is a rough conversion since some D20 rule systems use d10 or eve d12 hit dice for combat classes, but that is meant for play balancing. This would be equivalent to a T&T class which gets a higher toughness bonus per level, maybe +3 or even +4. However, because hit points don’t accumulate the same way in T&T, having a character class with 3 or 4 toughness bonus per level would be badly unbalanced, because their toughness would quickly scale to the point where it would be nearly impossible to wound them. The problem is that in D20, if you have an opponent with a lot of hit points, you can just wear them down 1 ho at a time. But, in T&T, if the toughness becomes excessive compared to attack power, it becomes virtually impossible to score any damage at all. So, you can't just wear them down little by little. This happens about level 8 or 9, around a toughness modifier of 16-18. This is intentional, because the T&T combat system was designed such that you cant just wear your opponent down 1 hp at a time, and most combat classes scale up attack power with level, unlike D20 where weapon damage does not scale with levels.
 
-- 
+
 # License
 
 Permission to copy, modify and distribute this document known as the Treasures and Trolls Basic Adventure Guide is granted solely through the use of the Open Gaming License, Version 1.0a.
@@ -3076,6 +3076,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
