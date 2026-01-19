@@ -1909,90 +1909,6 @@ Range: 120 feet
 
 Creates a wall of stone in any combination of up to 10 10 foot by 10 foot (or smaller) panels, 6 inches thick, oriented any way the caster wants, as long as they are contiguous. Each panel may be curved naturally up to 90 degrees, and can have openings like doors or windows. The spell can not be created where an object or creature is standing. -The wall appears immediately, but if the caster continues to concentrate on the spell and takes no other action for 10 minutes, the wall becomes permanent, natural stone. The stone is as hard as stone formed from lava in a single piece, but if not constructed properly, it may collapse under its own weight. It has the physical characteristics of normal granite.
 
-Suggestion
-
-Charm person
-
-charm monster
-
-change alignment
-
-hold person
-
-hold monster
-
-Stun
-
-Sleep
-
-Cure Light Wound
-
-Cure Serious Wound
-
-Cure Mortal Wound
-
-Cure Disease
-
-Cure Poison
-
-Delay Death
-
-Bless
-
-Jinx
-
-Telekinesis
-
-Dispel magic
-
-Enchant Weapon
-
-Protection
-
-Invisibility
-
-magic missile
-
-Disarm / fumble (drop any item)
-
-Paralyze
-
-knock back (force push)
-
-Polymorph Self
-
-Polymorph other
-
-Summon monster
-
-Disintegrate
-
-cone of cold
-
-fireball
-
-lightning bolt
-
-wall of fire
-
-wall of force
-
-summon weather (tornado, thunderstorm, blizzard, fog)
-
-turn undead
-
-face shift (polymorph for s specific person or face)
-
-wizard lock hold door
-
-blast open door
-
-Lock spell (moon/month, year/solstice/Equinox)
-
-Permanence - makes spell permanent, but only works on certain lvl 1 spells.
-
-Eclipse - causes the sun to be blotted out.
-
 # Creatures
 
 This list is meant as a selection of some of the more common monsters adventurers may encounter, and should be just a starting off point. The TM should use creativity to invent new and unusual adversaries to populate special encounters.
@@ -3087,6 +3003,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
