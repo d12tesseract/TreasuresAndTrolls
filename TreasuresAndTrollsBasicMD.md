@@ -6,7 +6,7 @@ Contents
 
 [Treasures and Trolls.](#_Toc219576487)
 
-Magic Dice.
+[Magic Dice](MAgic-Dice)
 
 [The Magic Curve](#The-Magic-Curve)
 
@@ -53,6 +53,8 @@ Magic Dice.
   - [Movement Phase.](#Movement-Phase)
 
   - [Combat Phase.](#Combat-Phase)
+
+  - [Ranged](Ranged)
 
   - [Healing.](#Healing)
 
@@ -842,6 +844,16 @@ Once all the modifiers have been added to the damage roll, use the following tab
 | 19  | **major wound**: target is staggered and unable to attack for 4 rounds, after which they are -4 to hit, attack power and toughness, and 50% movement speed until healed |
 | 22  | **mortal wound:** target is knocked out and incapacitated for 1-3 days, during which they are unable to move and drift in and out of consciousness. -After 1-3 days, they my ST 21 (CON) or die. If the save is successful, the effects are the same as major wound until healed. |
 | 25  | **instant kill**: the wound is so grave that the target dies immediately |
+
+
+### Ranged
+For ranged weapons, each weapon has a listed base range, which is considered short range.  Ranged weapon attacks can also be made at long or very long range, but with a to hit and attack power penalty, based on a multiplier of the weapon’s base range:
+
+|Range|Range Multiplier|To Hit Penalty|Attack Power Penalty|
+{---|---|---|---|
+|Short|X1|||
+|Long|X2|-2|-2|
+|Very Long|X3|-5|-5|
 
 ### Healing
 
@@ -3075,6 +3087,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
