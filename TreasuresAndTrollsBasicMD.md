@@ -4,7 +4,7 @@
 
 Contents
 
-[Treasures and Trolls.](#_Toc219576487)
+[Treasures and Trolls.](#Treasures-and-Trolls)
 
 [Magic Dice](#Magic-Dice)
 
@@ -3056,6 +3056,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
