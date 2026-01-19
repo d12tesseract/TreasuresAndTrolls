@@ -122,7 +122,7 @@ The most important rule in T&T is there are no rules. Everything is this guide b
 
 In order to resolve actions into outcomes, the TM uses dice to represent the whims of chance. If every character knew the outcome of their actions before they make a decision, there would be no risk, and no adventure.
 
-T&T is based on special 12 sided dice, which are in the shape of a tesseract. A tesseract is a 4 dimensional hypercube, which can be projected to 3 dimensions as a 12 sided rhombic dodecahedron, or a 12 sided die. Most common 12 sided dice have pentagonal faces, but the tesseract dice use a rhombus, which is a fancy word for a diamond shape. Another way to look at it is a square that has been squashed diagonally into a diamond shape. The reason for this is the tesseract dice is actually a 4 dimensional hypercube which has been projected of 3 dimensions. Naturally, the sides of the tesseract are actually squares that have been distorted by being projected from 4 dimensions to 3.
+T&T uses a special type of 12‑sided die based on the geometry of a tesseract. A tesseract is a four‑dimensional hypercube, and when it’s projected into three dimensions it forms a 12‑sided solid called a rhombic dodecahedron. Unlike common 12‑sided dice, which use pentagonal faces, tesseract dice use rhombus‑shaped faces—essentially squares that have been stretched or skewed into a diamond shape. This shape comes directly from the projection: the faces of a tesseract are squares, and when those squares are mapped from four dimensions down to three, they become the rhombus faces of the die.
 
 The other interesting effect of using a tesseract is they can been stacked in 3 dimensions. Just like a cube can be stacked together in 3 dimensions, tesseracts can be stacked the same way in 4 dimensions. This is called a tessellation. So, this is why when you project the tesseract back to 3 dimensions, the rhombic dodecahedron can also be stacked in 3 dimensions, just like a cube.
 
@@ -3075,6 +3075,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
