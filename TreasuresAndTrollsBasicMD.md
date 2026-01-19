@@ -6,7 +6,7 @@ Contents
 
 [Treasures and Trolls.](#_Toc219576487)
 
-Magic Dice.
+[Magic Dice](MAgic-Dice)
 
 [The Magic Curve](#The-Magic-Curve)
 
@@ -53,6 +53,8 @@ Magic Dice.
   - [Movement Phase.](#Movement-Phase)
 
   - [Combat Phase.](#Combat-Phase)
+
+  - [Ranged](#Ranged)
 
   - [Healing.](#Healing)
 
@@ -122,7 +124,7 @@ The most important rule in T&T is there are no rules. Everything is this guide b
 
 In order to resolve actions into outcomes, the TM uses dice to represent the whims of chance. If every character knew the outcome of their actions before they make a decision, there would be no risk, and no adventure.
 
-T&T is based on special 12 sided dice, which are in the shape of a tesseract. A tesseract is a 4 dimensional hypercube, which can be projected to 3 dimensions as a 12 sided rhombic dodecahedron, or a 12 sided die. Most common 12 sided dice have pentagonal faces, but the tesseract dice use a rhombus, which is a fancy word for a diamond shape. Another way to look at it is a square that has been squashed diagonally into a diamond shape. The reason for this is the tesseract dice is actually a 4 dimensional hypercube which has been projected of 3 dimensions. Naturally, the sides of the tesseract are actually squares that have been distorted by being projected from 4 dimensions to 3.
+T&T uses a special type of 12‑sided die based on the geometry of a tesseract. A tesseract is a four‑dimensional hypercube, and when it’s projected into three dimensions it forms a 12‑sided solid called a rhombic dodecahedron. Unlike common 12‑sided dice, which use pentagonal faces, tesseract dice use rhombus‑shaped faces, essentially squares that have been stretched or skewed into a diamond shape. This shape comes directly from the projection: the faces of a tesseract are squares, and when those squares are mapped from four dimensions down to three, they become the rhombus faces of the die.
 
 The other interesting effect of using a tesseract is they can been stacked in 3 dimensions. Just like a cube can be stacked together in 3 dimensions, tesseracts can be stacked the same way in 4 dimensions. This is called a tessellation. So, this is why when you project the tesseract back to 3 dimensions, the rhombic dodecahedron can also be stacked in 3 dimensions, just like a cube.
 
@@ -163,20 +165,19 @@ Use the following chart to determine the DC roll for a standard action.- If fine
 
 Some common activities can be grouped easily into these difficulty classes.- These are just examples which can be used as guidelines for other actions. Also, most actions should be modified based on the specific circumstances. For example, is it dark out?-- Is the character being chased?
 
-|     |     |     |
-| --- | --- | --- |
 | **Difficulty** | **Actions** | **Ability Modifier** |
+| --- | --- | --- |
 | Very Easy | Climb a ladder | Dex |
 | Easy | Jump over a 5 foot gap | Dex |
 | Medium | Locate secret doors | Wis |
-| Find traps | Wis |
-| Hide in shadows | Dex |
-| Move Silently | Dex |
-| Vault over a 5 foot wall | Dex |
+| | Find traps | Wis |
+| | Hide in shadows | Dex |
+| | Move Silently | Dex |
+| | Vault over a 5 foot wall | Dex |
 | Hard | Jump a 10 foot gap | Dex |
-| Climb a castle wall | Dex |
-| Take an object without being noticed | Dex |
-| Know when someone is lying | Wis |
+| | Climb a castle wall | Dex |
+| | Take an object without being noticed | Dex |
+| | Know when someone is lying | Wis |
 | Very Hard | Do a backflip | Dex |
 
 Each action has different consequences for failure. Failure to find a secret door only means that action failed. But failure to jump a 10 foot gap would mean the character would fall into the gap. When actions fail, the TM must determine what the consequences are, usually by specifying additional actions and difficulties necessary. For example, if they fail to successfully jump across a deep chasm, they would require another hard difficulty action to grab onto the ledge, and another medium difficulty to climb back up, or else fall into the chasm to certain death.
@@ -843,6 +844,16 @@ Once all the modifiers have been added to the damage roll, use the following tab
 | 19  | **major wound**: target is staggered and unable to attack for 4 rounds, after which they are -4 to hit, attack power and toughness, and 50% movement speed until healed |
 | 22  | **mortal wound:** target is knocked out and incapacitated for 1-3 days, during which they are unable to move and drift in and out of consciousness. -After 1-3 days, they my ST 21 (CON) or die. If the save is successful, the effects are the same as major wound until healed. |
 | 25  | **instant kill**: the wound is so grave that the target dies immediately |
+
+
+### Ranged
+For ranged weapons, each weapon has a listed base range, which is considered short range.  Ranged weapon attacks can also be made at long or very long range, but with a to hit and attack power penalty, based on a multiplier of the weapon’s base range:
+
+| **Range** | **Range Multiplier** | **To Hit Penalty** | **Attack Power Penalty** |
+| --- | --- | --- | --- |
+| Short | X1 | | |
+| Long | X2 | -2 | -2 |
+| Very Long | X3 | -5 | -5 |
 
 ### Healing
 
@@ -1897,90 +1908,6 @@ Creates an invisible wall of force, either in a sphere up to 10 feet in radius, 
 Range: 120 feet
 
 Creates a wall of stone in any combination of up to 10 10 foot by 10 foot (or smaller) panels, 6 inches thick, oriented any way the caster wants, as long as they are contiguous. Each panel may be curved naturally up to 90 degrees, and can have openings like doors or windows. The spell can not be created where an object or creature is standing. -The wall appears immediately, but if the caster continues to concentrate on the spell and takes no other action for 10 minutes, the wall becomes permanent, natural stone. The stone is as hard as stone formed from lava in a single piece, but if not constructed properly, it may collapse under its own weight. It has the physical characteristics of normal granite.
-
-Suggestion
-
-Charm person
-
-charm monster
-
-change alignment
-
-hold person
-
-hold monster
-
-Stun
-
-Sleep
-
-Cure Light Wound
-
-Cure Serious Wound
-
-Cure Mortal Wound
-
-Cure Disease
-
-Cure Poison
-
-Delay Death
-
-Bless
-
-Jinx
-
-Telekinesis
-
-Dispel magic
-
-Enchant Weapon
-
-Protection
-
-Invisibility
-
-magic missile
-
-Disarm / fumble (drop any item)
-
-Paralyze
-
-knock back (force push)
-
-Polymorph Self
-
-Polymorph other
-
-Summon monster
-
-Disintegrate
-
-cone of cold
-
-fireball
-
-lightning bolt
-
-wall of fire
-
-wall of force
-
-summon weather (tornado, thunderstorm, blizzard, fog)
-
-turn undead
-
-face shift (polymorph for s specific person or face)
-
-wizard lock hold door
-
-blast open door
-
-Lock spell (moon/month, year/solstice/Equinox)
-
-Permanence - makes spell permanent, but only works on certain lvl 1 spells.
-
-Eclipse - causes the sun to be blotted out.
 
 # Creatures
 
@@ -3076,6 +3003,13 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
+
+
+
+
+
+
 
 
 
