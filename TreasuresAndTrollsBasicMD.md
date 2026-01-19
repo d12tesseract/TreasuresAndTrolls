@@ -106,7 +106,7 @@ Magic Dice.
 
   - [Unique.](#Unique)
 
-[Appendix A - D20 System..](#Appendix-A-D20-System)
+[Appendix A - D20 System](#Appendix-A-D20-System)
 
 [License.](#License)
 
@@ -3076,6 +3076,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
