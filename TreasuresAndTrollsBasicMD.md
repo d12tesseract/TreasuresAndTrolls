@@ -849,11 +849,11 @@ Once all the modifiers have been added to the damage roll, use the following tab
 ### Ranged
 For ranged weapons, each weapon has a listed base range, which is considered short range.  Ranged weapon attacks can also be made at long or very long range, but with a to hit and attack power penalty, based on a multiplier of the weapon’s base range:
 
-|Range|Range Multiplier|To Hit Penalty|Attack Power Penalty|
-{---|---|---|---|
-|Short|X1|||
-|Long|X2|-2|-2|
-|Very Long|X3|-5|-5|
+| **Range** | **Range Multiplier** | **To Hit Penalty** | **Attack Power Penalty** |
+| --- | --- | --- | --- |
+| Short | X1 | | |
+| Long | X2 | -2 | -2 |
+| Very Long | X3 | -5 | -5 |
 
 ### Healing
 
@@ -3087,6 +3087,7 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
+
 
 
 
