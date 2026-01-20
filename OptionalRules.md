@@ -126,3 +126,22 @@ Personality traits are helpful for adding depth to an NPC or random encounter.  
 | 22 | Suspicious|
 | 23 | Timid|
 | 24 | Wasteful|
+
+#### Creature Alignment
+
+Unless otherwise noted, all creatures have the same alignment as in the basic adventure guide.  However, creatures with higher intelligence and the ability to judge their own actions have both alignment and ethos:
+
+**Mythical Creatures**
+
+| **Creature** | **Alignment** | **Ethos** |
+| --- | --- | ---|
+| Doppelganger  | neutral | self interest, stoicism|
+| Gorgon | neutral | dominance, self interest|
+| Minotaur | chaotic neutral | dominance, valor|
+| Pegasus  | lawful good | allegiance, pride|
+| Sphinx  | lawful neutral | honor, yin-yang|
+| Unicorn | lawful good | ahisma, compassion|
+
+
+
+
