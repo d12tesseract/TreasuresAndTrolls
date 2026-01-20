@@ -156,6 +156,20 @@ Unless otherwise noted, all creatures have the same alignment as in the basic ad
 | Wraith  | chaotic evil | dominance, self interest|
 | Litch  | chaotic evil | dominance, self interest|
 
+**Demons**
+
+| **Creature** | **Alignment** | **Ethos** |
+| --- | --- | ---|
+| Imp  | chaotic evil | dominance, self interest|
+| Fiend | chaotic evil | dominance, self interest|
+| Hell Hound  | chaotic evil | dominance, self interest|
+| Dirus | chaotic evil | dominance, self interest|
+| Apocritus | chaotic evil | dominance, self interest|
+| Arachneus | chaotic evil | dominance, self interest|
+| Atroxus  | chaotic evil | dominance, self interest|
+| Maerus | chaotic evil | dominance, self interest|
+| Infernal Tormentor | neutral evil | dominance, self interest|
+| Pit Fiend | lawful evil | dominance, superiority|
 
 
 
