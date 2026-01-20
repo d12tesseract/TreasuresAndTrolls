@@ -171,6 +171,22 @@ Unless otherwise noted, all creatures have the same alignment as in the basic ad
 | Infernal Tormentor | neutral evil | dominance, self interest|
 | Pit Fiend | lawful evil | dominance, superiority|
 
+**Humanoids**
+
+| **Creature** | **Alignment** | **Ethos** |
+| --- | --- | ---|
+| Centaur | lawful neutral | stoicism, tribalism|
+| Faun | lawful good | compassion, honor|
+| Giant | chaotic neutral | dominance, greed|
+| Gnome | neutral | tribalism|
+| Goblin | chaotic neutral | dominance, greed|
+| Gremlin | chaotic neutral | dominance, greed|
+| Hobgoblin | chaotic neutral | dominance, greed|
+| Lizard Man | neutral | dominance, tribalism|
+| Ogre  | chaotic neutral | dominance, greed|
+| Satyr  | chaotic neutral  | honor, individualism|
+| Troll | chaotic neutral | dominance, greed|
+| War Troll  | chaotic neutral | dominance, greed|
 
 
 
