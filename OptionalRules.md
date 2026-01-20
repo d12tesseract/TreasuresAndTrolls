@@ -2,7 +2,8 @@
 - [Ethos](#Ethos)
 - [Personality Traits](#Personality-Traits)
 - [Creature Alignment](#Creature-Alignment)
-- 
+
+
 ### Alignment
 Character alignment can apply to an individual or also monster species.  Alignment determines the moral choices a character will make.  Alignment iis made up of two dimensions, law and chaos and good and evil.
 
@@ -142,6 +143,20 @@ Unless otherwise noted, all creatures have the same alignment as in the basic ad
 | Pegasus  | lawful good | allegiance, pride|
 | Sphinx  | lawful neutral | honor, yin-yang|
 | Unicorn | lawful good | ahisma, compassion|
+
+
+**Undead**
+
+| **Creature** | **Alignment** | **Ethos** |
+| --- | --- | ---|
+| Skeleton  | chaotic neutral | |
+| Zombie | chaotic neutral | |
+| Mummy  | chaotic evil | |
+| Wight  | chaotic evil | dominance, self interest|
+| Wraith  | chaotic evil | dominance, self interest|
+| Litch  | chaotic evil | dominance, self interest|
+
+
 
 
 
