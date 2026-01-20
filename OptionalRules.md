@@ -188,6 +188,12 @@ Unless otherwise noted, all creatures have the same alignment as in the basic ad
 | Troll | chaotic neutral | dominance, greed|
 | War Troll  | chaotic neutral | dominance, greed|
 
+**Dragons**
+
+| **Creature** | **Alignment** | **Ethos** |
+| --- | --- | ---|
+| Dragon | chaotic neutral | dominance, greed|
+
 
 
 
