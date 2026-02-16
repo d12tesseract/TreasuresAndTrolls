@@ -205,7 +205,7 @@ This material is being released using the Open Gaming License Version 1.0a and y
 
 The text of the Open Gaming License itself is not Open Game Content. Instructions on using the License are provided within the License itself.
 
-The following items are designated Product Identity, as defined in Section 1(e) of the Open Game License Version 1.0a, and are subject to the conditions set forth in Section 7 of the OGL, and are not Open Content: Treasures and Trolls.
+The following items are designated Product Identity, as defined in Section 1(e) of the Open Game License Version 1.0a, and are subject to the conditions set forth in Section 7 of the OGL, and are not Open Content: Treasures and Trolls, Tesseract Games.
 
 All of the rest of this document is Open Game Content as described in Section 1(d) of the License.
 
