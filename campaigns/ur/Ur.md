@@ -1,83 +1,61 @@
 [Astrology](#Astrology)
-- [Constlations](#Constelations) 
 [Calendar](#Calendar)
-[WorleMap](#WorleMap)
+[WorldMap](#WorldMap)
 [License](#License)
-- [Ethos](#Ethos)
-- [Personality Traits](#Personality-Traits)
-- [Creature Alignment](#Creature-Alignment)
 
 # Introduction
-This campaign is an example of how to use the basic or advanced Treasures and Trolls guides to create and adventure campaign.  It includes examples of how to customize the rules to fit the narrative of a story.  Every campaing needs some context about the world it is set in and some background about that world.  The amount of background lore created for the campagin depends on how much story background is needed. Enough detail should be included to fill out the story of the campaign, but not aso much it becomes a burden to the story telling.  At some point every campaing neeeds to tell a story, whihc is a balance between the background lore of the world the campaign is set in, and the details of the adventure modules that tell the story.  Creating the right amount of bacground details to support the adventure modules creates realism for the story, helps the players understand the wolrd the adventure is set in, and cam help embelish the adventure with context.
+This campaign is an example of how to use the basic or advanced Treasures and Trolls guides to create and adventure campaign.  It includes examples of how to customize the rules to fit the narrative of a story.  Every campaign needs some context about the world it is set in and some background about that world.  The amount of background lore created for the campaign depends on how much story background is needed. Enough detail should be included to fill out the story of the campaign, but not so much it becomes a burden to the story telling.  At some point every campaign needs to tell a story, which is a balance between the background lore of the world the campaign is set in, and the details of the adventure modules that tell the story.  Creating the right amount of background details to support the adventure modules creates realism for the story, helps the players understand the world the adventure is set in, and cam help embellish the adventure with context.
 
 This campaign is set in the world of Ur, a world of many races and cultures.
 
 # Astrology
-The world of Ur has 4 planets, two inner planets which appear low on the horizon either after sunset of berfore dawn, and two outer planets which can appear anywhere in the night sky, and always appear in opposition (directly overhead at midnight) once per year.
-
-## Constelations
-- The Scorpion - Y Gorspio
-- The Raven - Y Afar Dun
-- The Bull - Y Tarwa
-- The Hunter - Y Helwara / Ithranas
-- The Wolf - Y Balarad
-- The Oak Tree - Y Derwen
-- The Lion - Y Arle
-- The Twins - Y Dulwarda
-- The Serpent - Y Nassaras
-- The Ship - Y Caerban
-- Pegasus - Athalanus
-- The Ram - Y Reithan
-- The Magi - Na Dothani
-
-
-
+The world of Ur has 4 planets, two inner planets which appear low on the horizon either after sunset of before dawn, and two outer planets which can appear anywhere in the night sky, and always appear in opposition (directly overhead at midnight) once per year.
 
 # Calendar
-The Elven Urish Calendar is the standard calendar used by most Urish cultures.  It is a Lunar calendar based on both the annual seasons marked by the solstices and equnioxes and the progression of the moon's phases.
+The Elven Urish Calendar is the standard calendar used by most Urish cultures.  It is a Lunar calendar based on both the annual seasons marked by the solstices and equinoxes and the progression of the moon's phases.
 
 Each month begins on the first day after the appearance of the new moon, and lasts until the moon wanes and becomes new again.  The new year begins the day after the winter solstice, the shortest day of the year.
 
-Because of the relative lengths of the solar year and the lunar month, the Elven calendar is made up of a repeating cycle called a centarch of 110 years, 1,392 months and 39,306 days, which repeats when the new moon occurs on the same day as the winter solstice, so that the new month and new year begin on the same day.  These celestial periods result ina  month which is either 28 or 29 days long and a year that has 357 or 358 days, depending on the exact timing of both the new moon and the winter solstice.
+Because of the relative lengths of the solar year and the lunar month, the Elven calendar is made up of a repeating cycle called a centarch of 110 years, 1,392 months and 39,306 days, which repeats when the new moon occurs on the same day as the winter solstice, so that the new month and new year begin on the same day.  These celestial periods result in a  month which is either 28 or 29 days long and a year that has 357 or 358 days, depending on the exact timing of both the new moon and the winter solstice.
 
-Each month always begins on monday, and has 4 7 day weeks.  If the month has 29 days the last day of the month is called "Ursday", so that the following month can beign on a Monday.  Because the Urish month is about 28 1/4 days on average, this occurs about every 4 months.  The 29th day in a month (Ursday) is usually celebrated as a festival.  Depending on the time of year, it is either the Spring festival (1st festival in the year), Planting festival (always before summer solstice), Harvest festival (1st festival after summer solstice), and the Yule festival, whihc celebrates the coming begining of a new year and (eventually) return of summer and spring.  The Yule festival is always celebrated for the 12 days leading up to the festivasl day (on the last day of the month) Because not every year has 4 Ursday's, Yule will be celebrated on the first new moon after the winter solstice.  In the rare case where the first new moon after the winter solstice is on a 29 day month, the spring, planting and harvest festivals will all heppen one cycle later than ususal, although the planting festival must always come before the summer solstice and harvbest festival is always the first Ursday after the summer solstice.
+Each month always begins on Monday, and has 4 7 day weeks.  If the month has 29 days the last day of the month is called "Ursday", so that the following month can begin on a Monday.  Because the Urish month is about 28 1/4 days on average, this occurs about every 4 months.  The 29th day in a month (Ursday) is usually celebrated as a festival.  Depending on the time of year, it is either the Spring festival (1st festival in the year), Planting festival (always before summer solstice), Harvest festival (1st festival after summer solstice), and the Yule festival, which celebrates the coming beginning of a new year and (eventually) return of summer and spring.  The Yule festival is always celebrated for the 12 days leading up to the festivals day (on the last day of the month) Because not every year has 4 Ursdays, Yule will be celebrated on the first new moon after the winter solstice.  In the rare case where the first new moon after the winter solstice is on a 29 day month, the spring, planting and harvest festivals will all happen one cycle later than usual, although the planting festival must always come before the summer solstice and harvest festival is always the first Ursday after the summer solstice.
 
-Because each month begins on a new week, each week in the month has its own name, associated with the waxing and waning of the moon and the natural cycle of life, from youth toold age.  
+Because each month begins on a new week, each week in the month has its own name, associated with the waxing and waning of the moon and the natural cycle of life, from youth to old age.  
 
 1. Neweek - the first week of the month is associated with youth and rebirth.  Children are given special treatment during this week.
 2. Avenweek - the second week of the month is associated with newlyweds and young couples.  Newly married couples are given special treatment during this week.
 3. Moonweek - The third week in the month is associated with the full moon.
-4. Elderweek - the last week of the month is associated with old age and wisdeom.
+4. Elderweek - the last week of the month is associated with old age and wisdom.
 
-The weeks of the month are often refered to as a time of month or date indicator, for example to say an event occured in Elderweek in a particular month, or an event should occur during Moonweek of another month.  The weeks of the month are atually  avery convenient way to refer to when things happen or a general way, especailly when the specific day is less important than a general time range.  For specific dates, the ordinary day of the month would be used instead.
+The weeks of the month are often referred to as a time of month or date indicator, for example to say an event occurred in Elderweek in a particular month, or an event should occur during Moonweek of another month.  The weeks of the month are actually  a very convenient way to refer to when things happen or a general way, especially when the specific day is less important than a general time range.  For specific dates, the ordinary day of the month would be used instead.
 
-Each year is also associated with the weeks of the month, based on when the solstice occurs in the first month of the year.  Dates of specific events can shift signifcantly based on when the lunar calendar starts on any given year, so its helpful to refer to  ayear as a Young (New) Year, and Aven Year, Moon Year, or Elder Year.  Again, this is mainly to distinguish when events occur during the year.  So, for example in an Moon Year, the winter solstice occurs in the third weke of the month, so the first month (Gorspendry) would start 1-2 weeks after the winter solstice, which means the spring equinox would occur 89 days after the winter solstice in Elderweek of the third month (Tarwader).  So, the week of the summer solstices,  equinoxes and other important events will usually be in the same week of the month for each year type (Young, Aven, Moon, or Elder).  Other special events, in particular when to plant or harvest crops, are often tied to a specific week and month based on the year type as well.
+Each year is also associated with the weeks of the month, based on when the solstice occurs in the first month of the year.  Dates of specific events can shift significantly based on when the lunar calendar starts on any given year, so its helpful to refer to  a year as a Young (New) Year, and Aven Year, Moon Year, or Elder Year.  Again, this is mainly to distinguish when events occur during the year.  So, for example in an Moon Year, the winter solstice occurs in the third week of the month, so the first month (Balard) would start 1-2 weeks after the winter solstice, which means the spring equinox would occur 89 days after the winter solstice in Elderweek of the third month (Afranus).  So, the week of the summer solstices,  equinoxes and other important events will usually be in the same week of the month for each year type (Young, Aven, Moon, or Elder).  Other special events, in particular when to plant or harvest crops, are often tied to a specific week and month based on the year type as well.
 
-Each year may have 12 or 13 months, depending again on the timing of the winter solstice and the new moon.  Each 110 year centarch is divided into 5 22 year lunar cycles of 12 or 13 month years, which repeat 5 times each centarch.  In genral, roughly 2 years have 13 months for every 1 with only 12, in a repeating 3 year cycle, but because of the 22 year cycle sometimes a 13 month year gets skipped to align the lunar cycle with the annual cycle.
+Each year may have 12 or 13 months, depending again on the timing of the winter solstice and the new moon.  Each 110 year centarch is divided into 5 22 year lunar cycles of 12 or 13 month years, which repeat 5 times each centarch.  In general, roughly 2 years have 13 months for every 1 with only 12, in a repeating 3 year cycle, but because of the 22 year cycle sometimes a 13 month year gets skipped to align the lunar cycle with the annual cycle.
 
-Each month is named after the atrologicasl constelation in which roughly the full moon will apear, although this is an apporximation at best because the size of each constellaion in the night sky is far from uniform.
+Each month is named after the astrological constellation in which roughly the full moon will appear, although this is an approximation at best because the size of each constellation in the night sky is far from uniform.
 
-1. Gorspendry
-2. Afarder
-3. Tarwader
-4. Ithranasder
-5. Balardury
-6. Derwender
-7. Arlder
-8. Dulwarda
-9. Nassarader
-10. Caerbander
-11. Athalanasdary
-12. Reithander
-13. Dothander
+|Month| Constellation |
+|---|---|
+|1 - Balard|The Wolf|
+|2 - Illongander|The Ship|
+|3 - Afranus|The Raven|
+|4 - Tarwa|The Bull|
+|5 - Helwary|The Hunter|
+|6 - Derwender|The Oak Tree|
+|7 - Arle|The Lion|
+|8 - Gwairurdus|The Twins|
+|9 - Nassaras|Nassaras, The Serpent |
+|10 - Ularthus|The Bear|
+|11 - Athlanusder|Athlanus, The Winged Horse|
+|12 - Reithandry|The Ram|
+|13 - Dothander|The Magi|
 
-The first month of the year, Gorspendry, begins on the first new moon after the winter solstice.  The last month of the year could be Reithader or Dorthander depending on if it is a 12 or 13 month year.
+The first month of the year, Balard, begins on the first new moon after the winter solstice.  The last month of the year could be Reithandry or Dorthander depending on if it is a 12 or 13 month year.
 
 
 
-
-# Gods
-# WorleMap
+# WorldMap
 
 # License
 
