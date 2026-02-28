@@ -18,7 +18,15 @@ Each month begins on the first day after the appearance of the new moon, and las
 
 Because of the relative lengths of the solar year and the lunar month, Every 14 years there is a cycle called the Caelonic cycle where the lunar cycle repeats, so the new moon will occur at approximately the same time of year every 14 years.  However, the Caelonic cycle moves forward by about 1 day every 14 years, so if you start with the new moon on the winter solstice, after 14 years the new moon will happen about 1 day after the winter solstice.  There is a longer cycle called a centarch that is 79 years, 999 months and 28,285 days.  However, the centarch cycle loses 1 day every 11 centarchs.  After 11 centarch cycles, there is a longer cycle of 883 years, 11,166 months and 316,152 days.  If you add a 14 year caelon after every 11 centarchs the cycle will move forward 1 day to reset almost exactly to where it began with the new moon occuring on the winter solstice.  The 883 year cycle, called an aegon, isn't exact, it drifts about 30 minutes every 883 years, but for the purpose of a calendar, a cycle that only loses 30 minutes every 883 years is close enough.
 
-These celestial periods result in a year which is 12.646 months long, a month which is either 28.314 days long and a year that has 358.043 days. Each month always begins on Monday, and has 4 7 day weeks.  If the month has 29 days the last day of the month is called "Ursday", so that the following month can begin on a Monday.  Because the Urish month is about 28 1/3 days on average, this occurs about every 3 months.  The 29th day in a month (Ursday) is usually celebrated as a festival.  Depending on the time of year, it is either the Spring festival (1st festival in the year), Planting festival (always before summer solstice), Harvest festival (1st festival after summer solstice), and the Yule festival, which celebrates the coming beginning of a new year and (eventually) return of summer and spring.  The Yule festival is always celebrated for the 12 days leading up to the festivals day (on the last day of the month) Because not every year has 4 Ursdays, Yule will be celebrated on the first new moon after the winter solstice.  In the rare case where the first new moon after the winter solstice is on a 29 day month, the spring, planting and harvest festivals will all happen one cycle later than usual, although the planting festival must always come before the summer solstice and harvest festival is always the first Ursday after the summer solstice.
+These celestial periods result in a year which is 12.646 months long, a month which is either 28.314 days long and a year that has 358.043 days. Each month always begins on Monday, and has 4 7 day weeks.  If the month has 29 days the last day of the month is called "Ursday", so that the following month can begin on a Monday.  Because the Urish month is about 28 1/3 days on average, this occurs about every 3 months.  The 29th day in a month (Ursday) is usually celebrated as a festival.  
+
+- **Winter festival** (1st festival in the year) - This is often the hardest time of the year, and dependning on the past year's harvest, the 2inter's stores of foos may be running low.  This is a time of year to look forward to the next year and reflect on hardhsip and sacrifice.
+
+- **Spring festival** - Although still survivng on food from last years harvest, spring has returned, and new life is returning.  This is the time of year when livestock are born and is a celebration after the hardhsip of winter.
+
+- **Summer festival** - New crops are either being planted or have already been planted and are growing in the fields.
+
+- **Harvest festival** - This is normally a time of plenty.  Crops have been harvested and are stored for winter, it is a time of rejoicing and celebrating. 
 
 Because each month begins on a new week, each week in the month has its own name, associated with the waxing and waning of the moon and the natural cycle of life, from youth to old age.  
 
@@ -29,7 +37,7 @@ Because each month begins on a new week, each week in the month has its own name
 
 The weeks of the month are often referred to as a time of month or date indicator, for example to say an event occurred in Elderweek in a particular month, or an event should occur during Moonweek of another month.  The weeks of the month are actually  a very convenient way to refer to when things happen or a general way, especially when the specific day is less important than a general time range.  For specific dates, the ordinary day of the month would be used instead.
 
-Each year is also associated with the weeks of the month, based on when the solstice occurs in the last month of the previous year.  Dates of specific events can shift significantly based on when the lunar calendar starts on any given year, so its helpful to refer to  a year as a Young (New) Year, and Aven Year, Moon Year, or Elder Year.  Again, this is mainly to distinguish when events occur during the year.  So, for example in an Moon Year, the winter solstice occurs in the third week of the month, so the first month (Balard) would start 1-2 weeks after the winter solstice, which means the spring equinox would occur 89 days after the winter solstice in Elderweek of the third month (Afranus).  So, the week of the summer solstices,  equinoxes and other important events will usually be in the same week of the month for each year type (Young, Aven, Moon, or Elder).  Other special events, in particular when to plant or harvest crops, are often tied to a specific week and month based on the year type as well.
+Each year is also associated with the weeks of the month, based on how many weeks after the solstice in the previous year the first month of the new year begins.  Dates of specific events can shift significantly based on when the lunar calendar starts on any given year, so its helpful to refer to a year as a Young (New) Year, and Aven Year, Moon Year, or Elder Year.  Again, this is mainly to distinguish when events occur during the year.  So, for example in an Moon Year, the winter solstice occurs in the 3rd week after the winter solstice.  So, the week of the summer solstices,  equinoxes and other important events will usually be in the same week of the month for each year type (Young, Aven, Moon, or Elder).  Other special events, in particular when to plant or harvest crops, are often tied to a specific week and month based on the year type as well.
 
 Each year may have 12 or 13 months, depending again on the timing of the winter solstice and the new moon.  Each 110 year centarch is divided into 5 22 year lunar cycles of 12 or 13 month years, which repeat 5 times each centarch.  In general, roughly 2 years have 13 months for every 1 with only 12, in a repeating 3 year cycle, but because of the 22 year cycle sometimes a 13 month year gets skipped to align the lunar cycle with the annual cycle.
 
@@ -55,10 +63,10 @@ The first month of the year, Balard, begins on the first new moon after the wint
 
 ## Determining calendar details
 
-To put this all together, you can calculate the day of month for any year in an aegon by multiplyin the year by the number of months per year, to determine how many months since the begining of the aegon, then multiply the fractional part of the month by the number of days per month to determine which day of that month the solstice occurs on.
+To put this all together, you can calculate the days of month for any year in an aegon by multiplying the number of years since the begining of the aegon by the number of months per year.  This means you start form 0, so for year 1 the number of months since the begining of the aegon is of course 0. To determine how many months since the begining of the aegon, then multiply the fractional part of the month by the number of days per month to determine which day of that month the solstice occurs on.
 
 ```
-Year 314 of the aegon
+Year 315 of the aegon
 
 314 * 11166 / 883 = 3970.695 months
 
@@ -68,25 +76,69 @@ The solstice occurs on the 20th day of the Reithandry in year 313
 Balard 314 begins 8 days after the winter solstice
 ```
 
-So, the solstice on year 314 would happen on the 20th day of the last month of the previous year, making year 314 an moon year.  To find the equinox and solstice times, add 1/4, 1/2, amd 3/4 years to the winter solstice date.  Subtract 3970 to find the month in year 314. Using the number of months form the solstice helps remove rounding errors rather than convertting back and forth to days
+So, the solstice on year 315 would happen on the 20th day of the last month of the previous year.  To find the equinox and solstice times, add 1/4, 1/2, amd 3/4 years to the winter solstice date.  Subtract 3970 to find the month in year 315. Using the number of months form the solstice helps remove rounding errors rather than convertting back and forth to days.
 
 ```
-Year 314 of the aegon
+Year 315 of the aegon
 
 Calcualte the equinoxes and summer solstice dates
-314 * 11166 / 883 + (11166 / 883) * (1/4) - 3970 = 3.562
-314 * 11166 / 883 + (11166 / 883) * (1/2) - 3970 = 6.724
-314 * 11166 / 883 + (11166 / 883) * (3/4) - 3970 = 9.885
+314 * 11166 / 883 + (11166 / 883) * (1/4) - 3970 = 3.857
+314 * 11166 / 883 + (11166 / 883) * (1/2) - 3970 = 7.018
+314 * 11166 / 883 + (11166 / 883) * (3/4) - 3970 = 10.180
+314 * 11166 / 883 + (11166 / 883) * (4/4) - 3970 = 13.341
 
-Convert to days to find the day of the month
-.562 * 316152 / 11166 = 15.92 
-.724 * 316152 / 11166 = 20.49 
-.885 * 316152 / 11166 = 25.06 
 
-The spring equinox occurs on the 16th day of Afranus
-The summer solstice occurs on the 20th day of Derwender
-The fall equinox occurs on the 25th day of the Nassarus
+Convert to days to find the number of days since the start of the month
+.562 * 316152 / 11166 = 24.26 days
+.018 * 316152 / 11166 = 0.51 days
+.180 * 316152 / 11166 = 5.08 days
+.341 * 316152 / 11166 = 9.65 days
+
+Add 1 to the number of days since the start of the month because the first day of the month is day 1.
+The spring equinox occurs on the 25th day of Afranus
+The summer solstice occurs on the 1st day of Arle
+The fall equinox occurs on the 6th day of the Ularthus
+The winter solstice occurs on the 10th day of Dothander
 ```
+
+Since the winter solstice occurs in the 2nd week of Dothander, year 314 would be an Aven year.
+
+The last step is calculating which months have 28 days and which have 29.  Each 28 day month is short about 0.3138, which accumlates month over month, until the month is more than one day short.  When the total difference between the true month duration and the number of calendar days is more thsn 1, a day is added to align the calendar month with the true months.  To do this correctly, you ned to include the number of days "behind" the days were at the begining of the first month of the year, which is carried forward from the previous year.
+
+```
+Year 315
+
+314 * 11166 / 883 = 3970.695 months
+
+Days behind from 28 day months:
+3970 * 0.3138 = 1245.7860
+
+Days behind on first day of first month of year 314: .7860
+
+29 days in Balard, 0.0998 days behind at end of month
+28 days in Illongander, 0.4136 days behind at end of month
+28 days in Afranus, 0.7274 days behind at end of month
+29 days in Tarwa, 0.0412 days behind at end of month
+28 days in Helwary, 0.3550 days behind at end of month
+28 days in Derwender, 0.6688 days behind at end of month
+28 days in Arle, 0.9826 days behind at end of month
+29 days in Gwairurdus, 0.2964 days behind at end of month
+28 days in Nassaras, 0.6102 days behind at end of month
+28 days in Ularthus, 0.9240 days behind at end of month
+29 days in Athlanusder, 0.2378 days behind at end of month
+28 days in Reithandry, 0.5516 days behind at end of month
+28 days in Dothander, 0.8654 days behind at end of month
+```
+
+Based on these calculations, for the year 315:
+- Winter festival is Balard 29th
+- The spring equinox is on Afranus 25th 
+- Spring festival is Tarwa 29th
+- The summer solstice is on Arle 1st
+- Summer festival is Gwairurdus 29th
+- The fall equinox is on Ularthus 6th
+- Harvest festival is begins Athlanusder 18th and ends on Athlanusder 29th
+- The winter solstice is on Dothander 10th
 
 
 # WorldMap
