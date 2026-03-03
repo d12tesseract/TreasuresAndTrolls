@@ -46,20 +46,20 @@ Each month is named after the astrological constellation in which roughly the fu
 |Month| Constellation |
 |---|---|
 |1 - Balard|The Wolf|
-|2 - Illongander|The Ship|
+|2 - Caerbanuary|The Ship|
 |3 - Afranus|The Raven|
 |4 - Tarwa|The Bull|
-|5 - Helwary|The Hunter|
-|6 - Derwender|The Oak Tree|
+|5 - Heluary|The Hunter|
+|6 - Derwember|The Oak Tree|
 |7 - Arle|The Lion|
-|8 - Gwairurdus|The Twins|
-|9 - Nassaras|Nassaras, The Serpent |
+|8 - Gwanumber|The Twins|
+|9 - Nassaras|Nassaras, The Serpent|
 |10 - Ularthus|The Bear|
-|11 - Athlanusder|Athlanus, The Winged Horse|
-|12 - Reithandry|The Ram|
-|13 - Dothander|The Magi|
+|11 - Athlanumber|Athlanus, The Winged Horse|
+|12 - Reithamber|The Ram|
+|13 - Dothember|The Magi|
 
-The first month of the year, Balard, begins on the first new moon after the winter solstice.  The last month of the year could be Reithandry or Dorthander depending on if it is a 12 or 13 month year.
+The first month of the year, Balard, begins on the first new moon after the winter solstice.  The last month of the year could be Reithamber or Dorthander depending on if it is a 12 or 13 month year.
 
 ## Determining calendar details
 
@@ -72,7 +72,7 @@ Year 315 of the aegon
 
 .695 * 316152 / 11166 = 19.69 days
 
-The solstice occurs on the 20th day of the Reithandry in year 313
+The solstice occurs on the 20th day of the Reithamber in year 313
 Balard 314 begins 8 days after the winter solstice
 ```
 
@@ -98,10 +98,10 @@ Add 1 to the number of days since the start of the month because the first day o
 The spring equinox occurs on the 25th day of Afranus
 The summer solstice occurs on the 1st day of Arle
 The fall equinox occurs on the 6th day of the Ularthus
-The winter solstice occurs on the 10th day of Dothander
+The winter solstice occurs on the 10th day of Dothember
 ```
 
-Since the winter solstice occurs in the 2nd week of Dothander, year 314 would be an Aven year.
+Since the winter solstice occurs in the 2nd week of Dothember, year 314 would be an Aven year.
 
 The last step is calculating which months have 28 days and which have 29.  Each 28 day month is short about 0.3138, which accumlates month over month, until the month is more than one day short.  When the total difference between the true month duration and the number of calendar days is more thsn 1, a day is added to align the calendar month with the true months.  To do this correctly, you ned to include the number of days "behind" the days were at the begining of the first month of the year, which is carried forward from the previous year.
 
@@ -116,29 +116,29 @@ Days behind from 28 day months:
 Days behind on first day of first month of year 314: .7860
 
 29 days in Balard, 0.0998 days behind at end of month
-28 days in Illongander, 0.4136 days behind at end of month
+28 days in Caerbanuary, 0.4136 days behind at end of month
 28 days in Afranus, 0.7274 days behind at end of month
 29 days in Tarwa, 0.0412 days behind at end of month
-28 days in Helwary, 0.3550 days behind at end of month
+28 days in Heluary, 0.3550 days behind at end of month
 28 days in Derwender, 0.6688 days behind at end of month
 28 days in Arle, 0.9826 days behind at end of month
-29 days in Gwairurdus, 0.2964 days behind at end of month
+29 days in Gwanumber, 0.2964 days behind at end of month
 28 days in Nassaras, 0.6102 days behind at end of month
 28 days in Ularthus, 0.9240 days behind at end of month
-29 days in Athlanusder, 0.2378 days behind at end of month
-28 days in Reithandry, 0.5516 days behind at end of month
-28 days in Dothander, 0.8654 days behind at end of month
+29 days in Athlanumber, 0.2378 days behind at end of month
+28 days in Reithamber, 0.5516 days behind at end of month
+28 days in Dothember, 0.8654 days behind at end of month
 ```
 
 Based on these calculations, for the year 315:
-- Winter festival is Balard 29th
-- The spring equinox is on Afranus 25th 
-- Spring festival is Tarwa 29th
-- The summer solstice is on Arle 1st
-- Summer festival is Gwairurdus 29th
-- The fall equinox is on Ularthus 6th
-- Harvest festival is begins Athlanusder 18th and ends on Athlanusder 29th
-- The winter solstice is on Dothander 10th
+- Winter festival is 1/29 (Balard 29th)
+- The spring equinox is on 3/25 (Afranus 25th) 
+- Spring festival is 4/29 (Tarwa 29th)
+- The summer solstice is on 7/1 (Arle 1st)
+- Summer festival is 8/29 (Gwanumber 29th)
+- The fall equinox is on 10/6 (Ularthus 6th)
+- Harvest festival is on 11/29 (Athlanumber 29th)
+- The winter solstice is on 13/10 (Dothember 10th)
 
 
 # WorldMap
