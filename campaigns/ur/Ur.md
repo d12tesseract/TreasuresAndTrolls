@@ -1,15 +1,12 @@
-[Astrology](#Astrology)
-[Calendar](#Calendar)
-[WorldMap](#WorldMap)
-[License](#License)
+
+1. [Calendar](#Calendar)
+1. [WorldMap](#WorldMap)
+1. [License](#License)
 
 # Introduction
 This campaign is an example of how to use the basic or advanced Treasures and Trolls guides to create and adventure campaign.  It includes examples of how to customize the rules to fit the narrative of a story.  Every campaign needs some context about the world it is set in and some background about that world.  The amount of background lore created for the campaign depends on how much story background is needed. Enough detail should be included to fill out the story of the campaign, but not so much it becomes a burden to the story telling.  At some point every campaign needs to tell a story, which is a balance between the background lore of the world the campaign is set in, and the details of the adventure modules that tell the story.  Creating the right amount of background details to support the adventure modules creates realism for the story, helps the players understand the world the adventure is set in, and cam help embellish the adventure with context.
 
 This campaign is set in the world of Ur, a world of many races and cultures.
-
-# Astrology
-The world of Ur has 4 planets, two inner planets which appear low on the horizon either after sunset of before dawn, and two outer planets which can appear anywhere in the night sky, and always appear in opposition (directly overhead at midnight) once per year.
 
 # Calendar
 The Elven Urish Calendar is the standard calendar used by most Urish cultures.  It is a Lunar calendar based on both the annual seasons marked by the solstices and equinoxes and the progression of the moon's phases.
@@ -142,6 +139,16 @@ Based on these calculations, for the year 315:
 
 
 # WorldMap
+
+On a small scale, hex maps work great, but if you try to stretch the flat hex graph over a curved world surface, the hexes get stretched and distorted.  The only way to create a map of a whole world without badly distorting parts of the map, is to divide it into smaller sections, like peeling an orange, so that each section can be made flat without too much distortion.
+
+One convenient wayt to do this in the world of Treadures and Trolls is to divide the world into section matching the twelve faces of the rhombic dodecahedron dice used for the game.  This works well because each face of the die is a rhombus that is two equalateral triangles connected along one edge, which is naturally aligned with hex graph paper.
+
+For the world of Ur, each section is two triangles 30 hexes along an edge, and each hex is 180 miles accross.  Each section has a label, starting at the prime meridian and going around clockwise from the top (north), α - alpha, β - beta, γ - gamma, δ - delta, ε - epsilon and ζ - zeta.  The three sections at the top (north) are labeled θ - theta, ι - iota and κ - kappa, and the three section at the south are λ - lambda, μ - mu and ω – omega
+
+![Dodecahedron projection](tes_map_projection.png)
+
+![World map of Ur](ur_world.png)
 
 # License
 
