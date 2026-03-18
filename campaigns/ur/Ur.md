@@ -150,6 +150,9 @@ For the world of Ur, each section is two triangles 30 hexes along an edge, and e
 
 ![World map of Ur](ur_world.png)
 
+![Continent of Ur](ur-30-2.png)
+
+
 # License
 
 Permission to copy, modify and distribute this document known as the Treasures and Trolls Optional Rules is granted solely through the use of the Open Gaming License, Version 1.0a.
