@@ -27,7 +27,7 @@ These celestial periods result in a year which is 12.646 months long, a month wh
 
 Because each month begins on a new week, each week in the month has its own name, associated with the waxing and waning of the moon and the natural cycle of life, from youth to old age.  
 
-1. Sunweek - the first week of the month is associated with the sun, new children, and rebirth.
+1. Sunweek - the first week of the month is associated with the sun, newborns, and rebirth.  Children born in this week are considered especially lucky.
 2. Avenweek - the second week of the month is associated with newlyweds and young couples.  This is an auspicious time for marriages, which are often celebrated for the entire week.
 3. Moonweek - The third week in the month is associated with the full moon.
 4. Elderweek - the last week of the month is associated with old age and wisdom.
