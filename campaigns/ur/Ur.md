@@ -17,7 +17,7 @@ Because of the relative lengths of the solar year and the lunar month, Every 14 
 
 These celestial periods result in a year which is 12.646 months long, a month which is either 28.314 days long and a year that has 358.043 days. Each month always begins on Monday, and has 4 7 day weeks.  If the month has 29 days the last day of the month is called "Ursday", so that the following month can begin on a Monday.  Because the Urish month is about 28 1/3 days on average, this occurs about every 3 months.  The 29th day in a month (Ursday) is usually celebrated as a festival.  
 
-- **Winter festival** (1st festival in the year) - This is often the hardest time of the year, and dependning on the past year's harvest, the 2inter's stores of foos may be running low.  This is a time of year to look forward to the next year and reflect on hardhsip and sacrifice.
+- **New year festival** (1st festival in the year) - This is often the hardest time of the year, and dependning on the past year's harvest, the winter's stores of food may be running low.  Although it is a time of hardship, it is also one of the biggest festivals of the year.  This is a time of year to look forward to the next year and reflect on hardhsip and sacrifice.
 
 - **Spring festival** - Although still survivng on food from last years harvest, spring has returned, and new life is returning.  This is the time of year when livestock are born and is a celebration after the hardhsip of winter.
 
@@ -27,8 +27,8 @@ These celestial periods result in a year which is 12.646 months long, a month wh
 
 Because each month begins on a new week, each week in the month has its own name, associated with the waxing and waning of the moon and the natural cycle of life, from youth to old age.  
 
-1. Neweek - the first week of the month is associated with youth and rebirth.  Children are given special treatment during this week.
-2. Avenweek - the second week of the month is associated with newlyweds and young couples.  Newly married couples are given special treatment during this week.
+1. Sunweek - the first week of the month is associated with the sun, new children, and rebirth.
+2. Avenweek - the second week of the month is associated with newlyweds and young couples.  This is an auspicious time for marriages, which are often celebrated for the entire week.
 3. Moonweek - The third week in the month is associated with the full moon.
 4. Elderweek - the last week of the month is associated with old age and wisdom.
 
@@ -49,10 +49,10 @@ Each month is named after the astrological constellation in which roughly the fu
 |5 - Heluary|The Hunter|
 |6 - Derwember|The Oak Tree|
 |7 - Arle|The Lion|
-|8 - Gwanumber|The Twins|
+|8 - Gwanuary|The Twins|
 |9 - Nassaras|Nassaras, The Serpent|
 |10 - Ularthus|The Bear|
-|11 - Athlanumber|Athlanus, The Winged Horse|
+|11 - Athlanuary|Athlanus, The Winged Horse|
 |12 - Reithamber|The Ram|
 |13 - Dothember|The Magi|
 
@@ -119,22 +119,24 @@ Days behind on first day of first month of year 314: .7860
 28 days in Heluary, 0.3550 days behind at end of month
 28 days in Derwender, 0.6688 days behind at end of month
 28 days in Arle, 0.9826 days behind at end of month
-29 days in Gwanumber, 0.2964 days behind at end of month
+29 days in Gwanuary, 0.2964 days behind at end of month
 28 days in Nassaras, 0.6102 days behind at end of month
 28 days in Ularthus, 0.9240 days behind at end of month
-29 days in Athlanumber, 0.2378 days behind at end of month
+29 days in Athlanuary, 0.2378 days behind at end of month
 28 days in Reithamber, 0.5516 days behind at end of month
 28 days in Dothember, 0.8654 days behind at end of month
 ```
 
 Based on these calculations, for the year 315:
-- Winter festival is 1/29 (Balard 29th)
+- Winter solstice is on the 20th day of Reithamber 314
+- Year 315 is an Aven year, because it begins in Avenweek of Reithamber 314
+- New year festival is 1/29 (Balard 29th)
 - The spring equinox is on 3/25 (Afranus 25th) 
 - Spring festival is 4/29 (Tarwa 29th)
 - The summer solstice is on 7/1 (Arle 1st)
-- Summer festival is 8/29 (Gwanumber 29th)
+- Summer festival is 8/29 (Gwanuary 29th)
 - The fall equinox is on 10/6 (Ularthus 6th)
-- Harvest festival is on 11/29 (Athlanumber 29th)
+- Harvest festival is on 11/29 (Athlanuary 29th)
 - The winter solstice is on 13/10 (Dothember 10th)
 
 
