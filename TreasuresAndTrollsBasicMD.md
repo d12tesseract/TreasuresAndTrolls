@@ -197,6 +197,7 @@ The standard actions are meant for actions where there is reasonable chance of f
 | 2%  | 5   | Galloping on a horse |
 | 5%  | 7   | Running down a flight of stairs |
 | 10% | 9   | Walking on a slippery or icy surface |
+| 15% | 11  | Russian roulette |
 
 
 **Using regular 12 sided dice:**
