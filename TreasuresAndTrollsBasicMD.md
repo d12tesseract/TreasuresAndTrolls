@@ -138,7 +138,7 @@ T&T addresses a common issue present in other role-playing games related to prob
 
 A twenty'sided die yields a natural 20 five percent of the time, or one in twenty. The distinctive dice used in T&T generate a probability curve that addresses this issue. These dice are numbered from 0 to 10, with a special symbol ⬡ on the twelfth face. A standard roll in T&T involves three dice, and summing all three produces a probability distribution known as a bell curve. This distribution means that, as more dice are rolled, results tend to cluster around the average, while the likelihood of achieving very high or very low totals diminishes.
 
-For example, if a first level fighter attacks a large dragon with a great sword, the probability of delivering a fatal blow is extremely low. Even a one in twenty chance for a "natural" 20 would be unrealistic for such an encounter. However, with the magic curve, the cumulative probability of scoring 30 or higher is approximately 1%, and the chance of rolling maximum possible score of 33 is less than 0.06%. This allows a much wider range of outcomes, even the nearly miraculous outcome of a first level fighter striking off the head of a dragon in one blow. A flat d20 simply doesn-t allow for the range and diversity of outcomes that magic dice do.
+For example, if a first level fighter attacks a large dragon with a great sword, the probability of delivering a fatal blow is extremely low. Even a one in twenty chance for a "natural" 20 would be unrealistic for such an encounter. However, with the magic curve, the cumulative probability of scoring 30 or higher is approximately 1%, and the chance of rolling maximum possible score of 33 is less than 0.06%. This allows a much wider range of outcomes, even the nearly miraculous outcome of a first level fighter striking off the head of a dragon in one blow. A flat d20 simply doesn't allow for the range and diversity of outcomes that magic dice do.
 
 The reason the magic curve works the way it does is that in order to score 33, you need to roll the max roll on all 3 dice. There are 12 sides on each die, making a total of 12 x 12 x 12 combinations total, or 1728 .- And there is only one roll out of all 1728 that adds up to the perfect 33. However, there are 3 combination that make 32, so it is 3 times more likely to score 32 than 33. There are 6 different rolls that make 31, so thats about twice as likely than 32, and so on. And, in the middle are 16 and 17, which are both the most likely score. There are 108 combinations that add up to 16 and 108 that add up to 17, making them both the most likely scores at 6.3%. If you divide the scores in half, there is exactly 50% chance to score 16 or lower, and 50% chance to score 17 or higher.
 
@@ -188,7 +188,7 @@ It's important to understand that any action the players choose to take can be r
 
 #### Low Failure Probabilities
 
-The standard actions are meant for actions where there is reasonable chance of failure. If the chance of failure is below about 25%, those kind of actions generally don-t need a roll to succeed, because they are most likely going to succeed anyway. However, some actions DO need a failure check, if the consequences of failure are severe. The chance of safely, for example, galloping on horse, is over 95%. But, the consequences of failure might be severe injury or death of a player. So, in some cases even when the chance of failure is very low, you may need a way to resolve an action with a very small chance of failure. Using the table of probabilities for a standard dice check, you can determine the DC needed for any probability actions:
+The standard actions are meant for actions where there is reasonable chance of failure. If the chance of failure is below about 25%, those kind of actions generally don't need a roll to succeed, because they are most likely going to succeed anyway. However, some actions DO need a failure check, if the consequences of failure are severe. The chance of safely, for example, galloping on horse, is over 95%. But, the consequences of failure might be severe injury or death of a player. So, in some cases even when the chance of failure is very low, you may need a way to resolve an action with a very small chance of failure. Using the table of probabilities for a standard dice check, you can determine the DC needed for any probability actions:
 
 | **Failure Chance** | **DC** |  Examples |
 | --- | --- | --- | 
@@ -690,7 +690,7 @@ Roll DC 23 to determine if the treasure also contains gems or jewelry, modified 
 
 ### Magic items
 
-Magic items are exceptionally rare. -Most of them will provide a significant advantage to any party who possesses one. Also, when first found most magic items will appear to be perfectly normal if finely crafted item. A party should use a detect magic spell to determine if any items are enchanted, and identify to determine what they do and how to use them. Most items can-t be used properly until they are identified, such as scrolls, staves and wands, and others may be used but the effect would be unknown. So, for example a player may wield a +1 sword without identifying it, but they would not know if there was an advantage. For practical reasons, a TM can-t just add +1 to a damage of to hit roll without a player realizing an item is enchanted, so to keep the information unknown to the player, they simply wouldn-t get any bonuses until they identify the item. Only in a case where a bonus could be added in secret could a TM fairly give players bonuses on items they have not identified, but as a practical matter they just generally don-t get the bonus until the item is identified. Simply swinging a magic sword around is in no way the same thing as having it identified properly.
+Magic items are exceptionally rare. -Most of them will provide a significant advantage to any party who possesses one. Also, when first found most magic items will appear to be perfectly normal if finely crafted item. A party should use a detect magic spell to determine if any items are enchanted, and identify to determine what they do and how to use them. Most items can't be used properly until they are identified, such as scrolls, staves and wands, and others may be used but the effect would be unknown. So, for example a player may wield a +1 sword without identifying it, but they would not know if there was an advantage. For practical reasons, a TM can't just add +1 to a damage of to hit roll without a player realizing an item is enchanted, so to keep the information unknown to the player, they simply wouldn't get any bonuses until they identify the item. Only in a case where a bonus could be added in secret could a TM fairly give players bonuses on items they have not identified, but as a practical matter they just generally don't get the bonus until the item is identified. Simply swinging a magic sword around is in no way the same thing as having it identified properly.
 
 Roll DC 25 to check if any magic items are found. If the encounter level is above level 5, add +2 for each level above 5. If found, roll d3 to determine how many magic items are found, then roll b3 (no rerolls) and use the following table to check for each item what kind of magic item is found.
 
@@ -836,7 +836,7 @@ Scrolls contain spells that can only be cast once. Only a magic user can use a s
 
 **Potion**
 
-Potions are small crystal vials containing about 1-2 ounces of fluid that must be drunk. Potion vials are surprisingly sturdy and wont easily break if dropped. However, they generally aren-t labeled, so if whoever drinks the potion wants to know what effect they will gain, they should take it to an alchemist who would be able to identify what kind of potion it is, or use a 1st level magic user Identify spell.
+Potions are small crystal vials containing about 1-2 ounces of fluid that must be drunk. Potion vials are surprisingly sturdy and wont easily break if dropped. However, they generally aren't labeled, so if whoever drinks the potion wants to know what effect they will gain, they should take it to an alchemist who would be able to identify what kind of potion it is, or use a 1st level magic user Identify spell.
 
 \- Invisibility - User becomes invisible as if the target of an invisibility spell.
 
@@ -856,7 +856,7 @@ Potions are small crystal vials containing about 1-2 ounces of fluid that must b
 
 Misc
 
-\- Cloak of Invisibility - the wearer becomes invisible as long as they don-t attack or cast spells.
+\- Cloak of Invisibility - the wearer becomes invisible as long as they don't attack or cast spells.
 
 \- Cloak of Protection - roll for item bonus. The bonus effect is applied as a bonus to the wearer's toughness.
 
@@ -1107,7 +1107,7 @@ Weapons: Staffs, all one handed melee weapons, bows, and crossbows
 
 Special abilities: Pickpocketing, lockpicking, find traps, hide in shadows, move silently, back stabbing
 
-Thieves specialize in burglary, assassination, and other skills necessary for breaking rules and taking things other people don-t want taken. Although stealing, theft and law breaking are often the reasons why someone would pursue this profession, they arent the only ones. The profession of thief offers skills aligned with spycraft as well as dungeon adventuring. Thievery is not unlawful when its is employed to separate a monster from its treasure.
+Thieves specialize in burglary, assassination, and other skills necessary for breaking rules and taking things other people don't want taken. Although stealing, theft and law breaking are often the reasons why someone would pursue this profession, they arent the only ones. The profession of thief offers skills aligned with spycraft as well as dungeon adventuring. Thievery is not unlawful when its is employed to separate a monster from its treasure.
 
 Thieves have many skills important to their craft that require a dice check. For each of these skills, the thief gains an additional +1 modifier on the check for each level above 1, +1 at level 2, +2 at 3, etc.
 
@@ -1176,7 +1176,7 @@ Also, unless otherwise noted, a spell caster may dismiss the effects of any spel
 **Command**  
 Range: 40 feet
 
-The caster may direct a single word instruction at a target within range. The target may roll ST (WIS/CHARM) (modified by caster wis) and if they fail, they will involuntarily follow the instructions. The subject can not choose how they comply, they will follow the instruction in the most obvious and plain way, but they also cant do something they wouldn-t ordinarily do voluntarily. So, die or even sleep are not things a person can ordinarily do on command, so that would have no effect, but commands like stop, run, go, etc. will cause them to follow that instruction.
+The caster may direct a single word instruction at a target within range. The target may roll ST (WIS/CHARM) (modified by caster wis) and if they fail, they will involuntarily follow the instructions. The subject can not choose how they comply, they will follow the instruction in the most obvious and plain way, but they also cant do something they wouldn't ordinarily do voluntarily. So, die or even sleep are not things a person can ordinarily do on command, so that would have no effect, but commands like stop, run, go, etc. will cause them to follow that instruction.
 
 **Create Water**  
 Range: 30 feet
@@ -1207,7 +1207,7 @@ For 10 minutes, the caster is able to sense the presence of evil creatures or ob
 **Detect Magic**  
 Range: 20 feet
 
-This spell reveals the presence of all magical items within 20 feet, even if they are hidden or concealed. For example, if a table contains many scrolls and vials of different liquids, and amongst them are 2 magical potions and one magical scroll, this spell will reveal exactly which ones have magical properties, and which don-t.
+This spell reveals the presence of all magical items within 20 feet, even if they are hidden or concealed. For example, if a table contains many scrolls and vials of different liquids, and amongst them are 2 magical potions and one magical scroll, this spell will reveal exactly which ones have magical properties, and which don't.
 
 **Detect Poison**  
 Range: 10 feet
@@ -1276,7 +1276,7 @@ Similar to the cure light wound spell, this spell channels energy into a single 
 **Find Traps**  
 Range: 40 feet
 
-This spell will detect the presence of all traps in a 40 foot radius. The trap trigger mechanism or the trap itself must be in line of sight to the spell caster, so for example it won-t detect traps in other rooms nearby. If there are multiple traps in the spell area, all will be revealed. The spell also reveals the trigger mechanism for each trap, and any safety switches to disarm them, although if multiple switches must be triggered in a certain order, the spell will reveal the trigger switches but not which order they need to be triggered in to disarm the trap.
+This spell will detect the presence of all traps in a 40 foot radius. The trap trigger mechanism or the trap itself must be in line of sight to the spell caster, so for example it won't detect traps in other rooms nearby. If there are multiple traps in the spell area, all will be revealed. The spell also reveals the trigger mechanism for each trap, and any safety switches to disarm them, although if multiple switches must be triggered in a certain order, the spell will reveal the trigger switches but not which order they need to be triggered in to disarm the trap.
 
 **Hold Person**  
 Range: 60 feet  
@@ -1365,7 +1365,7 @@ Temporarily animates a corpse or skeleton enough for it to speak. The caster may
 
 Speak with dead does not recall the departed soul into the body, it just uses the body like a recorder to extract any information it would have had in life. Since the spell is not actually affecting the living creature the corpse once was, there are no level or ability benefits for it to resist, so the save is made as a dumb pile of inanimate flesh and bone.
 
-One other benefit, since you aren-t actually speaking with the living creature, is it can speak common or whatever language the caster asks the question in, even if in life it could not.
+One other benefit, since you aren't actually speaking with the living creature, is it can speak common or whatever language the caster asks the question in, even if in life it could not.
 
 **Water Walk**  
 Range: 10 feet  
@@ -1458,17 +1458,17 @@ This spell targets a single humanoid within range, compelling them to regard the
 **Detect Magic**  
 Range: 20 feet
 
-This spell reveals the presence of all magical items within 20 feet, even if they are hidden or concealed. For example, if a table contains many scrolls and vials of different liquids, and amongst them are 2 magical potions and one magical scroll, this spell will reveal exactly which ones have magical properties, and which don-t.
+This spell reveals the presence of all magical items within 20 feet, even if they are hidden or concealed. For example, if a table contains many scrolls and vials of different liquids, and amongst them are 2 magical potions and one magical scroll, this spell will reveal exactly which ones have magical properties, and which don't.
 
 **Detect Secret Doors**  
 Range: 40 feet
 
-This spell will detect the presence of any secret doors or other concealed openings in a 40 foot radius. The door or opening must be visible to the spell caster, so for example it won-t detect secret openings in other rooms nearby. IF there are multiple concealed openings in the spell area, all will be revealed. The spell also reveals the release mechanism to open the door, although if multiple release must be triggered in a certain order, like a puzzle lock, the spell will reveal the mechanism but not which order they need to be triggered in.
+This spell will detect the presence of any secret doors or other concealed openings in a 40 foot radius. The door or opening must be visible to the spell caster, so for example it won't detect secret openings in other rooms nearby. IF there are multiple concealed openings in the spell area, all will be revealed. The spell also reveals the release mechanism to open the door, although if multiple release must be triggered in a certain order, like a puzzle lock, the spell will reveal the mechanism but not which order they need to be triggered in.
 
 **Disguise Self**  
 Duration:- 1 hour
 
-Disguise your appearance, clothing and equipment to appear as your choice. You can also appear as a different race but can-t change your height by more than +/- 1 foot. Anyone viewing the disguise can roll ST 24 (WIS/CHARM) to see through the disguise, but they must consciously choose to do so, in other words casual observers would not give you a second thought, but someone looking at you directly would get a check if something seems off or they just get a hunch. The caster's INT modifier is included as a modifier to the ST.
+Disguise your appearance, clothing and equipment to appear as your choice. You can also appear as a different race but can't change your height by more than +/- 1 foot. Anyone viewing the disguise can roll ST 24 (WIS/CHARM) to see through the disguise, but they must consciously choose to do so, in other words casual observers would not give you a second thought, but someone looking at you directly would get a check if something seems off or they just get a hunch. The caster's INT modifier is included as a modifier to the ST.
 
 **Feather Fall**  
 Range: 30 feet + 5 feet/2 levels
@@ -1753,7 +1753,7 @@ Removes all curses from an object or person. IF the object is a cursed item, the
 Area of effect: 10 foot radius sphere.  
 Duration: 1 hour
 
-When cast, the caster and everyone within a 10 foot radius sphere become invisible. The effects last as long as they stay within 10 feet of the caster and don-t attack or cast spells. The effect moves with the caster, but only includes those made invisible when the spell was cast initially.
+When cast, the caster and everyone within a 10 foot radius sphere become invisible. The effects last as long as they stay within 10 feet of the caster and don't attack or cast spells. The effect moves with the caster, but only includes those made invisible when the spell was cast initially.
 
 **Slow**  
 Range: 120 feet  
@@ -1813,7 +1813,7 @@ The caster creates a sphere of confusion centered on a point in sight within 90 
 Range: 80 feet  
 Duration: 1 round per level
 
-The caster may excavate 125 cubic feet of earth, dirt, sand, or mud per round. The pit so excavated is not magically supported and may easily collapse, especially if digging in sand, which generally collapses to a 50% slope. Excavating a subterranean tunnel more than 5 feet is very difficult and will almost certainly collapse if they dig more than 5 feet into and existing wall. The caster may direct the excavated earth into a pile anywhere in range, although the pile can-t be shaped in any way.- Each 125 cubic feet of earth moved can be placed in a pile with a 50% slope, which would be a pile 5 feet high with a 5 foot radius. Each round however, the pile may be placed in another location, so it could be built up into a berm if desired.
+The caster may excavate 125 cubic feet of earth, dirt, sand, or mud per round. The pit so excavated is not magically supported and may easily collapse, especially if digging in sand, which generally collapses to a 50% slope. Excavating a subterranean tunnel more than 5 feet is very difficult and will almost certainly collapse if they dig more than 5 feet into and existing wall. The caster may direct the excavated earth into a pile anywhere in range, although the pile can't be shaped in any way.- Each 125 cubic feet of earth moved can be placed in a pile with a 50% slope, which would be a pile 5 feet high with a 5 foot radius. Each round however, the pile may be placed in another location, so it could be built up into a berm if desired.
 
 **Fabricate**  
 Range: 25 feet + 2 feet per level  
@@ -1938,7 +1938,7 @@ Range: 120 feet
 Area of effect: 20 foot radius sphere  
 Duration: 10 minutes
 
-This spell creates a thick fog of noxious poison gas that can kill on contact in a 20 foot radius sphere. All creatures entering or remaining in the cloud will receive poison damage equal to an attack power 15 attack, which ignores armor. The cloud will persist for 10 minutes, and can be moved up to 10 feet per minute by the caster in whatever direction they choose. The poisonous cloud kills on contact, so even creatures which don-t breath can still be poisoned.
+This spell creates a thick fog of noxious poison gas that can kill on contact in a 20 foot radius sphere. All creatures entering or remaining in the cloud will receive poison damage equal to an attack power 15 attack, which ignores armor. The cloud will persist for 10 minutes, and can be moved up to 10 feet per minute by the caster in whatever direction they choose. The poisonous cloud kills on contact, so even creatures which don't breath can still be poisoned.
 
 **Telekinesis**  
 Range: 60 feet  
@@ -2772,7 +2772,7 @@ XP Value:
 
 Gnomes are small, short legged and round bellied creatures who live in forest, hills, or caves. Gnomes live in small villages and shun people, although they often associate with elves and other woodland species. Gnomes are also miners and may form relationships with dwarves as well.
 
-Being small, they will avoid combat if they can, but if pressed they can fight with small bows or spears. They are very skilled at avoiding detections, and have a natural skill to hide in shadows or move silently like a 2nd level thief. IF they don-t want to be seen, you often will not see them at all.
+Being small, they will avoid combat if they can, but if pressed they can fight with small bows or spears. They are very skilled at avoiding detections, and have a natural skill to hide in shadows or move silently like a 2nd level thief. IF they don't want to be seen, you often will not see them at all.
 
 **Goblin**  
 Level: 1  
@@ -2830,7 +2830,7 @@ XP Value: 15
 
 Lizard men are brutish, bipedal humanoid lizards. Their intelligence is limited but sufficient to make simple weapons and build crude dwellings. They have their own simple language which only they speak, but often communicate with gestures and grunts. They may live in caves or burrows and prefer to live near a river, lake or swamp. They sometimes build a defensive berm and palisade around their dwellings if it is a large group. Lizard Man villages are usually small and led by the largest and most physically powerful individual. Leadership can change when another lizard man challenges the current leader.
 
-Although lizard men are less intelligent than humans, they are significantly tougher and stronger because of their reptilian anatomy. They are also excellent swimmers. They can-t breath underwater but because of their cold blooded metabolism they may stay submerged for up to an hour in a semi dormant state, and can swim freely for up to 15 minutes without needed to come to the surface to breath.- -
+Although lizard men are less intelligent than humans, they are significantly tougher and stronger because of their reptilian anatomy. They are also excellent swimmers. They can't breath underwater but because of their cold blooded metabolism they may stay submerged for up to an hour in a semi dormant state, and can swim freely for up to 15 minutes without needed to come to the surface to breath.- -
 
 **Ogre 9**  
 Level: 9  
