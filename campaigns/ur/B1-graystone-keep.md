@@ -4,18 +4,21 @@
 # Factions
 
 **Kingdom of Rilian**
+The kingdom of Rilian is a kingdom to the north and home of the Arcaneum, a university of magical and scientific research.  The kingdom of Rilian embrace magic as a force for good.
 
-House Ebonreach
+- **House Ebonreach** - The current ruling house of Rilian, Ebonreach value justice.  The king believes the kingdom serves its people.  His objective is the safety and wellbeing of all hsi subjects.
 
-House Vaylor
+- **House Vaylor** - The rivals of house Ebonreach, on the surface the serve the king, but secretly work to undermine him and seize control.  Vaylor has come under the sway of agents and spies of Lokor, and soem nobles are secretly members of the Cult of Lokor.
 
 **Kindom of Arnsland**
-House Arnburg
+The kingdom of Arnsland is a kingdom to the south.  In Arnsland, all magic is outlawed as it opens a door to demons and evil forces.  The arnish army is lead by clerics and paladins
 
-House Longmarch
+- **House Arnburg** The current ruling house in name, Arnburg has been weakened by their rival house Longmarhc.  The other noble houses support the king only when compeled to do so, and it is increasingly diffuclt for the king to both maintain the peace and protect the commoners.  Although the king does fight for the well being of all his subjects, this is made difficult by nearly open rebelion form the nobles
+
+- **House Longmarch** Under the scret influence of spies of Lokor, Longmarch is trying to depose the king and take the throne for themselves.  Although not yet in open rebelion, it is an open secret that they do not support the king.  Like Vaylor, many nobles in Longmarch are secretly members of the cult of Lokor.
 
 **Talerins**
-The Talerin kingdom is a confederacy of clans.  Their idea of justive is based on their clan and honor.  They are bound by their word and any alliances of their clans.  The confederacy itself is held together by a series of ancient alliances of the clans, which largely prevents open war amongst the clans, although blood feuds and interclan skirmishing is not uncommon.  These matters are often settled by forced consent from pressure from the other clans, through the high council of clans, who may judge who has been wronged and demand restitution be paid.
+The Talerin kingdom is a confederacy of clans.  Their idea of justice is based on their clan and honor.  They are bound by their word and any alliances of their clans.  The confederacy itself is held together by a series of ancient alliances of the clans, which largely prevents open war amongst the clans, although blood feuds and interclan skirmishing is not uncommon.  These matters are often settled by forced consent from pressure from the other clans, through the high council of clans, who may judge who has been wronged and demand restitution be paid.
 
 **Elvenwood**
 The elves of Elvenwood consider themselves the guardians of all Ur and the vanguard in the war against the Fomoriancs, their ancient enemy.  Their main objective in this war is to unite the other races, even the goblins, against their common enemy, and to put aside their differences and stand strong against the forces of the Fomorians.  Unfortunately they are seldom succesful in uniting the other races.
