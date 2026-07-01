@@ -188,9 +188,9 @@ It's important to understand that any action the players choose to take can be r
 
 #### Low Failure Probabilities
 
-The standard actions are meant for actions where there is reasonable chance of failure. If the chance of failure is below about 25%, those kind of actions generally don't need a roll to succeed, because they are most likely going to succeed anyway. However, some actions DO need a failure check, if the consequences of failure are severe. The chance of safely, for example, galloping on horse, is over 95%. But, the consequences of failure might be severe injury or death of a player. So, in some cases even when the chance of failure is very low, you may need a way to resolve an action with a very small chance of failure. Using the table of probabilities for a standard dice check, you can determine the DC needed for any probability actions:
+The standard actions are meant for actions where there is reasonable chance of failure. If the chance of failure is below about 25%, those kind of actions generally don't need a roll to succeed, because they are most likely going to succeed anyway. However, some actions DO need a failure check, if the consequences of failure are severe. The chance of safely, for example, galloping on horse, is over 95%. But, the consequences of failure might be severe injury or death of a player. So, in some cases even when the chance of failure is very low, you may need a way to resolve an action with a very small chance of failure. Using the table of probabilities for a standard dice check, you can determine the DC needed for any probability actions.  Rember, the DC roll is the roll needed (or higher) to succeed, so the failure chance is the chance to roll a total LESS THAN the DC roll:
 
-| **Failure Chance** | **DC** |  Examples |
+| **Failure Chance** | **DC** |  **Examples** |
 | --- | --- | --- | 
 | .25% | 2   | Getting out of bed |
 | 1%  | 4   | Swallowing |
