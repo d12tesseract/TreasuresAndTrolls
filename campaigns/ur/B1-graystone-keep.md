@@ -56,7 +56,7 @@ A hihgly secretive cult working in the shadows to promote the interests of Lokor
 
 # License
 
-Permission to copy, modify and distribute this document known as the Treasures and Trolls Basic Adventure Guide is granted solely through the use of the Open Gaming License, Version 1.0a.
+Permission to copy, modify and distribute this document known as the Treasures and Trolls Basic Adventure Module B1 - Graystone Keep is granted solely through the use of the Open Gaming License, Version 1.0a.
 
 This material is being released using the Open Gaming License Version 1.0a and you should read and understand the terms of that license before using this material.
 
