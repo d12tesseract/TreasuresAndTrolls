@@ -174,22 +174,6 @@ def print_calendar(calendar: dict[str, Any]) -> None:
         f"(zby {calendar['year_since_start_of_aegon']})"
     )
     print()
-    print("Formula values")
-    print(f"  ypa   years / aegon:              {constants['years_per_aegon']}")
-    print(f"  mpa   months / aegon:             {constants['months_per_aegon']}")
-    print(f"  dpa   days / aegon:               {constants['days_per_aegon']}")
-    print(f"  loy   length of year:             {float_text(constants['length_of_year'])}")
-    print(f"  lom   length of month:            {float_text(constants['length_of_month'])}")
-    print(f"  mpy   months / year:              {float_text(constants['months_per_year'])}")
-    print(
-        "  lyws  last winter solstice month: "
-        f"{float_text(year_start['last_year_winter_solstice_in_months'])}"
-    )
-    print(f"  mbys  months before year starts:  {year_start['months_before_year_starts']}")
-    print(f"  edpm  extra days / month:         {constants['extra_days_per_month']}")
-    print(f"  tds   total days short:           {year_start['total_days_short']}")
-    print(f"  dbofm days behind first month:    {year_start['days_behind_on_first_month']}")
-    print()
     print(f"Seasonal events ({calendar['months_in_year']} months in this year)")
     for event in calendar["seasonal_events"]:
         print(
