@@ -3,6 +3,8 @@
 
 Example:
     python ur_calendar.py 315
+    python ur_calendar.py 315 320
+    python ur_calendar.py 315 320 --table
     python ur_calendar.py 315 --json
     python ur_calendar.py --check-example
 """
@@ -159,8 +161,8 @@ def calculate_month_lengths(mbys: int, months_in_year: int) -> list[dict[str, An
     return month_lengths
 
 
-def to_jsonable(calendar: dict[str, Any]) -> dict[str, Any]:
-    return jsonable_value(calendar)
+def to_jsonable(value: Any) -> Any:
+    return jsonable_value(value)
 
 
 def jsonable_value(value: Any) -> Any:
@@ -229,6 +231,77 @@ def festival_names_for_count(festival_count: int) -> tuple[str, ...]:
     return FESTIVAL_NAMES + tuple("Additional festival" for _ in range(additional_festivals))
 
 
+def festival_months(calendar: dict[str, Any]) -> list[dict[str, Any]]:
+    return [month for month in calendar["month_lengths"] if 29 == month["days_in_month"]]
+
+
+def format_table_event_date(event: dict[str, Any]) -> str:
+    return f"{event['month_number']}/{event['day_of_month']}"
+
+
+def format_table_prior_solstice_date(details: dict[str, Any]) -> str:
+    return (
+        f"{details['prior_solstice_month_number']}/"
+        f"{details['prior_solstice_day_of_month']} ({details['prior_year']})"
+    )
+
+
+def table_festival_columns(calendar: dict[str, Any]) -> dict[str, str]:
+    months = festival_months(calendar)
+    names = festival_names_for_count(len(months))
+    columns = {"New year": "", "Spring": "", "Summer": "", "Harvest": ""}
+    for name, month in zip(names, months):
+        column_name = name.replace(" festival", "")
+        if column_name in columns:
+            columns[column_name] = str(month["month_number"])
+    return columns
+
+
+def print_calendar_table(calendars: list[dict[str, Any]]) -> None:
+    headers = (
+        "Year",
+        "Year type",
+        "Prior solstice",
+        "Months",
+        "SE",
+        "SS",
+        "FE",
+        "WS",
+        "New year",
+        "Spring",
+        "Summer",
+        "Harvest",
+    )
+    rows = []
+    for calendar in calendars:
+        details = year_start_details(calendar)
+        events_by_name = {
+            event["event_name"]: event for event in calendar["seasonal_events"]
+        }
+        festival_columns = table_festival_columns(calendar)
+        rows.append(
+            (
+                str(calendar["aegon_year"]),
+                details["year_type"],
+                format_table_prior_solstice_date(details),
+                str(calendar["months_in_year"]),
+                format_table_event_date(events_by_name["Spring equinox"]),
+                format_table_event_date(events_by_name["Summer solstice"]),
+                format_table_event_date(events_by_name["Fall equinox"]),
+                format_table_event_date(events_by_name["Winter solstice"]),
+                festival_columns["New year"],
+                festival_columns["Spring"],
+                festival_columns["Summer"],
+                festival_columns["Harvest"],
+            )
+        )
+
+    print("|" + "|".join(headers) + "|")
+    print("|" + "|".join("---" for _ in headers) + "|")
+    for row in rows:
+        print("|" + "|".join(row) + "|")
+
+
 def print_calendar(calendar: dict[str, Any]) -> None:
     details = year_start_details(calendar)
     print(
@@ -251,11 +324,9 @@ def print_calendar(calendar: dict[str, Any]) -> None:
 
     print()
     print("Festivals:")
-    festival_months = [
-        month for month in calendar["month_lengths"] if 29 == month["days_in_month"]
-    ]
-    festival_names = festival_names_for_count(len(festival_months))
-    for festival_name, month in zip(festival_names, festival_months):
+    months = festival_months(calendar)
+    festival_names = festival_names_for_count(len(months))
+    for festival_name, month in zip(festival_names, months):
         print(
             f"  {festival_name}: "
             f"{month['month_name']} ({month['month_number']}/29)"
@@ -331,9 +402,21 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "aegon_year",
         nargs="?",
         type=int,
-        help=f"1-based year within the {YPA}-year aegon, for example 315",
+        help=f"1-based year within the {YPA}-year aegon, or start year for a range",
     )
-    parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    parser.add_argument(
+        "end_year",
+        nargs="?",
+        type=int,
+        help="optional inclusive end year, for example 320 in: ur_calendar.py 315 320",
+    )
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    output_group.add_argument(
+        "--table",
+        action="store_true",
+        help="print one compact table row per requested year",
+    )
     parser.add_argument(
         "--check-example",
         action="store_true",
@@ -355,16 +438,30 @@ def main(argv: list[str]) -> int:
         print("error: aegon_year is required unless --check-example is used", file=sys.stderr)
         return 2
 
+    end_year = args.aegon_year if args.end_year is None else args.end_year
+    if end_year < args.aegon_year:
+        print("error: end_year must be greater than or equal to aegon_year", file=sys.stderr)
+        return 2
+
     try:
-        calendar = calculate_calendar(args.aegon_year)
+        calendars = [
+            calculate_calendar(aegon_year)
+            for aegon_year in range(args.aegon_year, end_year + 1)
+        ]
     except ValueError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
     if args.json:
-        print(json.dumps(to_jsonable(calendar), indent=2))
+        json_value = calendars[0] if 1 == len(calendars) else calendars
+        print(json.dumps(to_jsonable(json_value), indent=2))
+    elif args.table:
+        print_calendar_table(calendars)
     else:
-        print_calendar(calendar)
+        for index, calendar in enumerate(calendars):
+            if 0 < index:
+                print()
+            print_calendar(calendar)
 
     return 0
 
