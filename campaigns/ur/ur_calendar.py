@@ -47,6 +47,16 @@ SEASONAL_EVENTS = (
     ("Winter solstice", Fraction(1, 1)),
 )
 
+FESTIVAL_NAMES = (
+    "New year festival",
+    "Spring festival",
+    "Summer festival",
+    "Harvest festival",
+)
+
+WEEK_NAMES = ("Sunweek", "Avenweek", "Moonweek", "Elderweek")
+YEAR_TYPE_NAMES = ("Sun year", "Aven year", "Moon year", "Elder year")
+
 
 def s_int(value: Fraction) -> int:
     """Spreadsheet-style INT for positive values."""
@@ -165,13 +175,69 @@ def jsonable_value(value: Any) -> Any:
     return value
 
 
+def months_before_year_start(aegon_year: int) -> int:
+    return s_int(Fraction((aegon_year - 1) * MPA, YPA))
+
+
+def months_in_aegon_year(aegon_year: int) -> int:
+    year_start = months_before_year_start(aegon_year)
+    next_year_start = MPA if YPA == aegon_year else months_before_year_start(aegon_year + 1)
+    return next_year_start - year_start
+
+
+def week_index_for_day(day_of_month: int) -> int:
+    return min((day_of_month - 1) // 7, len(WEEK_NAMES) - 1)
+
+
+def year_start_details(calendar: dict[str, Any]) -> dict[str, Any]:
+    aegon_year = calendar["aegon_year"]
+    prior_year = YPA if 1 == aegon_year else aegon_year - 1
+    prior_months_in_year = months_in_aegon_year(prior_year)
+    prior_month_lengths = calculate_month_lengths(
+        months_before_year_start(prior_year), prior_months_in_year
+    )
+    prior_last_month = prior_month_lengths[-1]
+
+    solstice_month_position = calendar["year_start_calculations"][
+        "last_year_winter_solstice_in_months"
+    ]
+    solstice_zero_based_day = (
+        s_frac(solstice_month_position) * calendar["calendar_constants"]["length_of_month"]
+    )
+    solstice_day = s_int(solstice_zero_based_day) + 1
+    days_after_solstice = max(0, prior_last_month["days_in_month"] - solstice_day)
+    year_type_index = week_index_for_day(solstice_day)
+    prior_solstice_week = WEEK_NAMES[year_type_index]
+
+    return {
+        "year_type": YEAR_TYPE_NAMES[year_type_index],
+        "new_year_begins_week": WEEK_NAMES[year_type_index],
+        "days_after_prior_solstice": days_after_solstice,
+        "prior_year": prior_year,
+        "prior_solstice_month_name": prior_last_month["month_name"],
+        "prior_solstice_month_number": prior_last_month["month_number"],
+        "prior_solstice_day_of_month": solstice_day,
+        "prior_solstice_week": prior_solstice_week,
+    }
+
+
+def festival_name(festival_index: int) -> str:
+    if festival_index < len(FESTIVAL_NAMES):
+        return FESTIVAL_NAMES[festival_index]
+    return "Additional festival"
+
+
 def print_calendar(calendar: dict[str, Any]) -> None:
-    constants = calendar["calendar_constants"]
-    year_start = calendar["year_start_calculations"]
+    details = year_start_details(calendar)
+    print(
+        f"Aegon year {calendar['aegon_year']} ({details['year_type']}) "
+        f"(zby {calendar['year_since_start_of_aegon']})"
+    )
 
     print(
-        f"Aegon year {calendar['aegon_year']} "
-        f"(zby {calendar['year_since_start_of_aegon']})"
+        f"The prior year winter solstice is on {details['prior_solstice_month_name']} "
+        f"{details['prior_solstice_day_of_month']} "
+        f"({details['prior_solstice_week']}) of year {details['prior_year']}"
     )
     print()
     print(f"Seasonal events ({calendar['months_in_year']} months in this year)")
@@ -184,18 +250,28 @@ def print_calendar(calendar: dict[str, Any]) -> None:
         )
 
     print()
-    print("Month lengths")
-    for month in calendar["month_lengths"]:
+    print("Festivals (29-day months; all other months have 28 days)")
+    festival_months = [
+        month for month in calendar["month_lengths"] if 29 == month["days_in_month"]
+    ]
+    for festival_index, month in enumerate(festival_months):
         print(
-            f"  {month['month_number']:2d}. {month['month_name']:<12} "
-            f"{month['days_in_month']} days "
-            f"(days behind at end: {month['days_behind_at_end_of_month']})"
+            f"  {festival_name(festival_index)}: "
+            f"{month['month_name']} (month {month['month_number']}, day 29)"
         )
 
 
 def check_example() -> None:
     calendar = calculate_calendar(315)
+    details = year_start_details(calendar)
     events_by_name = {event["event_name"]: event for event in calendar["seasonal_events"]}
+
+    if "Moon year" != details["year_type"]:
+        raise AssertionError(f"year_type: expected Moon year, got {details['year_type']}")
+    if "Moonweek" != details["prior_solstice_week"]:
+        raise AssertionError(
+            f"prior_solstice_week: expected Moonweek, got {details['prior_solstice_week']}"
+        )
 
     expected_event_dates = {
         "Spring equinox": (3, 25),
