@@ -1,5 +1,4 @@
-# Treasures and Trolls Basic Adventure Module B1
-# Graystone Keep
+# Treasures and Trolls Basic Adventure Module B1 - Graystone Keep
 
 # Factions
 
