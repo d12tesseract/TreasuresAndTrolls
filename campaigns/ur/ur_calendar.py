@@ -221,10 +221,12 @@ def year_start_details(calendar: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def festival_name(festival_index: int) -> str:
-    if festival_index < len(FESTIVAL_NAMES):
-        return FESTIVAL_NAMES[festival_index]
-    return "Additional festival"
+def festival_names_for_count(festival_count: int) -> tuple[str, ...]:
+    if 3 == festival_count:
+        return ("New year festival", "Summer festival", "Harvest festival")
+
+    additional_festivals = max(0, festival_count - len(FESTIVAL_NAMES))
+    return FESTIVAL_NAMES + tuple("Additional festival" for _ in range(additional_festivals))
 
 
 def print_calendar(calendar: dict[str, Any]) -> None:
@@ -239,25 +241,24 @@ def print_calendar(calendar: dict[str, Any]) -> None:
         f"{details['prior_solstice_day_of_month']} "
         f"({details['prior_solstice_week']}) of year {details['prior_year']}"
     )
+    print(f"This year has {calendar['months_in_year']} months.")
     print()
-    print(f"Seasonal events ({calendar['months_in_year']} months in this year)")
+    print(f"Seasonal events:")
     for event in calendar["seasonal_events"]:
         print(
-            f"  {event['event_name']}: {event['month_number']}/{event['day_of_month']} "
-            f"({event['month_name']}; month_position_in_year="
-            f"{float_text(event['month_position_in_year'])}, "
-            f"zero_based_day_in_month={float_text(event['zero_based_day_in_month'])})"
+            f"  {event['event_name']}: {event['month_number']}/{event['day_of_month']} ({event['month_name']})"
         )
 
     print()
-    print("Festivals (29-day months; all other months have 28 days)")
+    print("Festivals:")
     festival_months = [
         month for month in calendar["month_lengths"] if 29 == month["days_in_month"]
     ]
-    for festival_index, month in enumerate(festival_months):
+    festival_names = festival_names_for_count(len(festival_months))
+    for festival_name, month in zip(festival_names, festival_months):
         print(
-            f"  {festival_name(festival_index)}: "
-            f"{month['month_name']} (month {month['month_number']}, day 29)"
+            f"  {festival_name}: "
+            f"{month['month_name']} ({month['month_number']}/29)"
         )
 
 
