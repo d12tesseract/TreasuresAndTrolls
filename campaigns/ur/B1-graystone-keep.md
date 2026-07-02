@@ -17,8 +17,8 @@ The kingdom of Arnsland is a kingdom to the south.  In Arnsland, all magic is ou
 
 - **House Longmarch** Under the scret influence of spies of Lokor, Longmarch is trying to depose the king and take the throne for themselves.  Although not yet in open rebelion, it is an open secret that they do not support the king.  Like Vaylor, many nobles in Longmarch are secretly members of the cult of Lokor.
 
-**Talerins**
-The Talerin kingdom is a confederacy of clans.  Their idea of justice is based on their clan and honor.  They are bound by their word and any alliances of their clans.  The confederacy itself is held together by a series of ancient alliances of the clans, which largely prevents open war amongst the clans, although blood feuds and interclan skirmishing is not uncommon.  These matters are often settled by forced consent from pressure from the other clans, through the high council of clans, who may judge who has been wronged and demand restitution be paid.
+**Kingdom of Talerin**
+The Talerin is an island kindom to the west made of several smaller islands.  They are a seafaring kingdom of fisherman.  Talerin is made up of many strongly independent clans that look out for eachother.  Their idea of justice is based on their clan and honor.  They are bound by their word and any alliances of their clans.  The confederacy itself is held together by a series of ancient alliances of the clans, which largely prevents open war amongst the clans, although blood feuds and interclan skirmishing is not uncommon.  These matters are often settled by forced consent from pressure from the other clans, through the high council of clans, who may judge who has been wronged and demand restitution be paid.
 
 **Elvenwood**
 The elves of Elvenwood consider themselves the guardians of all Ur and the vanguard in the war against the Fomoriancs, their ancient enemy.  Their main objective in this war is to unite the other races, even the goblins, against their common enemy, and to put aside their differences and stand strong against the forces of the Fomorians.  Unfortunately they are seldom succesful in uniting the other races.
@@ -30,6 +30,18 @@ The elves of Northwood share the common enemy of the Fomorians, but have long ag
 
 **Undor** In many ways similar to Kalidor, but much more isolationist.  They mistrust other races nearly as much as the elves.  They form only limited trade alliances only to barter for what they need and are quite stingy to part with there precious trasure.  However, because of their great wealth, what trade the do have is often for fine ale and wine and other luxuries, sparing now expense for the finest fare.
 
+**Order of Fire**
+Seret order of spies from Dax, the kingdom of Dragons far to the north.  They work form the shadows and secretly influence political events in many kingdoms.  Their main objective is to prevent the Formorians from becoming resurgent and becoming a threat to Dax.  As long as what happening way over there stays way over their, its fine.  They have access to enormous wealth and have gathered secret infromation on most human kingdoms, making them very powerful even amogn the human kingdoms.  Most are unaware of their presence.
+
+**Thieve's Guild**
+A loose order of scofflaws, the thieves guild operate under the common principles that the idea of property ownership is determined by who is in charge.  They believe that kings and nobles are no better than thieves themselves, just thieves with armies and castles to enforce their idea of ownership.  They believe the only way to eb truely free is to live by your own laws.
+
+**Order or the gray hood**
+A sub faction of the thieves guild, the gray hoods are both more radical and more egalitarian.  They reject the common law and in the spirit of robin hood, seek to redistribute the wealth of the feudal nobility to the common man.  They even go so far as to promote philanthropic charity.
+
+**Travellers**
+The travellers are nomadic wanderers, mainly from Talerin, that are part of a loose confderacy of clans which span the entire world of Ur.  There nomadic cultrue keeps travelr clans in contact with other travelers both near and far, whihc is how they form a common culture that spans many kingdoms and realms of Ur.  Local customes may vary from region to region, but they all share core values that place the honor of the clan above all else.  Travellers have no obligation to honor any agreement outside of other Travellers.  they can and do lie cheat and steal to make a living, simply because thye dont recognize any authority at all outisde of the Travellers.  This is why they have a widespread reputation as liars and thieves.  It is posisble to become a Friend of the Travellers through and act that shows excpetional honor, bravery, and respect for the Travellers, and if so they will recieve a small token which they can show to any Traveller to be accepted amongst them.  Any traveller must honor an agreement with another traveller or Friend of the Travellers.  Note this honr may be revoked if they betray the trust of the Travellers in any way.
+
 **Goblins**
 Although generally hostile to all other races, the goblin kingdom are primarily interested in the goblins.  They are mischeivious and love to create mayhem any chance they can, and to steal gold.  Their main adversary are the Formorians.  Like the elves and other fey, the fomorians are their ancient enemy.  They are more than willing to ally with other elves against the Fomorians as long as it aligns with their interests.  However, there ambitions are usually short term, and they are often preoccupied with stealing from other races, kidnapping, and tormenting them any way they can.
 
@@ -39,14 +51,6 @@ Army of demons lead by Lord Lokor, engaged in eternal war with the elves for tho
 **Cult of Lokor**
 A hihgly secretive cult working in the shadows to promote the interests of Lokor, and also through rtiuals and sacrifices summon demons to add to their army.
 
-**Order of Fire**
-Seret order of spies from Dax, the kingdom of Dragons far to the north.  They work form the shadows and secretly influence political events in many kingdoms.  Their main objective is to prevent the Formorians from becoming resurgent and becoming a threat to Dax.  As long as what happening way over there stays way over their, its fine.  They have access to enormous wealth and have gathered secret infromation on most human kingdoms, making them very powerful even amogn the human kingdoms.  Most are unaware of their presence.
-
-**Thieve's Guild**
-A loose order of scofflaws, the thieves guild operate under the common principles that the idea of property ownership is determined by who is in charge.  They believe that kings and nobles are no better than thieves themselves, just thieves with armies and castles to enforce their idea of ownership.  They believe the only way to eb truely free is to live by your own laws.
-
-**Order or the gray hood**
-A sub faction of the thieves guild, the gray hoods are both more radical and more egalitarian.  They reject the common law and in the spirit of robin hood, seek to redistribute the wealth of the feudal nobility to the common man.  They even go so far as to promote philanthropic charity.
 
 
 
@@ -102,7 +106,7 @@ The following text is the property of Wizards of the Coast, Inc. and is Copyrigh
 
 Open Game License v 1.0a Copyright 2000, Wizards of the Coast, Inc.
 
-Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
+Treasures and Trolls Basic Adventure Module B1 - Graystone Keep 2026, Tesseract Games.
 
 
 END OF LICENSE
