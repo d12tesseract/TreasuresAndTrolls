@@ -32,9 +32,10 @@ not necessarily at one point of the paper: their angle deficit is positive.
 JSON includes both the 3D solid and 2D net, ordered face boundaries, every edge,
 fold hinges, and paired cut seams. Coordinates are in edge-length units, with
 y up in the net; the SVG reverses y and uses 80 SVG units per edge. The SVG is
-plain geometry only: net edges and vertices, with no text, labels, or colors.
-Face/vertex IDs identify the same objects in both exports. JSON coordinates are
-rounded to 12 decimal places for reproducibility across Python versions. Equal
+plain geometry only: closed, unfilled face polygons with black outlines and no
+vertex markers or labels. Face IDs match the JSON; vertex correspondence remains
+in the JSON. JSON coordinates are rounded to 12 decimal places for reproducibility
+across Python versions. Equal
 cut-edge labels in the JSON are glued together, matching endpoints by their
 solid_vertex IDs. No glue tabs are added.
 """
@@ -455,7 +456,27 @@ def SerializeJson(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip
     return json.dumps(Canonicalize(Data), indent=2, allow_nan=False) + "\n"
 
 
-def SerializeSvg(NetVertices, NetEdges):
+def ValidateSvg(szSvg, Polygons):
+    Root = ET.fromstring(szSvg)
+    szNamespace = "{http://www.w3.org/2000/svg}"
+    Require(Root.tag == szNamespace + "svg" and len(Root) == 1, "SVG must contain only a faces group")
+    Group = Root[0]
+    Require(Group.tag == szNamespace + "g" and Group.attrib == {
+        "id": "faces", "fill": "none", "stroke": "black", "stroke-width": "1",
+    }, "SVG faces must have unfilled black outlines")
+    Require(Counter(len(Points) for Points in Polygons.values()) == {6: 12, 4: 6},
+            "SVG must contain 12 hexagons and 6 squares")
+    Require(len(Group) == 18 and [Polygon.get("id") for Polygon in Group] == list(Polygons),
+            "SVG face IDs or order do not match the net")
+    for Polygon in Group:
+        szId = Polygon.get("id")
+        Require(Polygon.tag == szNamespace + "polygon" and len(Polygon) == 0
+                and set(Polygon.attrib) == {"id", "points"}, f"SVG face must be a polygon: {szId}")
+        szExpected = " ".join(f"{dX:.6f},{dY:.6f}" for dX, dY in Polygons[szId])
+        Require(Polygon.get("points") == szExpected, f"SVG face boundary mismatch: {szId}")
+
+
+def SerializeSvg(NetVertices, NetFaces):
     dScale, dMargin = 80.0, 55.0
     Points = [Vertex["position"] for Vertex in NetVertices.values()]
     dMinX, dMaxX = min(Point[0] for Point in Points), max(Point[0] for Point in Points)
@@ -466,26 +487,23 @@ def SerializeSvg(NetVertices, NetEdges):
     def Screen(Point):
         return ((Point[0] - dMinX) * dScale + dMargin, (dMaxY - Point[1]) * dScale + dMargin)
 
+    Polygons = {
+        szId: [Screen(NetVertices[szVertex]["position"]) for szVertex in Face["vertices"]]
+        for szId, Face in NetFaces.items()
+    }
     Lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{dWidth:.6f}" height="{dHeight:.6f}" '
         f'viewBox="0 0 {dWidth:.6f} {dHeight:.6f}">',
-        '  <g id="edges" fill="none" stroke="black" stroke-width="1">',
+        '  <g id="faces" fill="none" stroke="black" stroke-width="1">',
     ]
-    for Edge in NetEdges.values():
-        Start, End = [Screen(NetVertices[szId]["position"]) for szId in Edge["vertices"]]
-        Lines.append(
-            f'    <line id="{Edge["id"]}" '
-            f'x1="{Start[0]:.6f}" y1="{Start[1]:.6f}" x2="{End[0]:.6f}" y2="{End[1]:.6f}"/>'
-        )
-    Lines.extend(['  </g>', '  <g id="vertices" fill="black" stroke="none">'])
-    for szId, Vertex in NetVertices.items():
-        Position = Screen(Vertex["position"])
-        Lines.append(
-            f'    <circle id="{szId}" cx="{Position[0]:.6f}" cy="{Position[1]:.6f}" r="2"/>'
-        )
+    for szId, Points in Polygons.items():
+        szPoints = " ".join(f"{dX:.6f},{dY:.6f}" for dX, dY in Points)
+        Lines.append(f'    <polygon id="{szId}" points="{szPoints}"/>')
     Lines.extend(['  </g>', '</svg>'])
-    return "\n".join(Lines) + "\n"
+    szSvg = "\n".join(Lines) + "\n"
+    ValidateSvg(szSvg, Polygons)
+    return szSvg
 
 
 def Main():
@@ -498,7 +516,7 @@ def Main():
     Validation = Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip)
     Outputs = {
         "json": SerializeJson(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip, Validation),
-        "svg": SerializeSvg(NetVertices, NetEdges),
+        "svg": SerializeSvg(NetVertices, NetFaces),
     }
     Data = json.loads(Outputs["json"])
     # Check the rounded, exported geometry too, not just the in-memory model.
@@ -514,7 +532,6 @@ def Main():
         {EdgeKey(*Edge["vertices"]): Edge for Edge in Data["net"]["edges"]},
         Data["net"]["strip_left_to_right"],
     )
-    ET.fromstring(Outputs["svg"])
     if not Args.check:
         Args.output_dir.mkdir(parents=True, exist_ok=True)
     for szExtension, szContent in Outputs.items():
