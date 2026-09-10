@@ -7,6 +7,7 @@ Example:
     python ur_calendar.py 315 320 --table
     python ur_calendar.py 315 --json
     python ur_calendar.py --check-example
+    python ur_calendar.py --check-cycle
 """
 
 from __future__ import annotations
@@ -112,6 +113,20 @@ def calculate_calendar(aegon_year: int) -> dict[str, Any]:
 
     months_in_year = seasonal_events[-1]["month_number"]
     month_lengths = calculate_month_lengths(mbys, months_in_year)
+    for event in seasonal_events:
+        event_year = aegon_year
+        event_month = event["month_number"]
+        if (
+            "Winter solstice" == event["event_name"]
+            and 0 == s_frac(lyws + mpy)
+        ):
+            event_year = 1 if YPA == aegon_year else aegon_year + 1
+            event_month = 1
+        event.update(
+            normalize_calendar_date(
+                event_year, event_month, event["zero_based_day_in_month"]
+            )
+        )
 
     return {
         "aegon_year": aegon_year,
@@ -191,6 +206,30 @@ def week_index_for_day(day_of_month: int) -> int:
     return min((day_of_month - 1) // 7, len(WEEK_NAMES) - 1)
 
 
+def normalize_calendar_date(
+    aegon_year: int, month: int, zero_based_day: Fraction
+) -> dict[str, Any]:
+    month_lengths = calculate_month_lengths(
+        months_before_year_start(aegon_year), months_in_aegon_year(aegon_year)
+    )
+    while zero_based_day >= month_lengths[month - 1]["days_in_month"]:
+        zero_based_day -= month_lengths[month - 1]["days_in_month"]
+        month += 1
+        if month > len(month_lengths):
+            aegon_year = 1 if YPA == aegon_year else aegon_year + 1
+            month = 1
+            month_lengths = calculate_month_lengths(
+                months_before_year_start(aegon_year), months_in_aegon_year(aegon_year)
+            )
+    return {
+        "aegon_year": aegon_year,
+        "month_number": month,
+        "month_name": MONTH_NAMES[month - 1],
+        "zero_based_day_in_month": zero_based_day,
+        "day_of_month": s_int(zero_based_day) + 1,
+    }
+
+
 def year_start_details(calendar: dict[str, Any]) -> dict[str, Any]:
     aegon_year = calendar["aegon_year"]
     prior_year = YPA if 1 == aegon_year else aegon_year - 1
@@ -206,8 +245,19 @@ def year_start_details(calendar: dict[str, Any]) -> dict[str, Any]:
     solstice_zero_based_day = (
         s_frac(solstice_month_position) * calendar["calendar_constants"]["length_of_month"]
     )
-    solstice_day = s_int(solstice_zero_based_day) + 1
-    days_after_solstice = max(0, prior_last_month["days_in_month"] - solstice_day)
+    if 0 == s_frac(solstice_month_position):
+        days_after_solstice = 0
+        solstice = normalize_calendar_date(aegon_year, 1, Fraction(0))
+    else:
+        days_after_solstice = (
+            prior_last_month["days_in_month"] - s_int(solstice_zero_based_day)
+        )
+        if days_after_solstice < 0:
+            raise ValueError("Winter solstice calculated after the first day of Balard")
+        solstice = normalize_calendar_date(
+            prior_year, prior_months_in_year, solstice_zero_based_day
+        )
+    solstice_day = solstice["day_of_month"]
     year_type_index = week_index_for_day(solstice_day)
     prior_solstice_week = WEEK_NAMES[year_type_index]
 
@@ -215,9 +265,9 @@ def year_start_details(calendar: dict[str, Any]) -> dict[str, Any]:
         "year_type": YEAR_TYPE_NAMES[year_type_index],
         "new_year_begins_week": WEEK_NAMES[year_type_index],
         "days_after_prior_solstice": days_after_solstice,
-        "prior_year": prior_year,
-        "prior_solstice_month_name": prior_last_month["month_name"],
-        "prior_solstice_month_number": prior_last_month["month_number"],
+        "prior_year": solstice["aegon_year"],
+        "prior_solstice_month_name": solstice["month_name"],
+        "prior_solstice_month_number": solstice["month_number"],
         "prior_solstice_day_of_month": solstice_day,
         "prior_solstice_week": prior_solstice_week,
     }
@@ -235,15 +285,11 @@ def festival_months(calendar: dict[str, Any]) -> list[dict[str, Any]]:
     return [month for month in calendar["month_lengths"] if 29 == month["days_in_month"]]
 
 
-def format_table_event_date(event: dict[str, Any]) -> str:
-    return f"{event['month_number']}/{event['day_of_month']}"
-
-
-def format_table_prior_solstice_date(details: dict[str, Any]) -> str:
-    return (
-        f"{details['prior_solstice_month_number']}/"
-        f"{details['prior_solstice_day_of_month']} ({details['prior_year']})"
-    )
+def format_table_event_date(event: dict[str, Any], aegon_year: int) -> str:
+    date = f"{event['month_number']}/{event['day_of_month']}"
+    if event["aegon_year"] != aegon_year:
+        date += f" ({event['aegon_year']})"
+    return date
 
 
 def table_festival_columns(calendar: dict[str, Any]) -> dict[str, str]:
@@ -261,7 +307,7 @@ def print_calendar_table(calendars: list[dict[str, Any]]) -> None:
     headers = (
         "Year",
         "Year type",
-        "Prior solstice",
+        "Days before first month begins",
         "Months",
         "SE",
         "SS",
@@ -283,12 +329,12 @@ def print_calendar_table(calendars: list[dict[str, Any]]) -> None:
             (
                 str(calendar["aegon_year"]),
                 details["year_type"],
-                format_table_prior_solstice_date(details),
+                str(details["days_after_prior_solstice"]),
                 str(calendar["months_in_year"]),
-                format_table_event_date(events_by_name["Spring equinox"]),
-                format_table_event_date(events_by_name["Summer solstice"]),
-                format_table_event_date(events_by_name["Fall equinox"]),
-                format_table_event_date(events_by_name["Winter solstice"]),
+                format_table_event_date(events_by_name["Spring equinox"], calendar["aegon_year"]),
+                format_table_event_date(events_by_name["Summer solstice"], calendar["aegon_year"]),
+                format_table_event_date(events_by_name["Fall equinox"], calendar["aegon_year"]),
+                format_table_event_date(events_by_name["Winter solstice"], calendar["aegon_year"]),
                 festival_columns["New year"],
                 festival_columns["Spring"],
                 festival_columns["Summer"],
@@ -310,16 +356,20 @@ def print_calendar(calendar: dict[str, Any]) -> None:
     )
 
     print(
-        f"The prior year winter solstice is on {details['prior_solstice_month_name']} "
-        f"{details['prior_solstice_day_of_month']} "
-        f"({details['prior_solstice_week']}) of year {details['prior_year']}"
+        f"The first month begins {details['days_after_prior_solstice']} days after the solstice"
     )
     print(f"This year has {calendar['months_in_year']} months.")
     print()
     print(f"Seasonal events:")
     for event in calendar["seasonal_events"]:
+        event_year = (
+            f", year {event['aegon_year']}"
+            if event["aegon_year"] != calendar["aegon_year"]
+            else ""
+        )
         print(
-            f"  {event['event_name']}: {event['month_number']}/{event['day_of_month']} ({event['month_name']})"
+            f"  {event['event_name']}: {event['month_number']}/{event['day_of_month']} "
+            f"({event['month_name']}{event_year})"
         )
 
     print()
@@ -337,6 +387,18 @@ def check_example() -> None:
     calendar = calculate_calendar(315)
     details = year_start_details(calendar)
     events_by_name = {event["event_name"]: event for event in calendar["seasonal_events"]}
+
+    if 9 != details["days_after_prior_solstice"]:
+        raise AssertionError(
+            "days_after_prior_solstice: expected 9, "
+            f"got {details['days_after_prior_solstice']}"
+        )
+    aligned_details = year_start_details(calculate_calendar(1))
+    if 0 != aligned_details["days_after_prior_solstice"]:
+        raise AssertionError(
+            "days_after_prior_solstice for aligned year: expected 0, "
+            f"got {aligned_details['days_after_prior_solstice']}"
+        )
 
     if "Moon year" != details["year_type"]:
         raise AssertionError(f"year_type: expected Moon year, got {details['year_type']}")
@@ -394,6 +456,95 @@ def check_example() -> None:
             raise AssertionError(f"{name}: expected {expected}, got {actual}")
 
 
+def check_cycle() -> None:
+    check_example()
+    calendars = [calculate_calendar(year) for year in range(1, YPA + 1)]
+    prior_month_counts = {12: 0, 13: 0}
+    same_day_years = []
+    for calendar in calendars:
+        year = calendar["aegon_year"]
+        prior_year = YPA if 1 == year else year - 1
+        prior_start = (prior_year - 1) * MPA // YPA
+        prior_end = prior_year * MPA // YPA
+        prior_month_count = prior_end - prior_start
+        prior_month_counts[prior_month_count] += 1
+
+        # Independent integer carry calculation for the documented 0.3138.
+        last_month_length = (
+            28 + prior_end * 3138 // 10000 - (prior_end - 1) * 3138 // 10000
+        )
+        remainder = ((year - 1) * MPA) % YPA
+        solstice_day_offset = remainder * DPA // (YPA * MPA)
+        expected_gap = 0 if 0 == remainder else last_month_length - solstice_day_offset
+        details = year_start_details(calendar)
+        if details["days_after_prior_solstice"] != expected_gap:
+            raise AssertionError(f"year {year}: expected a {expected_gap}-day gap")
+        if 0 == expected_gap:
+            same_day_years.append(year)
+
+        prior_solstice = calendars[prior_year - 1]["seasonal_events"][-1]
+        actual_date = (
+            details["prior_year"],
+            details["prior_solstice_month_number"],
+            details["prior_solstice_day_of_month"],
+        )
+        expected_date = (
+            (year, 1, 1)
+            if 0 == expected_gap
+            else (prior_year, prior_month_count, solstice_day_offset + 1)
+        )
+        event_date = (
+            prior_solstice["aegon_year"],
+            prior_solstice["month_number"],
+            prior_solstice["day_of_month"],
+        )
+        if actual_date != expected_date or event_date != expected_date:
+            raise AssertionError(f"year {year}: inconsistent starting solstice date")
+
+        start = (year - 1) * MPA // YPA
+        end = year * MPA // YPA
+        expected_lengths = [
+            28 + (month + 1) * 3138 // 10000 - month * 3138 // 10000
+            for month in range(start, end)
+        ]
+        if calendar["months_in_year"] != end - start or [
+            month["days_in_month"] for month in calendar["month_lengths"]
+        ] != expected_lengths:
+            raise AssertionError(f"year {year}: incorrect month lengths")
+
+        for event, (_, year_fraction) in zip(calendar["seasonal_events"], SEASONAL_EVENTS):
+            numerator = ((year - 1) * year_fraction.denominator + year_fraction.numerator) * MPA
+            denominator = YPA * year_fraction.denominator
+            lunar_month, lunar_remainder = divmod(numerator, denominator)
+            expected_year = year
+            expected_month = lunar_month - start
+            expected_day = lunar_remainder * DPA // (denominator * MPA) + 1
+            if "Winter solstice" == event["event_name"] and 0 == lunar_remainder:
+                expected_month = len(expected_lengths) + 1
+            elif expected_day > expected_lengths[expected_month - 1]:
+                expected_day -= expected_lengths[expected_month - 1]
+                expected_month += 1
+            if expected_month > len(expected_lengths):
+                expected_year = 1 if YPA == year else year + 1
+                expected_month = 1
+            if (
+                event["aegon_year"], event["month_number"], event["day_of_month"]
+            ) != (expected_year, expected_month, expected_day):
+                raise AssertionError(f"year {year}: incorrect date for {event['event_name']}")
+            event_calendar = calendars[event["aegon_year"] - 1]
+            month = event["month_number"]
+            if not 1 <= month <= event_calendar["months_in_year"]:
+                raise AssertionError(f"year {year}: invalid month for {event['event_name']}")
+            length = event_calendar["month_lengths"][month - 1]["days_in_month"]
+            if not 1 <= event["day_of_month"] <= length:
+                raise AssertionError(f"year {year}: invalid day for {event['event_name']}")
+
+    if prior_month_counts != {12: 313, 13: 570}:
+        raise AssertionError(f"unexpected prior-year coverage: {prior_month_counts}")
+    if same_day_years != [1, 159, 348, 506, 695]:
+        raise AssertionError(f"unexpected same-day starts: {same_day_years}")
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Compute Urish calendar details for an Aegon year."
@@ -422,6 +573,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="verify that year 315 matches the worked example in ur.md",
     )
+    parser.add_argument(
+        "--check-cycle",
+        action="store_true",
+        help="verify day gaps, month lengths, and seasonal dates for all 883 years",
+    )
     return parser.parse_args(argv)
 
 
@@ -431,11 +587,18 @@ def main(argv: list[str]) -> int:
     if args.check_example:
         check_example()
         print("Example check passed for Aegon year 315.")
+    if args.check_cycle:
+        check_cycle()
+        print("Cycle check passed for all 883 Aegon years.")
+    if args.check_example or args.check_cycle:
         if args.aegon_year is None:
             return 0
 
     if args.aegon_year is None:
-        print("error: aegon_year is required unless --check-example is used", file=sys.stderr)
+        print(
+            "error: aegon_year is required unless --check-example or --check-cycle is used",
+            file=sys.stderr,
+        )
         return 2
 
     end_year = args.aegon_year if args.end_year is None else args.end_year

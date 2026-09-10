@@ -11,7 +11,7 @@ This campaign is set in the world of Ur, a world of many races and cultures.
 # Calendar
 The Elven Urish Calendar is the standard calendar used by most Urish cultures.  It is a Lunar calendar based on both the annual seasons marked by the solstices and equinoxes and the progression of the moon's phases.
 
-Each month begins on the first day after the appearance of the new moon, and lasts until the moon wanes and becomes new again.  The new year begins on the new moon following the winter solstice, the shortest day of the year.
+Each month begins on the first day after the appearance of the new moon, and lasts until the moon wanes and becomes new again. The solar year begins on the winter solstice, the shortest day of the year; its first month, Balard, begins with the new moon on or after that solstice.
 
 Because of the relative lengths of the solar year and the lunar month, Every 14 years there is a cycle called the Caelonic cycle where the lunar cycle repeats, so the new moon will occur at approximately the same time of year every 14 years.  However, the Caelonic cycle moves forward by about 1 day every 14 years, so if you start with the new moon on the winter solstice, after 14 years the new moon will happen about 1 day after the winter solstice.  There is a longer cycle called a centarch that is 79 years, 999 months and 28,285 days.  However, the centarch cycle loses 1 day every 11 centarchs.  After 11 centarch cycles, there is a longer cycle of 883 years, 11,166 months and 316,152 days.  If you add a 14 year caelon after every 11 centarchs the cycle will move forward 1 day to reset almost exactly to where it began with the new moon occuring on the winter solstice.  The 883 year cycle, called an aegon, isn't exact, it drifts about 30 minutes every 883 years, but for the purpose of a calendar, a cycle that only loses 30 minutes every 883 years is close enough.
 
@@ -56,7 +56,7 @@ Each month is named after the astrological constellation in which roughly the fu
 |12 - Reithamber|The Ram|
 |13 - Dothember|The Magi|
 
-The first month of the year, Balard, begins on the first new moon after the winter solstice.  The last month of the year could be Reithamber or Dorthander depending on if it is a 12 or 13 month year.
+The first month of the year, Balard, begins on the first new moon on or after the winter solstice. The last month of the year could be Reithamber or Dothember depending on if it is a 12- or 13-month year.
 
 ## Determining calendar details
 
@@ -69,9 +69,16 @@ Year 315 of the aegon
 
 .695 * 316152 / 11166 = 19.69 days
 
-The solstice occurs on the 20th day of the Reithamber in year 313
-Balard 314 begins 8 days after the winter solstice
+The solstice occurs on the 20th day of Reithamber in year 314
+Reithamber 314 has 28 days
+Balard 315 begins 28 - 20 + 1 = 9 days after the winter solstice
 ```
+
+Count elapsed calendar days through the first day of Balard, not just the days remaining in the preceding month. If the solstice is on day `d` of the prior year's last month and that month has `L` days, the first month begins `L - d + 1` days after the solstice. Use the actual 28- or 29-day length of Reithamber for a 12-month prior year, or Dothember for a 13-month prior year. For example, year 2 follows a 12-month year and begins `28 - 19 + 1 = 10` days after the solstice; year 3 follows a 13-month year and begins `28 - 9 + 1 = 20` days after the solstice.
+
+If the solstice and Balard 1 fall on the same calendar day, the gap is 0. Year 1 is the exact solstice/new-moon alignment at the aegon boundary. The fractional-month formulas can also place an event on nominal day 29 of a month that has only 28 calendar days. Carry that date forward to day 1 of the next month, including into the next year when necessary, rather than reporting a nonexistent date. This makes the starting solstices of years 159, 348, 506, and 695 fall on Balard 1, also with a 0-day gap. A solstice on the actual last day of the preceding month is instead 1 day before Balard 1.
+
+The script applies this date rollover to all seasonal events and labels dates that fall in the next year. Run `python ur_calendar.py --check-cycle` to check all 883 years, including both prior-year lengths and all same-day starts.
 
 So, the solstice on year 315 would happen on the 20th day of the last month of the previous year.  To find the equinox and solstice times, add 1/4, 1/2, amd 3/4 years to the winter solstice date.  Subtract 3970 to find the month in year 315. Using the number of months form the solstice helps remove rounding errors rather than convertting back and forth to days.
 
@@ -211,7 +218,5 @@ Treasures and Trolls Basic Adventure Guide 2026, Tesseract Games.
 
 
 END OF LICENSE
-
-
 
 
