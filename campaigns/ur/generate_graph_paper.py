@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Requires Python 3.9 or later.
 """Generate blank square or hexagonal graph paper as an SVG file.
 
 Usage examples:

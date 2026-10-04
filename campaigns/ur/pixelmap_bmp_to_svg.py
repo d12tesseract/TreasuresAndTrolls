@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Requires Python 3.6 or later and a Pillow release compatible with your Python.
+# Install Pillow: python -m pip install Pillow
 """Convert white bitmap regions into individually editable SVG wall lines.
 
 Requires Pillow: python -m pip install Pillow

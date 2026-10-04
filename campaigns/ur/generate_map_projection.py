@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Requires Python 3.8 or later.
 """Generate the equilateral chamfered cube net using only the Python standard library.
 
 Run from any directory:

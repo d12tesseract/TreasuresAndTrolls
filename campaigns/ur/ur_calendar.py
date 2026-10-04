@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Requires Python 3.7 or later.
 """Compute Elven Urish calendar details from the formulas in ur.md.
 
 Example:
