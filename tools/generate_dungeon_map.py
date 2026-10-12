@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 
 from dungeon_encounters import encounter_document, encounter_log, generate_encounters
+from dungeon_puzzles import PUZZLE_COUNT, generate_adventure
 from dungeon_map import (
     GenerationOptions,
     add_render_arguments,
@@ -59,7 +60,11 @@ def main() -> None:
     parser.add_argument("--chamfer-probability", type=probability, default=0,
                         help="probability of replacing an eligible worked corner with a diagonal (default: 0)")
     parser.add_argument("--generate-encounters", action="store_true",
-                        help="number chambers and write a TM Markdown key and debug log (default: off)")
+                        help="write encounters even when puzzles are disabled (puzzles imply encounters)")
+    parser.add_argument("--puzzle-probability", type=probability, default=0.35,
+                        help="independent probability for each puzzle slot per level; 0 disables (default: 0.35)")
+    parser.add_argument("--max-puzzles-per-level", type=nonnegative_integer, default=2,
+                        help="puzzle slots per level, 0-{}; each rolls independently (default: 2)".format(PUZZLE_COUNT))
     parser.add_argument("--encounter-chance", type=int, default=11,
                         help="minimum basic roll for a monster, 0-33 inclusive (default: 11)")
     parser.add_argument("--treasure-chest-dc", type=int, default=17,
@@ -70,6 +75,8 @@ def main() -> None:
                         help="generation DC for locking a treasure chest, 0-34 (default: 17)")
     add_render_arguments(parser, seed_default=None)
     args = parser.parse_args()
+    if args.max_puzzles_per_level > PUZZLE_COUNT:
+        parser.error("--max-puzzles-per-level must be from 0 through {}".format(PUZZLE_COUNT))
     for name, maximum in (("encounter_chance", 33), ("treasure_chest_dc", 34),
                           ("chest_trap_dc", 34), ("chest_lock_dc", 34)):
         if not 0 <= getattr(args, name) <= maximum:
@@ -81,7 +88,17 @@ def main() -> None:
         options = GenerationOptions(**{
             name: getattr(args, name) for name in GenerationOptions.__dataclass_fields__
         })
-        result = generate_dungeon(options)
+        encounters = None
+        if args.puzzle_probability > 0 and args.max_puzzles_per_level > 0:
+            result, encounters = generate_adventure(
+                options, puzzle_probability=args.puzzle_probability,
+                max_puzzles_per_level=args.max_puzzles_per_level,
+                encounter_chance=args.encounter_chance,
+                treasure_chest_dc=args.treasure_chest_dc, chest_trap_dc=args.chest_trap_dc,
+                chest_lock_dc=args.chest_lock_dc,
+            )
+        else:
+            result = generate_dungeon(options)
         rendering = render_options(args)
         rendering["seed"] = result.seed
         destinations = []
@@ -95,13 +112,13 @@ def main() -> None:
             destinations.append((level, text_path, svg_path))
         paths = [path.resolve() for _, text_path, svg_path in destinations
                  for path in (text_path, svg_path)]
-        encounters = None
-        if args.generate_encounters:
-            encounters = generate_encounters(
-                result, args.encounter_chance,
-                treasure_chest_dc=args.treasure_chest_dc, chest_trap_dc=args.chest_trap_dc,
-                chest_lock_dc=args.chest_lock_dc,
-            )
+        if args.generate_encounters or encounters is not None:
+            if encounters is None:
+                encounters = generate_encounters(
+                    result, args.encounter_chance,
+                    treasure_chest_dc=args.treasure_chest_dc, chest_trap_dc=args.chest_trap_dc,
+                    chest_lock_dc=args.chest_lock_dc,
+                )
             encounter_path = args.output.with_name(args.output.stem + "-encounters.md")
             log_path = encounter_path.with_suffix(".log")
             paths.extend((encounter_path.resolve(), log_path.resolve()))

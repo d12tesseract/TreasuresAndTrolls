@@ -9,7 +9,7 @@ import random
 import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
 from dataclasses import dataclass, replace
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
@@ -1200,14 +1200,18 @@ def _generate_level(
     )
 
 
-def generate_dungeon(options: Optional[GenerationOptions] = None) -> GeneratedDungeon:
+def generate_dungeon(
+    options: Optional[GenerationOptions] = None,
+    level_transform: Optional[Callable[[GeneratedDungeon, int], GeneratedDungeon]] = None,
+) -> GeneratedDungeon:
     """Generate connected levels with corridor-only stairs and ramps."""
     options = options or GenerationOptions()
     _validate_generation(options)
     seed = options.seed if options.seed is not None else random.SystemRandom().randrange(2 ** 63)
     rng = random.Random(seed)
     if options.levels == 1:
-        return _generate_level(options, rng, seed)
+        level = _generate_level(options, rng, seed)
+        return level_transform(level, 1) if level_transform else level
     levels = []
     incoming = ()
     for index in range(options.levels):
@@ -1216,10 +1220,16 @@ def generate_dungeon(options: Optional[GenerationOptions] = None) -> GeneratedDu
             rng.randint(1, 3) if options.stairs_down is None else options.stairs_down
         )
         level_options = replace(options, ramps_down=0) if final else options
+        if incoming:
+            level_options = replace(level_options, width=max(
+                options.width, max(x for passage in incoming for x, y in passage.clearance) + 2,
+            ))
         level = _generate_level(
             level_options, rng, seed, incoming, count,
             (index + 1) * options.stair_length * 10,
         )
+        if level_transform:
+            level = level_transform(level, index + 1)
         levels.append(level)
         incoming = tuple(
             replace(passage, tile="U" if passage.tile == "E" else "I")

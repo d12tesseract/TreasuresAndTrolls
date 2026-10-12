@@ -5,12 +5,15 @@ import re
 from collections import Counter
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from dungeon_map import Cell, GeneratedDungeon
 
+if TYPE_CHECKING:
+    from dungeon_puzzles import PlacedPuzzle
 
-RULES_PATH = Path(__file__).resolve().parents[2] / "TreasuresAndTrollsBasicMD.md"
+
+RULES_PATH = Path(__file__).resolve().parents[1] / "TreasuresAndTrollsBasicMD.md"
 RULINGS = (
     "All generation basic rolls are exactly 3 independent integers from 0 through 11, "
     "summed without symbol rerolls, including magic-item power. Symbol rerolls apply "
@@ -369,6 +372,7 @@ class EncounterArea:
     container: Optional[str] = None
     chest_trap: Optional[str] = None
     chest_locked: Optional[bool] = None
+    notes: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -376,6 +380,7 @@ class EncounterLevel:
     areas: Tuple[EncounterArea, ...]
     traps: Tuple[Tuple[Cell, str], ...]
     doors: Tuple[Tuple[Cell, str, int], ...]
+    puzzles: Tuple["PlacedPuzzle", ...] = ()
 
     @property
     def labels(self) -> Dict[Cell, str]:
@@ -385,7 +390,9 @@ class EncounterLevel:
 def generate_encounters(dungeon: GeneratedDungeon, encounter_chance: int = 11,
                         rules: Optional[EncounterRules] = None, *,
                         treasure_chest_dc: int = 17, chest_trap_dc: int = 19,
-                        chest_lock_dc: int = 17) -> Tuple[EncounterLevel, ...]:
+                        chest_lock_dc: int = 17, start_level: int = 1) -> Tuple[EncounterLevel, ...]:
+    if isinstance(start_level, bool) or not isinstance(start_level, int) or start_level < 1:
+        raise ValueError("start_level must be a positive integer")
     for name, value, maximum in (("encounter_chance", encounter_chance, 33),
                                  ("treasure_chest_dc", treasure_chest_dc, 34),
                                  ("chest_trap_dc", chest_trap_dc, 34),
@@ -393,11 +400,12 @@ def generate_encounters(dungeon: GeneratedDungeon, encounter_chance: int = 11,
         if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= maximum:
             raise ValueError("{} must be an integer from 0 through {}".format(name, maximum))
     rules = rules or EncounterRules()
-    rng = random.Random("{}:encounters".format(dungeon.seed))
-    container_rng = random.Random("{}:treasure-containers".format(dungeon.seed))
-    lock_rng = random.Random("{}:chest-locks".format(dungeon.seed))
+    seed = dungeon.seed if start_level == 1 else "{}:level-{}".format(dungeon.seed, start_level)
+    rng = random.Random("{}:encounters".format(seed))
+    container_rng = random.Random("{}:treasure-containers".format(seed))
+    lock_rng = random.Random("{}:chest-locks".format(seed))
     levels = []
-    for depth, level in enumerate(dungeon.levels, 1):
+    for depth, level in enumerate(dungeon.levels, start_level):
         if len(level.room_cells) != len(level.room_areas):
             raise ValueError("encounter generation requires retained chamber footprints")
         areas = []
@@ -465,7 +473,7 @@ def encounter_document(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, 
                                     "Dragon hoard.")]
             has_trap = bool(area.trap) and area.trap != "None."
             lines.extend(["", "### {}".format(area.number), ""])
-            if not area.monster and not loot and not has_trap and not area.chest_trap:
+            if not area.monster and not loot and not has_trap and not area.chest_trap and not area.notes:
                 lines.append("Empty")
                 continue
             if area.monster:
@@ -484,6 +492,8 @@ def encounter_document(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, 
                 lines.extend(["", "**Trap:** " + area.trap])
             if area.chest_trap:
                 lines.extend(["", "**Chest trap:** " + area.chest_trap])
+            for note in area.notes:
+                lines.extend(["", note])
         if contents.traps:
             lines.extend(["", "### Explicit map traps (T/P)", ""])
             lines.extend("- Column {}, row {}: {}".format(cell[0] + 1, cell[1] + 1, description)
@@ -511,6 +521,7 @@ def encounter_log(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, ...],
     for index, contents in enumerate(levels, 1):
         band = ("1-3", "4-6", "7-9")[min((index - 1) // 3, 2)]
         lines.extend(["", "Level {}".format(index), "Encounter table: levels {}.".format(band)])
+        lines.extend(dungeon.levels[index - 1].layout_notes)
         for area in contents.areas:
             lines.extend([
                 "", "Area {} (column {}, row {})".format(area.number, area.cell[0] + 1, area.cell[1] + 1),
@@ -518,6 +529,7 @@ def encounter_log(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, ...],
                 "Monster table roll: {}.".format(area.table_roll if area.table_roll is not None else "not rolled"),
             ])
             lines.extend(area.debug)
+            lines.extend(area.notes)
             lines.append("Encounter result: " + (area.monster.description if area.monster else "No monster"))
             lines.extend("Treasure result: " + item for item in area.treasure)
             if area.container:

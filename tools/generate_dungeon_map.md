@@ -2,6 +2,12 @@
 
 Requires **Python 3.7+**, with no third-party packages.
 
+The generator now includes random puzzles and encounter stocking by default.
+Use `--puzzle-probability 0` for the original puzzle-free layout behavior;
+add `--generate-encounters` if you still want ordinary encounter stocking.
+See [Random puzzles and progression gates](#random-puzzles-and-progression-gates)
+for probability controls, expanded map dimensions, and TM item references.
+
 ```powershell
 python ascii_map_to_svg.py map.txt --output map.svg
 python generate_dungeon_map.py --width 60 --height 40 --seed 42 --output dungeon.svg
@@ -178,7 +184,7 @@ doors and covered pits as passable.
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--width`, `--height` | `60`, `40` | Map dimensions in squares, each at least 7 |
+| `--width`, `--height` | `60`, `40` | Base map dimensions in squares, each at least 7; puzzle wings can increase width |
 | `--levels` | `1` | Positive number of levels; 1 generates a single floor without automatic stairs |
 | `--stair-length` | `3` | Positive integer length of each multi-level stairway or ramp, in squares |
 | `--ramp-probability` | `0` | **Percentage, 0-100**, that a multi-level down stairway becomes a ramp |
@@ -196,7 +202,9 @@ doors and covered pits as passable.
 | `--stairs-up` | `0` | Exact one-square up stairs in single-level mode; automatic in multi-level mode |
 | `--ramps-down`, `--ramps-up` | `0` | Exact one-square ramps in single-level mode; multi-level down ramps are additional guaranteed passages, up ramps are automatic |
 | `--chamfer-probability` | `0` | Probability of converting an eligible smooth room corner to a diagonal |
-| `--generate-encounters` | off | Include this flag to number every chamber and write a Markdown encounter key and debug log; takes no value |
+| `--generate-encounters` | off | Force ordinary encounter stocking when puzzles are disabled; enabled puzzles already imply stocking and TM output |
+| `--puzzle-probability` | `0.35` | Independent probability, 0-1, for each puzzle slot per level; 0 disables puzzles |
+| `--max-puzzles-per-level` | `2` | Number of independent puzzle slots, integer 0-40; 0 disables puzzles |
 | `--encounter-chance` | `11` | Minimum basic roll for a monster in each chamber, integer 0-33 inclusive |
 | `--treasure-chest-dc` | `17` | Generation threshold for treasure in a chest; otherwise a bag/pack. Integer 0-34: 0 always, 34 never |
 | `--chest-trap-dc` | `19` | Generation threshold for a treasure chest to be trapped. Integer 0-34: 0 always, 34 never |
@@ -225,7 +233,9 @@ spacing is chosen using the direct route length; meanders add extra corridor
 squares afterward, and those squares count toward achieved corridor lengths
 and map density.
 
-Feature counts are **exact**, with no overlap. Features cannot replace the
+Base feature counts are **exact**, with no overlap. Puzzle gates add their own
+`D` tiles beyond the requested door counts; progression puzzles replace all
+down passages with one gated stairway, as described below. Other features cannot replace the
 literal neighbors required by doors or diagonals. Placement retries up to
 12 layouts before reporting an error rather than silently reducing counts.
 The same seed and options reproduce the layout, features, and SVG geometry.
@@ -283,8 +293,9 @@ With more than one level:
 - Each non-final level has the requested `--stairs-down` passages, or a seeded
   random count of 1-3 if omitted. Each is independently replaced by a ramp with
   the given percentage chance. `--ramps-down` adds guaranteed ramps per
-  connection. Explicit counts are not silently reduced; at least one passage
-  per connection is required.
+  connection. A progression puzzle explicitly replaces all these down passages
+  with one gated stairway and reports the replacement. Without such a puzzle,
+  counts are preserved; at least one passage per connection is required.
 - Every descending passage is copied to the next level at **all the same
   coordinates**, with the same length and axis. `E` becomes `U`, and `R`
   becomes `I`. Up passages are inherited, not randomly placed. `--stairs-up`
@@ -313,9 +324,150 @@ With `--levels 1`, no surface or linked passages are automatically added;
 the existing optional one-square stair/ramp feature counts still apply.
 `--stair-length` and `--ramp-probability` have no generation effect in that mode.
 Single-level stairs now follow the same corridor-only clearance rules instead
-of appearing inside rooms. Generation without stairs/ramps is unchanged.
+of appearing inside rooms. With puzzles disabled, generation without
+stairs/ramps is unchanged.
 
-### Optional encounters, treasure, and traps
+### Random puzzles and progression gates
+
+The 40 puzzles in [dungeon_puzzles.md](dungeon_puzzles.md) are the live catalog,
+loaded by `dungeon_puzzles.py`; keep both files together. The encounter key
+includes the selected puzzles' setup, clues, solutions, failure guidance, and
+rewards rather than requiring the TM to consult a separate catalog.
+
+```powershell
+python generate_dungeon_map.py --levels 3 --seed 42 --output adventure.svg
+python generate_dungeon_map.py --levels 3 --puzzle-probability 0.7 --max-puzzles-per-level 2 --output puzzles.svg
+python generate_dungeon_map.py --levels 3 --puzzle-probability 1 --max-puzzles-per-level 1 --output one-per-level.svg
+python generate_dungeon_map.py --puzzle-probability 0 --generate-encounters --output encounters-only.svg
+python generate_dungeon_map.py --puzzle-probability 0 --output unstocked.svg
+```
+
+Each level rolls once for each puzzle slot. With the defaults (two slots, each
+at probability 0.35), the probabilities are **42.25% for no puzzles, 45.5% for
+one, and 12.25% for two**. At probability 0.7 they become 9%, 42%, and 49%.
+These percentages apply while enough unused puzzles are eligible at the
+current depth. Probability 1 fills every eligible slot; zero slots or probability
+zero disables puzzles. Selection is uniform without replacement from the unused,
+depth-eligible catalog, so a puzzle appears **at most once in the entire dungeon**.
+Exhausting that eligible pool leaves slots empty and is reported, rather than
+repeating puzzles or placing a deep-level puzzle too early. A deeper level
+can unlock entries that were ineligible above it.
+
+#### Deterministic strategy games
+
+Puzzles 31-40 add four normal-play Nim variations, two historical chess mates,
+two Capture Go ladders, Wythoff's game, and Chomp. Their rules, exact starts,
+boards, winning strategies, and fixed opponent policies are included directly
+in the generated TM key. All give the party the first move and unlimited free
+retries from the **identical position** after a loss; the playing tokens are
+not repeatable treasure. Random selection of a dungeon puzzle is separate
+from playing it: no move or outcome uses chance.
+
+The Nim variants use three or four gem/coin piles, or markers on 3-by-9 and
+4-by-9 boards labeled 0-8. All starting nim-sums are nonzero. Removing the
+last object wins; these are not misere variants. The key explains how to
+restore xor zero after every guardian move.
+
+Chess uses the published Immortal Game continuation (mate in **3**) and the
+Evergreen Game's announced mate (mate in **4**), with FENs, diagrams, citations,
+and complete branches for every legal Black defense along the supplied White
+strategy. A visible move counter counts **White's moves**, not both players'
+moves or real time. Mate on the final allowed move or earlier succeeds; draws
+or expiration reset the board. The regular tabletop mate in 3 appears only
+on **Levels 1-3**; the giant spectral mate in 4 appears only on **Level 4+**.
+
+The Go entries are explicitly **five-by-five Capture Go**, not full-board
+territory-scoring problems: capture the marked White chain within **3** or
+**5 Black moves**. The shorter ladder is restricted to Levels 1-3 and the
+longer to Level 4+. Every legal White defense is covered: a defender either
+extends the ladder or permits an immediate capture; the last extension is
+doomed at the edge. Normal captures, no suicide, and positional superko apply.
+The generator validates these ladders and the Nim/Wythoff/Chomp starts with
+standard-library code in `dungeon_games.py`. Full chess legality and exact
+minimum mate lengths are verified by the strategy regression tests.
+
+Depth restrictions do not guarantee every new puzzle will appear in a given
+dungeon. A single-level dungeon cannot select the longer chess/Go entries;
+unused shallow-only entries also cannot be placed on deeper levels.
+
+#### Generation and placement
+
+Generation proceeds in order: generate Level 1, stock its encounters, select
+and install its puzzles, finalize its exits, then generate Level 2 with those
+inherited exits. The same process continues downward. Puzzle selection has
+its own seeded random stream; stocked levels in puzzle mode also use seeded
+per-level encounter streams. Seed replay reproduces layouts, loot, selections,
+and required-item locations. Disabling puzzles preserves the original layout
+and encounter-generation streams.
+
+**Layout changes:** Selected puzzles receive dedicated 5-by-5 chambers in a
+single-entry wing appended to the right of the generated map. This deliberately
+**increases the requested width**, rather than erasing stocked rooms or allowing
+accidental alternate corridors; height and physical drawing scale do not change.
+A lower level grows in width when necessary to contain its inherited stairwell.
+The CLI and debug log report expansions and stair replacements. Corridor and
+room metadata, ASCII, SVG, and encounter labels all describe the final layout.
+The requested density and average room size remain soft targets.
+
+Local puzzles (chests and temporary escape rooms) follow the wing's progression
+puzzles and do not change the level's stairs. This also places their written
+treasure and magical rewards inside the protected section when gates are present.
+The ogre's and wizard's reward keys open their respective progression gates,
+rather than being unassigned keys. A progression
+puzzle has a **real `D` gate** at the exit of its chamber, with a corridor beyond
+it. The TM key identifies the exact gate coordinate and all protected area
+numbers. Treat it as impassable until solved, not as an ordinary pickable lock;
+ASCII connectivity and SVG rendering represent the solved, passable state.
+Puzzle contents and solutions never appear on the player SVG.
+
+- On a non-final level, all previously generated down stairs **and ramps** are
+  removed. One new down stairway, with the configured stair length, is placed
+  beyond the gated chambers and their reward room. It is inherited at exactly
+  the same coordinates by the next level. Puzzle progression intentionally
+  takes precedence over requested down-passage counts and ramp probability.
+- On the final level, including a one-level dungeon, the gates instead protect
+  a new room section with **no up or down stairs or ramps and no other entrance**.
+  Optional single-level stairs remain in the accessible original layout.
+- Multiple progression puzzles form a serial chain: every one must be solved
+  to reach the terminal reward and, where applicable, the next-level stairway.
+  Catalog shortcuts and emergency releases never bypass these progression gates.
+
+The final protected chamber receives the original level's highest-ranked
+treasure **together with its guarding encounter, container, lock, and chest trap**.
+Floor traps stay at their original locations. Loot is moved, not duplicated.
+If the bottom level has a gated section, a final stocking pass exchanges hoards
+as necessary to put the **entire dungeon's** highest-ranked generated treasure
+there, not merely the best treasure originally rolled on that floor. Earlier
+gated sections retain their best remaining local encounter. This pass does not
+move map features or required puzzle items, so their keyed locations stay valid.
+Ranking compares permanent/reusable magic-item count first (including wands
+and staves), then potion/scroll count, then the combined coin and gem value
+converted to copper pieces. Thus any permanent magic outranks any quantity of
+consumables, and any magic outranks monetary treasure; money breaks remaining
+ties. One of equally ranked best hoards is sufficient. If all rooms rolled no
+loot, the protected chamber receives an unlocked chest containing 100 sp.
+The catalog's suggested gate reward supplies flavor rather than an additional
+generated hoard; local chest/item puzzles retain their written rewards.
+
+**Required items:** Every external item is assigned to a numbered encounter
+area on the same or an earlier level, never its own puzzle room or a section
+behind any puzzle on its source level. Item placement does not depend on a
+treasure roll. The TM key states both directions: the puzzle entry names the
+item's source level/area, and that source area names the item, target puzzle,
+and target level/area. Items are visible furnishings outside locked containers,
+with a symbol or diagram hinting at their use. Generated locations supersede
+the catalog's illustrative studies, workshops, guardrooms, and other locations.
+These references are added after all levels have final chamber numbers, so
+an earlier area's key includes items needed by later levels.
+
+Before writing output, the generator checks that solved maps are connected,
+closed progression gates cannot be bypassed, protected areas contain the best
+loot and only permitted stairs, every prerequisite is accessible before its
+puzzle, IDs are unique, and adjacent stair footprints match. Impossible safe
+wing connections produce an explicit error rather than an unkeyed or bypassable
+puzzle; try a larger map, fewer crowded features, or another seed.
+
+### Encounters, treasure, and traps
 
 ```powershell
 python generate_dungeon_map.py --levels 10 --seed 42 --generate-encounters --encounter-chance 11 --output keep.svg
@@ -326,9 +478,11 @@ This adds numbered chamber labels to every level's SVG and writes one
 for debugging. With a single level, it writes `keep.svg`, `keep.txt`,
 `keep-encounters.md`, and `keep-encounters.log`. The Markdown and log filenames
 are derived from the original `--output` stem, independently of `--ascii-output`. All output
-paths must differ. Include `--generate-encounters` to enable stocking; omit it
-for the original unstocked output without numbers, a new Markdown document, or a debug log.
-The flag takes no `true`/`false` value.
+paths must differ. Enabled puzzles imply stocking and these outputs even if
+a particular level rolls no puzzles. With `--puzzle-probability 0`, include
+`--generate-encounters` to retain stocking, or omit that flag for the original
+unstocked output without numbers, a Markdown document, or a debug log. The
+flag takes no `true`/`false` value.
 
 Numbers restart at 1 on each level, in reading order: label rows from top to
 bottom, and left to right within each row, starting at the upper left.
@@ -352,7 +506,8 @@ the same stored results without rerolling. Numbered entry headings are just
 the number (for example, `### 1`), without "Area". Absent monsters and traps
 are omitted, as are empty gem/magic categories. Monsters without treasure
 explicitly show **Treasure:** None. Otherwise absent treasure is omitted.
-An entry with no monsters, treasure, or traps contains only `Empty`.
+An entry with no monsters, treasure, traps, puzzle, or required puzzle items
+contains only `Empty`.
 Empty level-wide trap and door keys are omitted too.
 
 The encounter Markdown is a secret document for the TM to read from as players
@@ -632,3 +787,15 @@ Run the focused tests from `campaigns\ur`:
 ```powershell
 python -m unittest test_dungeon_map
 ```
+
+For the shared generator and strategy-game proofs, run from `Tools_temp`:
+
+```powershell
+python -m pip install -r requirements-test.txt
+python -m unittest test_dungeon_map test_dungeon_puzzles test_dungeon_games
+```
+
+The `chess` package is **test-only**; the generator still requires only Python's
+standard library. The chess tests reconstruct the source-game positions,
+check every defending branch, and independently search all legal moves to
+verify both the claimed mate and the impossibility of a shorter forced mate.
