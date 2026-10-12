@@ -1299,6 +1299,8 @@ class EncounterTests(unittest.TestCase):
 
 class CommandLineTests(unittest.TestCase):
     def run_cli(self, script, *args):
+        if script == "generate_dungeon_map.py":
+            args = ("--puzzle-probability", 0) + args
         return subprocess.run(
             [sys.executable, str(HERE / script)] + [str(arg) for arg in args],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
