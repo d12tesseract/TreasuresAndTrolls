@@ -1,4 +1,4 @@
-# Forty Random Dungeon Puzzles
+# Fifty Random Dungeon Puzzles
 
 **WARNING: TM ONLY - CONTAINS SPOILERS**
 
@@ -9,11 +9,13 @@ The [dungeon generator](generate_dungeon_map.md#random-puzzles-and-progression-g
 can place these puzzles automatically, create gated passages, relocate the
 best loot, and key required items to reachable encounter areas. Its generated
 TM key overrides the illustrative locations and exit destinations below.
+Multiple passage puzzles guard independent reward branches, never a nested
+sequence; selected multiple exits can lead down from separate branches.
 Keep this catalog beside `dungeon_puzzles.py`, which loads its descriptions.
 
 These system-neutral puzzles use classic dungeon and escape-room ideas, with
-solutions provided for the game master. Choose by challenge type, or roll 1d4
-and 1d10: add ten times (the d4 result minus one) to the d10 result.
+solutions provided for the game master. Choose by challenge type, or roll 1d6
+(reroll a 6) and 1d10: add ten times (the d6 result minus one) to the d10 result.
 For manual selection, reroll a puzzle outside its stated dungeon-level range.
 Place any required items and their clues before the
 barrier they unlock; never hide the only solution behind that same barrier.
@@ -66,6 +68,16 @@ memories, and performances without their players having to perform them.
 | 38 | The Five-Step Dragon Ladder | Strategy games: Go | Clear a warded passage | None |
 | 39 | The Twin Tribute of Wythoff | Strategy games: other impartial games | Release a sealed stairway | None |
 | 40 | The Ogre's Forbidden Sweet | Strategy games: other impartial games | Unlock an ogre's pantry chest | None |
+| 41 | The Fallen Delver's Last Account | Escape rooms: substitution and reading order | Open an adventurer's strongbox | None |
+| 42 | The Apprentice's Borrowed Alphabet | Escape rooms: substitution and reading order | Unseal a study passage | None |
+| 43 | The Tomb Painter's Backward Farewell | Escape rooms: substitution and reading order | Open a funerary coffer | None |
+| 44 | The Owl Librarian's Coordinates | Escape rooms: lookup tables and indexing | Open a forbidden archive | None |
+| 45 | The Smuggler's Waterlogged Testament | Escape rooms: lookup tables and indexing | Open a concealed cargo chest | None |
+| 46 | The Surveyor's Three Warning Lamps | Escape rooms: binary and signal codes | Release a mine passage gate | None |
+| 47 | The Bellmaker's Interrupted Watch | Escape rooms: binary and signal codes | Escape a sealed workshop | None |
+| 48 | The Observatory's False Ephemerides | Escape rooms: ordering and extraction | Open an observatory passage | None |
+| 49 | The Field Surgeon's Linen Cipher | Escape rooms: ordering and extraction | Open an infirmary medicine chest | None |
+| 50 | The Cartographer's Serpent Trail | Escape rooms: ordering and extraction | Unlock a hidden survey passage | None |
 
 ## Deduction and Ordering
 
@@ -1278,3 +1290,423 @@ is consumed by a failed attempt.
 
 **Reward:** Victory opens the ogre's pantry chest, revealing preserved treats
 and a silver dessert service separate from the enchanted playing tiles.
+
+## Escape Rooms: Substitution and Reading Order
+
+Puzzles 41-50 each contain **2-4 genuine hidden clues and 2-4 hidden decoys**.
+The cipher key and instructions are visible room fixtures, not extra hidden
+clues. Table classifications, explanations, and final codes are **TM-only**:
+describe discovered objects, their markings, and their text, never announce
+"genuine" or "decoy." Every decoy fails an observable selection rule printed
+on the key; players need not read the TM's mind to reject it.
+
+These are ordinary WIS clue searches, not class-restricted trap checks.
+A basic roll is three independent integers from 0 through 11, summed without
+symbol rerolls. Add the WIS modifier and applicable level/class bonuses,
+and meet or exceed the listed DC. A roll searches one named hiding place;
+each retry costs one exploration turn. Precisely inspecting the actual
+compartment, lining, or underside reveals its clue without another roll.
+Failed searches never destroy clues. No outside item, language proficiency,
+or additional cipher knowledge is needed beyond the supplied key.
+
+### 41. The Fallen Delver's Last Account
+
+**Escape code:** 472
+
+**Setup:** A slain adventurer lies beside a three-wheel strongbox in a looted
+guardroom. The box has digits 0-9 on each wheel and a sun-shaped seal matching
+the adventurer's old company badge.
+
+**Cipher key:** The visible badge reads, "Trust the sun. Read HEAD, HEART,
+HEEL." Its reverse supplies the lookup: `FLAME=4, WAVE=7, ROOT=2, SKULL=9,
+BOLT=5`. Only fragments carrying the matching sun seal belong to this account.
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against each
+listed DC; a miss costs an exploration turn and permits another attempt.
+Directly inspecting the precise hiding place reveals its clue without a roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Inside the helmet lining; sun seal and HEAD label | 17 | FLAME | First digit, 4 |
+| Genuine | Folded into the breastplate padding; sun seal and HEART label | 20 | WAVE | Second digit, 7 |
+| Genuine | Under the boot's removable heel; sun seal and HEEL label | 20 | ROOT | Third digit, 2 |
+| Decoy | Under the corpse's belt pouch; a moon-stamped gaming chit | 17 | SKULL | Wrong company seal, despite a valid lookup symbol |
+| Decoy | Behind a loose brick; a lightning-stamped scrap | 20 | BOLT | No sun seal |
+| Decoy | Inside a broken cup; an unmarked scrap of numbers | 17 | 593 | No sun seal or body-order label |
+
+**Solution:** Select the three sun-sealed fragments, put them in HEAD,
+HEART, HEEL order, and translate FLAME, WAVE, ROOT to **472**. The moon and
+lightning markings are observable evidence against the competing scraps.
+
+**Failure and hints:** A wrong combination clicks and returns the wheels to
+zero; retries are unlimited. If the party mixes in a gaming chit, point out
+that its seal differs from the strongbox's sun. No clue is consumed.
+
+**Reward:** The box holds a valuable garnet and the adventurer's salvage
+notes, including a warning about a nearby dungeon hazard.
+
+### 42. The Apprentice's Borrowed Alphabet
+
+**Escape code:** OPEN
+
+**Setup:** A wizard's abandoned apprentice study contains a four-letter
+door lock, half-finished exercises, and a portrait of a stern tutor.
+The tutor's crown emblem is repeated on the lock.
+
+**Cipher key:** A permanent alphabet strip on the desk says, "Use the crowned
+lesson, I before II. Move each written letter back three places; wrap A to Z."
+It shows the complete correspondence, with encoded letters above decoded ones:
+
+```text
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+XYZABCDEFGHIJKLMNOPQRSTUVW
+```
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against the listed
+DC for a named hiding place. A failed attempt costs an exploration turn;
+retries are allowed, and exact hands-on inspection finds the clue without a roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Behind the tutor's portrait backing; crown stamp and I | 20 | RS | Decodes to OP |
+| Genuine | Beneath the writing desk's pen tray; crown stamp and II | 17 | HQ | Decodes to EN |
+| Decoy | In the wastebasket beneath torn exercises; marked PRACTICE, no crown | 17 | GOLD | An unrelated letter exercise, not a password hint |
+| Decoy | Inside an empty ink bottle; apprentice's spiral mark, no crown | 20 | ABCD | Uses the wrong identifying mark |
+
+**Solution:** Join the crowned fragments in I-II order to obtain RSHQ,
+then shift each letter backward by three: **OPEN**. Enter the decoded word,
+not the cipher text, on the four letter wheels.
+
+**Failure and hints:** Incorrect words extinguish the portrait's eyes for
+one exploration turn but do not erase evidence or prevent later attempts.
+The tutor's portrait can demonstrate R becoming O without revealing the rest.
+
+**Reward:** The study passage unseals, revealing access to the next dungeon
+section and a small cache of unused spell-writing supplies.
+
+### 43. The Tomb Painter's Backward Farewell
+
+**Escape code:** BONE
+
+**Setup:** A tomb painter died beside a covered funerary coffer. Its four
+letter wheels sit below a polished bronze mirror, while abandoned repair
+notes and burial tallies litter the chamber.
+
+**Cipher key:** The coffer reads, "Only the square mason's seal. Join I then
+II, then read the whole line from right to left." An example displays
+`TAC -> CAT`. This reverses letter order, not letter shapes; no actual mirror
+writing or special prop is required to run the puzzle.
+
+**Search:** Use basic + WIS modifier + applicable bonuses versus the listed
+DC. Failure costs an exploration turn, with unlimited retries; specifically
+opening or inspecting the named hiding place reveals the clue without a roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Folded inside the painter's sleeve; square seal and I | 17 | EN | First half of the written line |
+| Genuine | Under a flake of the portrait's painted frame; square seal and II | 20 | OB | Second half of the written line |
+| Decoy | Beneath the paint box; round potter's seal on a tally slip | 17 | 4321 | A stock count, not a square-sealed fragment |
+| Decoy | In the empty incense brazier; oval seal on a charred strip | 20 | ASH | Plausible tomb language but the wrong seal |
+| Decoy | Behind a replacement frame wedge; unsealed repair note | 17 | TI | No square seal or order numeral |
+
+**Solution:** The square-sealed halves form **ENOB**. Reverse that entire
+four-letter string to obtain **BONE**. Reversing each half separately without
+reversing their order would incorrectly give NEBO.
+
+**Failure and hints:** Wrong words make the coffer whisper the example,
+"TAC becomes CAT," then reset the wheels. Repeated attempts are safe and free;
+the painter's belongings and all clues remain intact.
+
+**Reward:** The funerary coffer opens to reveal a carved ivory cameo and a
+silver burial mask.
+
+## Escape Rooms: Lookup Tables and Indexing
+
+### 44. The Owl Librarian's Coordinates
+
+**Escape code:** GATE
+
+**Setup:** A deserted monastery library has a four-letter lock on its
+forbidden archive. Most books carry catalogue numbers, but the old librarian
+used a distinct owl seal for private instructions.
+
+**Cipher key:** A brass grid beside the lock is visible and intact. Its
+caption reads, "Follow the owl, I through IV. First number is ROW; second
+number is COLUMN." The five-by-five alphabet omits J; no missing letter needs
+to be guessed.
+
+```text
+    1 2 3 4 5
+1   A B C D E
+2   F G H I K
+3   L M N O P
+4   Q R S T U
+5   V W X Y Z
+```
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against the listed
+DC. Each failed search costs an exploration turn and can be retried.
+Inspecting the exact hiding place directly reveals its clue without a roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Under the reading lectern's lip; owl seal and I | 17 | 22 | Row 2, column 2: G |
+| Genuine | In a hollow book spine; owl seal and II | 20 | 11 | Row 1, column 1: A |
+| Genuine | Behind the founder's portrait; owl seal and III | 20 | 44 | Row 4, column 4: T |
+| Genuine | Inside the librarian's quill case; owl seal and IV | 17 | 15 | Row 1, column 5: E |
+| Decoy | Under a shelf bracket; a serpent-stamped inventory label | 17 | 51 | Valid coordinates, wrong seal |
+| Decoy | Between torn index pages; marked CATALOGUE, no owl | 17 | 43 | A shelf reference |
+| Decoy | In a broken book clasp; a lion stamp | 20 | 25 | Valid coordinates belonging to another system |
+| Decoy | Rolled inside a discarded reed pen; no seal | 20 | 3142 | A scribble without owl identification or an order numeral |
+
+**Solution:** Read the owl-sealed coordinates in I-IV order: **22, 11, 44,
+15**, producing **GATE**. Transposing the last pair to 51 gives V instead
+of E; the grid's row-first instruction resolves that ambiguity.
+
+**Failure and hints:** Incorrect words ring a small desk bell and reset
+the lock. Attempts are unlimited. A miniature worked example on the grid
+shows 12 selecting B, reinforcing row-then-column reading.
+
+**Reward:** The archive door opens onto the protected section; a preserved
+local map and an illuminated manuscript are displayed just beyond it.
+
+### 45. The Smuggler's Waterlogged Testament
+
+**Escape code:** MAP
+
+**Setup:** A flooded storeroom contains a smuggler's skeleton, rotten cargo
+tags, and a dry three-letter chest lock under a shelf. A waterproof notebook
+has survived in a clearly visible glass-fronted niche.
+
+**Cipher key:** The notebook's open page is fixed in place and reads:
+
+```text
+1 Beyond the mouth rest two lanterns
+2 A rusted anchor guards the inlet
+3 Stone pipes carry hidden cargo
+```
+
+Its margin explains, "Only swallowtail flags. Read I, II, III. A slash means
+line/word; count words from one and take the first letter of the selected
+word." Spaces separate words, and capitalization has no other meaning.
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against the listed
+DC. A failed search spends an exploration turn; retries are allowed.
+Direct inspection of the precise hiding place finds the clue without a roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Stitched inside the skeleton's coat cuff; swallowtail flag and I | 20 | 1/3 | mouth: M |
+| Genuine | Under the dry shelf's false bottom; swallowtail flag and II | 20 | 2/3 | anchor: A |
+| Genuine | Inside a corked empty flask; swallowtail flag and III | 17 | 3/2 | pipes: P |
+| Decoy | Beneath a barrel hoop; round warehouse stamp | 17 | 1/1 | A valid reference but not a swallowtail clue |
+| Decoy | Behind a loose wall tile; square customs stamp | 20 | 3/1 | Another cargo system's reference |
+| Decoy | In a split packing crate; unmarked price tag | 17 | 783 | No flag, numeral, or line/word separator |
+
+**Solution:** Follow the flagged references in order. The chosen words are
+**mouth, anchor, pipes**, whose first letters spell **MAP**. The notebook
+is the complete lookup text; no book elsewhere in the dungeon is needed.
+
+**Failure and hints:** Wrong words produce three hollow knocks. The chest
+does not flood or consume clues, and entries may be retried indefinitely.
+The margin's worked example says that 2/1 yields A.
+
+**Reward:** The chest contains pearls wrapped in waxed cloth and a smuggler's
+map identifying a useful dungeon shortcut.
+
+## Escape Rooms: Binary and Signal Codes
+
+### 46. The Surveyor's Three Warning Lamps
+
+**Escape code:** 536
+
+**Setup:** An abandoned mine survey station has a three-digit gate lock,
+old lamp diagrams, and a collapsed survey tripod. Replacement parts lie
+mixed with the original surveyor's marked copper plates.
+
+**Cipher key:** A visible instruction board says, "Original copper plates
+with triangular punch only; station order I, II, III." It assigns the three
+lamp positions, left to right, weights **4, 2, 1**. A filled lamp, written
+`1`, contributes its weight; an empty lamp, written `0`, contributes zero.
+Add the lit weights to obtain each station's digit.
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against each
+listed DC. Failure spends an exploration turn; repeat searches are allowed.
+Exact inspection of a hiding place reveals its clue without another roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Under the tripod's detachable foot; copper, triangular punch, I | 17 | 101 | 4 + 1 = 5 |
+| Genuine | Beneath soot on a ceiling beam's mounted plate; copper, triangular punch, II | 20 | 011 | 2 + 1 = 3 |
+| Genuine | Inside the surveyor's map tube; copper, triangular punch, III | 20 | 110 | 4 + 2 = 6 |
+| Decoy | On the underside of a discarded lamp housing; brass replacement plate | 17 | 000 | Wrong material and no triangular punch |
+| Decoy | Behind the coal bin; an unpunched charcoal tally on scrap wood | 17 | 111 | A shift tally, not an original plate |
+
+**Solution:** In station order, the lamp groups contribute **5, 3, 6**.
+Enter **536**. All lamps are drawn or inscribed symbols; the party does not
+need working electrical equipment or fuel to decode them.
+
+**Failure and hints:** Wrong entries make the instruction board briefly
+illuminate the weights 4, 2, 1. The gate stays safely closed, the plates remain
+readable, and there is no limit on retries.
+
+**Reward:** The gate lifts to reveal the onward mine passage and a small
+survey cache of polished crystals.
+
+### 47. The Bellmaker's Interrupted Watch
+
+**Escape code:** BELL
+
+**Setup:** A clockwork workshop seals when its central bell is touched.
+Four letter wheels appear on the release panel. The bellmaker's cracked
+portrait overlooks piles of music sketches and abandoned signal records.
+
+**Cipher key:** A visible signal chart supplies `B=-..., E=., L=.-..,
+O=---, S=..., H=....`. Long marks are dashes; short marks are dots.
+The panel says, "Only pendulum-sealed records; DAWN, NOON, DUSK, MIDNIGHT."
+This is a supplied signal alphabet, not a test of players' knowledge of Morse.
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against the listed
+DC. Misses cost an exploration turn and can be retried; directly examining
+the actual hiding place reveals its clue without a roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Behind the cracked portrait; pendulum seal and DAWN | 20 | -... | B |
+| Genuine | Beneath the workbench vise's removable pad; pendulum seal and NOON | 17 | . | E |
+| Genuine | Folded inside a stopped clock's openable case; pendulum seal and DUSK | 17 | .-.. | L |
+| Genuine | Under a loose bell-mold insert; pendulum seal and MIDNIGHT | 20 | .-.. | L |
+| Decoy | In the music-paper basket; a lyre stamp, no pendulum | 17 | --- | Decodes to O but fails the selection rule |
+| Decoy | Inside a tuning-fork sleeve; marked PRACTICE with a round stamp | 20 | ... | Decodes to S but is not an official watch record |
+
+**Solution:** Decode the four pendulum-sealed records in watch order to
+obtain **BELL**, then enter it on the panel. Two different records correctly
+give the same letter; duplicates are not evidence of a decoy.
+
+**Failure and hints:** Wrong words make the bell tap the supplied example
+for E. The room contains air and has no countdown; searches and code attempts
+can be repeated. An interior emergency crank opens the way back after one
+exploration turn of noisy work, but does not award the puzzle treasure or
+bypass any separate progression gate.
+
+**Reward:** The workshop releases its seals and opens a drawer containing
+a silver handbell and a finely made set of clockmaker's tools.
+
+## Escape Rooms: Ordering and Extraction
+
+### 48. The Observatory's False Ephemerides
+
+**Escape code:** SUN MOON STAR COMET
+
+**Setup:** A ruined underground observatory has a passage lock with four
+symbol rings. Each ring offers SUN, MOON, STAR, and COMET; a central mechanism
+requires each symbol exactly once. Centuries of observation slips are scattered
+around a broken viewing instrument.
+
+**Cipher key:** A visible glossary reads `DAWN=SUN, TIDE=MOON, WATCHER=STAR,
+WANDERER=COMET`. The lock's date plate says, "Current instructions: Year 417,
+silver star seal." Old ephemerides and unsigned practice notes are not part
+of the current code. The rings are read left to right.
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against each
+listed DC. Failed attempts cost an exploration turn and may be repeated.
+Direct inspection of the exact hiding place finds its clue without a roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | In the astronomer's boot lining; Year 417 and silver star seal | 17 | DAWN first | SUN occupies the leftmost ring |
+| Genuine | Under the instrument's removable sight plate; Year 417 and silver star seal | 20 | WATCHER immediately after TIDE | STAR immediately follows MOON |
+| Genuine | Behind a painting of the night sky; Year 417 and silver star seal | 20 | WANDERER last | COMET occupies the rightmost ring |
+| Decoy | In a cracked scroll jar; silver star seal but Year 416 | 17 | WANDERER first | An obsolete instruction |
+| Decoy | Beneath a stool; Year 417 but a crescent seal | 17 | WATCHER before DAWN | Wrong authority mark |
+| Decoy | In the lens-cleaning rag box; unsealed scratch paper | 20 | TIDE WANDERER DAWN WATCHER | An unsigned trial ordering |
+
+**Solution:** Translate the valid slips. SUN is first and COMET last; the
+remaining two places must contain MOON immediately followed by STAR.
+The unique code is **SUN MOON STAR COMET**. Both the date and seal matter
+when filtering clues.
+
+**Failure and hints:** A wrong arrangement projects the current Year 417
+date and star seal, then releases the rings. Attempts are unlimited.
+The mechanism rejects repeated symbols without treating that as a dangerous
+mistake.
+
+**Reward:** The passage iris opens, revealing onward access and a brass
+star chart inlaid with small decorative gems.
+
+### 49. The Field Surgeon's Linen Cipher
+
+**Escape code:** HEAL
+
+**Setup:** A deserted expedition infirmary contains a sealed four-letter
+medicine chest, discarded treatment notes, and two empty field cots.
+The surgeon hid the instructions among reusable bandages rather than in
+the obvious paper records.
+
+**Cipher key:** Two slotted frames are fixed beside the lock and labeled
+`PULSE: 2,5` and `BREATH: 3,2`. A visible plaque says, "Use only sun-stitched
+linen. Count letters from one, select in the printed order, and read PULSE
+before BREATH." Holes in the frames demonstrate the same selections.
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against the listed
+DC. A failed search costs an exploration turn; retries are permitted.
+Inspecting the precise seam, pocket, or underside directly reveals its clue.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Sewn into the first cot's mattress seam; sun-stitched linen labeled PULSE | 20 | SHARE | Letters 2 and 5 give HE |
+| Genuine | Inside a clean bandage roll's core; sun-stitched linen labeled BREATH | 17 | FLASK | Letters 3 and 2 give AL |
+| Decoy | In a bedside drawer's false bottom; paper labeled PULSE, no stitching | 20 | SCARS | The label fits, but the material and identifying mark do not |
+| Decoy | Under an empty salve jar; paper labeled BREATH, no stitching | 17 | DRAKE | Not a sun-stitched linen strip |
+| Decoy | Beneath the second cot; an unmarked inventory tally on wood | 17 | 1729 | A supply count unrelated to the letter frames |
+
+**Solution:** Insert SHARE in the PULSE frame to select **H, E**; insert
+FLASK in the BREATH frame to select **A, L** in that printed order.
+Together they give **HEAL**. Do not rearrange the second frame's 3,2 into
+ascending order.
+
+**Failure and hints:** Incorrect words illuminate the frames' numbered
+slots, then reset the lock. Attempts are unlimited. No chemicals, medicines,
+or real wounds need to be tested to solve the cipher.
+
+**Reward:** The chest contains a restorative potion and a silver surgical
+instrument case.
+
+### 50. The Cartographer's Serpent Trail
+
+**Escape code:** SILVER
+
+**Setup:** A collapsed surveying post has a hidden passage panel with six
+letter wheels. A dead cartographer's map satchel and several generations of
+route sketches lie beside a weathered relief of a serpent.
+
+**Cipher key:** The serpent relief shows a two-column, three-row grid.
+Its arrows read row I left to right, row II right to left, then row III
+left to right. A caption says, "Only NORTH-UP fragments with the broken
+mountain stamp. Fit I, II, III from top to bottom." Compass arrows are explicitly
+labeled, and the broken and complete mountain stamps are visibly different.
+
+**Search:** Roll basic + WIS modifier + applicable bonuses against the listed
+DC. Each failure costs an exploration turn; retries are allowed.
+Deliberately inspecting the exact hidden compartment or lining finds its clue
+without another roll.
+
+| Kind (TM only) | Hiding place and visible identifying marks | WIS DC | Found text | TM interpretation |
+| --- | --- | --- | --- | --- |
+| Genuine | Inside the map satchel's lining; NORTH-UP, broken mountain stamp, I | 20 | SI | Top row, read left to right |
+| Genuine | Under the folding survey stool's seat; NORTH-UP, broken mountain stamp, II | 17 | VL | Middle row, read right to left |
+| Genuine | Rolled into the hollow end of a measuring rod; NORTH-UP, broken mountain stamp, III | 20 | ER | Bottom row, read left to right |
+| Decoy | Behind the satchel's buckle; NORTH-UP but a complete mountain stamp, III | 17 | ZZ | Wrong stamp |
+| Decoy | In a discarded compass case; broken mountain stamp, II, but WEST-UP | 17 | TX | Wrong map orientation |
+| Decoy | Beneath a loose paving stone; an unmarked merchant's price slip | 20 | YQ | No matching stamp, orientation, or row number |
+
+**Solution:** Assemble rows **SI / VL / ER** and follow the serpent arrows:
+SI, then LV, then ER. Enter **SILVER**. Ordinary left-to-right reading of
+all rows would give SIVLER; the visible route explains the required transposition.
+
+**Failure and hints:** Wrong words cause a harmless image of the serpent
+to trace the three-row route, then reset the wheels. Retries are unlimited;
+the fragments stay readable and need not be inserted into the lock itself.
+
+**Reward:** The hidden survey passage opens and reveals a cache of silver
+trade bars in the newly accessible section.

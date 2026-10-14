@@ -6,16 +6,15 @@ from pathlib import Path
 
 from dungeon_encounters import encounter_document, encounter_log, generate_encounters
 from dungeon_puzzles import PUZZLE_COUNT, generate_adventure
-from dungeon_map import (
-    GenerationOptions,
+from dungeon_cli import (
     add_render_arguments,
-    generate_dungeon,
     nonnegative_integer,
     positive_number,
     probability,
     render_options,
-    svg_document,
 )
+from dungeon_map import GenerationOptions, generate_dungeon
+from dungeon_render import svg_document
 
 
 def main() -> None:

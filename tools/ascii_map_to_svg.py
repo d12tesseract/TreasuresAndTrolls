@@ -4,7 +4,9 @@
 import argparse
 from pathlib import Path
 
-from dungeon_map import add_render_arguments, parse_ascii, render_options, svg_document
+from dungeon_cli import add_render_arguments, render_options
+from dungeon_geometry import parse_ascii
+from dungeon_render import svg_document
 
 
 def main() -> None:

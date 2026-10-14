@@ -1,5 +1,6 @@
 import random
 import re
+import itertools
 import subprocess
 import sys
 import tempfile
@@ -117,15 +118,22 @@ class PuzzleGenerationTests(unittest.TestCase):
         self.assertEqual(len({p.definition.number for key in keys for p in key.puzzles}), 3)
         self.assertIn("no further puzzles", " ".join(dungeon.levels[-1].layout_notes))
 
-    def test_drain_and_reward_keys_gate_progression_and_local_rewards_stay_inside(self):
+    def test_gate_and_local_puzzles_are_independently_accessible(self):
         with self.catalog_only(8, 14, 20, 21):
             dungeon, keys = self.adventure(puzzle_probability=1, max_puzzles_per_level=4)
         puzzles = {p.definition.number: p for p in keys[0].puzzles}
         for number in (8, 20, 21):
             self.assertIsNotNone(puzzles[number].gate)
-            self.assertIn(puzzles[14].cell, puzzles[number].protected_cells)
+            self.assertNotIn(puzzles[14].cell, puzzles[number].protected_cells)
+        closed = {p.gate for p in puzzles.values() if p.gate}
+        accessible = flood(dungeon.grid, puzzles[8].cell, closed)
+        self.assertTrue(all(p.cell in accessible for p in puzzles.values()))
+        for puzzle in puzzles.values():
+            if puzzle.gate:
+                self.assertNotIn(puzzle.reward_cell, accessible)
         guide = encounter_document(dungeon, keys, 11)
         self.assertEqual(guide.count("**Key binding:**"), 2)
+        self.assertNotIn("All passage puzzles on this level must be solved", guide)
 
     def test_each_level_is_stocked_before_the_next_layout(self):
         events = []
@@ -157,14 +165,19 @@ class PuzzleGenerationTests(unittest.TestCase):
             self.assertTrue(is_connected(level.grid))
             entrance = next(p.entrance for p in level.stairways if p.tile in "UI")
             down = [p for p in level.stairways if p.tile in "ER"]
-            self.assertEqual(len(down), int(depth < 3))
+            self.assertEqual(len(down), 2 if depth < 3 else 0)
+            all_closed = {p.gate for p in key.puzzles}
+            self.assertTrue(all(p.cell in flood(level.grid, entrance, all_closed) for p in key.puzzles))
             for puzzle in key.puzzles:
                 reachable = flood(level.grid, entrance, {puzzle.gate})
                 self.assertFalse(set(puzzle.protected_cells) & reachable)
                 self.assertIn(puzzle.cell, flood(level.grid, entrance))
                 for stairs in down:
                     self.assertEqual(stairs.tile, "E")
-                    self.assertFalse(set(stairs.cells) & reachable)
+                    if set(stairs.cells) <= set(puzzle.protected_cells):
+                        self.assertFalse(set(stairs.cells) & reachable)
+                    else:
+                        self.assertTrue(set(stairs.cells) <= reachable)
                 self.assertTrue(any(area.cell not in reachable for area in key.areas))
                 for stairs in level.stairways:
                     if stairs.tile in "UI":
@@ -175,6 +188,10 @@ class PuzzleGenerationTests(unittest.TestCase):
                 self.assertEqual([p.horizontal for p in down], [p.horizontal for p in upstairs])
                 for passage in down + upstairs:
                     self.assertEqual(len(passage.cells), options.stair_length)
+                self.assertEqual(len(keys[depth].stair_notes), 2)
+                for puzzle in key.puzzles:
+                    self.assertTrue(any("P{:02d}:".format(puzzle.definition.number) in note
+                                        for note in keys[depth].stair_notes))
         self.assertIn("Removed 3 old down", " ".join(dungeon.layout_notes))
 
     def test_single_level_protects_best_hoard_with_no_stair_bypass(self):
@@ -186,19 +203,87 @@ class PuzzleGenerationTests(unittest.TestCase):
         with self.catalog_only(3, 12):
             dungeon, keys = self.adventure(options, puzzle_probability=1)
         self.assertEqual(dungeon.stairways, original.stairways)
-        for puzzle in keys[0].puzzles:
+        for index, puzzle in enumerate(keys[0].puzzles):
             self.assertIsNone(puzzle.next_level)
             inside = [area for area in keys[0].areas if area.cell in puzzle.protected_cells]
             reward = max(inside, key=treasure_value)
-            self.assertGreaterEqual(treasure_value(reward), treasure_value(best))
-            if treasure_value(best) > (0, 0, Decimal(0)):
+            self.assertGreaterEqual(treasure_value(reward), (0, 0, Decimal(1000)))
+            self.assertIsNotNone(reward.monster)
+            if index == 0:
+                self.assertGreaterEqual(treasure_value(reward), treasure_value(best))
+            if index == 0 and treasure_value(best) >= (0, 0, Decimal(1000)):
                 self.assertEqual(reward.treasure, best.treasure)
-                self.assertEqual(reward.monster, best.monster)
+                if best.monster:
+                    self.assertEqual(reward.monster, best.monster)
                 self.assertEqual(reward.container, best.container)
                 self.assertEqual(reward.chest_trap, best.chest_trap)
                 self.assertEqual(reward.chest_locked, best.chest_locked)
             self.assertFalse(any(set(stairs.cells) & set(puzzle.protected_cells)
                                  for stairs in dungeon.stairways))
+
+    def test_one_exit_leaves_extra_gates_as_separate_guarded_reward_branches(self):
+        options = GenerationOptions(seed=42, width=30, height=24, levels=2, stairs_down=1)
+        with self.catalog_only(3, 6, 12):
+            dungeon, keys = self.adventure(options, puzzle_probability=1, max_puzzles_per_level=3)
+            self.assertEqual((dungeon, keys), self.adventure(
+                options, puzzle_probability=1, max_puzzles_per_level=3))
+        puzzles = keys[0].puzzles
+        self.assertEqual([p.next_level for p in puzzles], [2, None, None])
+        entrance = next(p.entrance for p in dungeon.stairways if p.tile == "U")
+        for chosen in puzzles:
+            reachable = flood(dungeon.grid, entrance, {p.gate for p in puzzles if p != chosen})
+            self.assertTrue(all(p.cell in reachable for p in puzzles))
+            self.assertIn(chosen.reward_cell, reachable)
+            self.assertTrue(all(p.reward_cell not in reachable for p in puzzles if p != chosen))
+            reward = next(a for a in keys[0].areas if a.cell == chosen.reward_cell)
+            self.assertIsNotNone(reward.monster)
+            self.assertGreaterEqual(treasure_value(reward), (0, 0, Decimal(1000)))
+        self.assertFalse(keys[1].stair_notes)
+
+    def test_separate_branches_fit_minimum_height_without_a_corridor_bypass(self):
+        options = GenerationOptions(seed=42, width=30, height=7, room_size=4)
+        with self.catalog_only(2, 6, 11):
+            dungeon, keys = self.adventure(options, puzzle_probability=1, max_puzzles_per_level=3)
+        self.assertEqual(dungeon.grid.height, 7)
+        for puzzle in keys[0].puzzles:
+            reachable = flood(dungeon.grid, keys[0].puzzles[0].cell, {puzzle.gate})
+            self.assertFalse(set(puzzle.protected_cells) & reachable)
+            self.assertTrue(all(p.cell in reachable for p in keys[0].puzzles))
+
+    def test_branch_hoards_are_ranked_and_not_duplicated(self):
+        awarded = []
+
+        def loot(*args):
+            rank = len(awarded) + 1
+            treasure = ("Magic Ring: Unique reward {} (power +{})".format(rank, rank),
+                        "Coins: {} pp.".format(rank))
+            awarded.append(treasure)
+            return treasure
+
+        with self.catalog_only(2, 6, 11), patch("dungeon_encounters.treasure", side_effect=loot):
+            dungeon, keys = self.adventure(puzzle_probability=1, max_puzzles_per_level=3)
+        actual = [area.treasure for area in keys[0].areas if area.treasure != ("None.",)]
+        self.assertCountEqual(actual, awarded)
+        ordered = sorted((treasure_value(area) for area in keys[0].areas), reverse=True)
+        rewards = [next(area for area in keys[0].areas if area.cell == p.reward_cell)
+                   for p in keys[0].puzzles]
+        self.assertEqual([treasure_value(a) for a in rewards], ordered[:3])
+        for puzzle in keys[0].puzzles:
+            self.assertFalse(any(set(puzzle.protected_cells) & set(other.protected_cells)
+                                 for other in keys[0].puzzles if other != puzzle))
+
+    def test_validator_rejects_nested_rewards_and_missing_lower_stair_seals(self):
+        with self.catalog_only(2, 6):
+            dungeon, keys = self.adventure(
+                GenerationOptions(seed=42, width=30, height=24, levels=2, stairs_down=2),
+                puzzle_probability=1)
+        first, second = keys[0].puzzles
+        nested = replace(first, protected_cells=first.protected_cells + second.protected_cells)
+        invalid = (replace(keys[0], puzzles=(nested, second)), keys[1])
+        with self.assertRaisesRegex(ValueError, "overlap or be nested"):
+            validate_puzzle_dungeon(dungeon, invalid)
+        with self.assertRaisesRegex(ValueError, "stair seal"):
+            validate_puzzle_dungeon(dungeon, (keys[0], replace(keys[1], stair_notes=())))
 
     def test_magic_priority_over_consumables_and_monetary_values(self):
         def area(*loot):
@@ -277,6 +362,92 @@ class PuzzleGenerationTests(unittest.TestCase):
             path.write_text("### 1. Missing everything\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "1 through {}".format(PUZZLE_COUNT)):
                 load_puzzles(path)
+
+    def test_escape_clues_have_search_dcs_fair_decoys_and_correct_codes(self):
+        for puzzle in self.catalog[40:]:
+            with self.subTest(puzzle=puzzle.number):
+                body = puzzle.body
+                rows = re.findall(
+                    r"(?m)^\| (Genuine|Decoy) \| ([^|]+) \| (\d+) \| ([^|]+) \| ([^|]+) \|$",
+                    body,
+                )
+                real = [payload.strip() for kind, _, _, payload, _ in rows if kind == "Genuine"]
+                decoys = [row for row in rows if row[0] == "Decoy"]
+                self.assertTrue(2 <= len(real) <= 4)
+                self.assertTrue(2 <= len(decoys) <= 4)
+                self.assertTrue(all(int(row[2]) in (17, 20) for row in rows))
+                self.assertEqual(len({row[1] for row in rows}), len(rows))
+                self.assertIn("**Cipher key:**", body)
+                self.assertIn("**Search:**", body)
+                self.assertIn("WIS modifier", body)
+                self.assertTrue(all(row[4].strip() for row in decoys))
+                expected = re.search(r"(?m)^\*\*Escape code:\*\* (.+)$", body)[1]
+                number = puzzle.number
+                if number == 41:
+                    lookup = dict(re.findall(r"([A-Z]+)=(\d)", body))
+                    decoded = "".join(lookup[value] for value in real)
+                elif number == 42:
+                    alphabets = re.search(r"```text\n([A-Z]+)\n([A-Z]+)\n```", body)
+                    lookup = dict(zip(alphabets[1], alphabets[2]))
+                    decoded = "".join(lookup[letter] for value in real for letter in value)
+                elif number == 43:
+                    decoded = "".join(real)[::-1]
+                elif number == 44:
+                    grid = re.search(r"```text\n(.*?)\n```", body, re.S)[1].splitlines()[1:]
+                    letters = [row.split()[1:] for row in grid]
+                    decoded = "".join(letters[int(value[0]) - 1][int(value[1]) - 1] for value in real)
+                elif number == 45:
+                    book = re.search(r"```text\n(.*?)\n```", body, re.S)[1].splitlines()
+                    decoded = ""
+                    for value in real:
+                        line, word = map(int, value.split("/"))
+                        decoded += book[line - 1].split()[word][0].upper()
+                elif number == 46:
+                    decoded = "".join(str(int(value, 2)) for value in real)
+                elif number == 47:
+                    lookup = {signals: letter for letter, signals in re.findall(r"([A-Z])=([.-]+)", body)}
+                    decoded = "".join(lookup[value] for value in real)
+                elif number == 48:
+                    lookup = dict(re.findall(r"([A-Z]+)=([A-Z]+)", body))
+                    first = real[0].split()[0]
+                    after, before = real[1].split()[0], real[1].split()[-1]
+                    last = real[2].split()[0]
+                    solutions = [
+                        order for order in itertools.permutations(lookup)
+                        if order[0] == first and order[-1] == last
+                        and order.index(after) == order.index(before) + 1
+                    ]
+                    self.assertEqual(len(solutions), 1)
+                    decoded = " ".join(lookup[value] for value in solutions[0])
+                elif number == 49:
+                    windows = re.findall(r"(?:PULSE|BREATH): (\d),(\d)", body)
+                    decoded = "".join(word[int(index) - 1]
+                                      for word, indices in zip(real, windows) for index in indices)
+                elif number == 50:
+                    decoded = "".join(value if row % 2 == 0 else value[::-1]
+                                      for row, value in enumerate(real))
+                else:
+                    self.fail("escape puzzle needs a decoding regression case")
+                self.assertEqual(decoded, expected)
+
+    def test_all_escape_puzzles_reach_tm_key_and_keep_solutions_off_svg(self):
+        with self.catalog_only(*range(41, 51)):
+            dungeon, keys = self.adventure(puzzle_probability=1, max_puzzles_per_level=10)
+        self.assertEqual({p.definition.number for p in keys[0].puzzles}, set(range(41, 51)))
+        self.assertEqual({p.definition.number for p in keys[0].puzzles if p.gate},
+                         {42, 44, 46, 48, 50})
+        guide = encounter_document(dungeon, keys, 11)
+        svg = dungeon_map.svg_document(dungeon.grid, encounter_labels=keys[0].labels, player_view=True)
+        self.assertEqual(guide.count("**Escape code:**"), 10)
+        self.assertEqual(guide.count("**Cipher key:**"), 10)
+        self.assertEqual(guide.count("**Search:**"), 10)
+        self.assertNotIn("Escape code", svg)
+        self.assertNotIn("Genuine", svg)
+        self.assertNotIn("Decoy", svg)
+        for puzzle in keys[0].puzzles:
+            self.assertIn(puzzle.definition.body, guide)
+            self.assertEqual(puzzle.items, ())
+        validate_puzzle_dungeon(dungeon, keys)
 
 
 class PuzzleCommandLineTests(unittest.TestCase):

@@ -11,6 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+from dungeon_geometry import reachable_cells
 from dungeon_encounters import (
     EncounterRules,
     MonsterEncounter,
@@ -73,6 +74,24 @@ def door_map(symbol="D", horizontal=False):
 
 
 class InputTests(unittest.TestCase):
+    def test_reachable_cells_respect_closed_gates_and_invalid_starts(self):
+        grid = parse_ascii("#######\n#  D  #\n#######\n")
+        self.assertEqual(reachable_cells(grid, (1, 1)), {(x, 1) for x in range(1, 6)})
+        self.assertEqual(reachable_cells(grid, (1, 1), {(3, 1)}), {(1, 1), (2, 1)})
+        for start in ((0, 0), (-1, 1), (7, 1), (3, 1)):
+            with self.subTest(start=start):
+                self.assertEqual(reachable_cells(grid, start, {(3, 1)}), set())
+
+    def test_reachable_cells_respect_partition_and_diagonal_geometry(self):
+        partition = DungeonMap((" L", "  "))
+        validate_map(partition)
+        self.assertEqual(reachable_cells(partition, (0, 0)), {(0, 0), (0, 1), (1, 1)})
+        self.assertEqual(reachable_cells(partition, (1, 0)), {(1, 0)})
+        diagonal = DungeonMap(("# #", "#\\ ", "###"))
+        validate_map(diagonal)
+        self.assertEqual(reachable_cells(diagonal, (1, 0)), {(1, 0), (1, 1), (2, 1)})
+        self.assertEqual(reachable_cells(diagonal, (1, 0), {(1, 1)}), {(1, 0)})
+
     def test_spaces_padding_and_newline_roundtrip(self):
         grid = parse_ascii("  # \r\n.\r\n\r\n###\r\n")
         self.assertEqual(grid.rows, ("  # ", ".###", "####", "####"))
@@ -1298,6 +1317,54 @@ class EncounterTests(unittest.TestCase):
 
 
 class CommandLineTests(unittest.TestCase):
+    def test_campaign_imports_share_modules_without_leaking_search_paths(self):
+        code = """
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
+before = sys.path[:]
+from campaigns.ur import dungeon_map, dungeon_encounters
+from campaigns.ur._dungeon_tools import load_module
+import dungeon_map as shared_map
+import dungeon_encounters as shared_encounters
+assert dungeon_map is shared_map
+assert dungeon_encounters is shared_encounters
+assert Path(dungeon_map.__file__).parent.name == "Tools_temp"
+assert sys.path == before
+with patch("dungeon_map._generate_level") as generate:
+    dungeon_map.generate_dungeon(dungeon_map.GenerationOptions(seed=42))
+    generate.assert_called_once()
+try:
+    load_module("missing_dungeon_module")
+except FileNotFoundError:
+    pass
+else:
+    raise AssertionError("missing shared module must raise")
+assert "missing_dungeon_module" not in sys.modules
+assert sys.path == before
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", code], cwd=str(HERE.parent),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_campaign_ascii_command_matches_shared_renderer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "map.txt"
+            source.write_text("#####\n#...#\n#####\n", encoding="ascii")
+            documents = []
+            for script in (HERE / "ascii_map_to_svg.py",
+                           HERE.parent / "campaigns" / "ur" / "ascii_map_to_svg.py"):
+                result = subprocess.run(
+                    [sys.executable, str(script), str(source), "--seed", "7"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                documents.append(source.with_suffix(".svg").read_bytes())
+            self.assertEqual(documents[0], documents[1])
+
     def run_cli(self, script, *args):
         if script == "generate_dungeon_map.py":
             args = ("--puzzle-probability", 0) + args

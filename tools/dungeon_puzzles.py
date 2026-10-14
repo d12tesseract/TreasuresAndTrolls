@@ -5,24 +5,27 @@ import re
 from dataclasses import dataclass, replace
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from dungeon_encounters import (
-    EncounterArea, EncounterLevel, EncounterRules, generate_encounters,
+    EncounterArea, EncounterLevel, EncounterRules, basic_roll, generate_encounters,
+    monster_encounter, number_areas, treasure_value,
 )
 from dungeon_games import field as game_field, validate_strategy_game
+from dungeon_geometry import (
+    Cell, DungeonMap, Stairway, _open_sides, is_connected, reachable_cells,
+)
 from dungeon_map import (
-    Cell, DIRECTIONS, DungeonMap, GeneratedDungeon, GenerationOptions, Stairway,
-    _open_sides, _partition, _probability, _route, generate_dungeon, is_connected,
-    validate_map,
+    GeneratedDungeon, GenerationOptions, _probability, _route, generate_dungeon,
 )
 
 
 CATALOG_PATH = Path(__file__).with_suffix(".md")
-PUZZLE_COUNT = 40
+PUZZLE_COUNT = 50
 PASSAGE_PUZZLES = frozenset((
     2, 3, 4, 6, 8, 9, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 29, 30,
     33, 34, 36, 38, 39,
+    42, 44, 46, 48, 50,
 ))
 REQUIRED_ITEMS = {
     3: ("sun lens",),
@@ -66,6 +69,7 @@ class PlacedPuzzle:
     protected_cells: Tuple[Cell, ...] = ()
     items: Tuple[PuzzleItem, ...] = ()
     next_level: Optional[int] = None
+    reward_cell: Optional[Cell] = None
 
 
 def load_puzzles(path: Path = CATALOG_PATH) -> Tuple[PuzzleDefinition, ...]:
@@ -111,46 +115,11 @@ def load_puzzles(path: Path = CATALOG_PATH) -> Tuple[PuzzleDefinition, ...]:
     return tuple(result)
 
 
-def treasure_value(area: EncounterArea) -> Tuple[int, int, Decimal]:
-    """Lexicographic priority: permanent magic, consumable magic, then money."""
-    permanent = consumable = 0
-    money = Decimal(0)
-    factors = {"cp": 1, "sp": 10, "gp": 100, "pp": 1000}
-    for line in area.treasure:
-        if "(power +" in line:
-            if line.startswith(("Magic Potion", "Magic Scroll")):
-                consumable += 1
-            else:
-                permanent += 1
-        if line.startswith(("Coins:", "Gems/jewelry:")):
-            for amount, currency in re.findall(r"(\d+(?:\.\d+)?) (cp|sp|gp|pp)\b", line):
-                money += Decimal(amount) * factors[currency]
-    return permanent, consumable, money
-
-
-def reachable_cells(grid: DungeonMap, start: Cell, blocked: Set[Cell]) -> Set[Cell]:
-    if start in blocked or not _open_sides(grid, *start):
-        return set()
-    seen = {start}
-    pending = [start]
-    while pending:
-        x, y = pending.pop()
-        for side in _open_sides(grid, x, y):
-            dx, dy = DIRECTIONS[side]
-            neighbor = (x + dx, y + dy)
-            if (neighbor not in blocked and neighbor not in seen
-                    and (side + 2) % 4 in _open_sides(grid, *neighbor)
-                    and not _partition(grid, x, y, side)):
-                seen.add(neighbor)
-                pending.append(neighbor)
-    return seen
-
-
 def _attach_puzzles(
     level: GeneratedDungeon, definitions: List[PuzzleDefinition],
     options: GenerationOptions, depth: int,
-) -> Tuple[GeneratedDungeon, Tuple[PlacedPuzzle, ...], Optional[Cell]]:
-    """Append a one-entry wing so no old corridor can bypass a puzzle gate."""
+) -> Tuple[GeneratedDungeon, Tuple[PlacedPuzzle, ...]]:
+    """Attach independent puzzle/reward branches to an ungated common corridor."""
     definitions = sorted(definitions, key=lambda definition: not definition.passage)
     gated = any(definition.passage for definition in definitions)
     descending = gated and depth < options.levels
@@ -182,17 +151,35 @@ def _attach_puzzles(
         raise ValueError("cannot connect a puzzle wing without damaging protected features; "
                          "increase map height/density or change seed")
     route = min(candidates, key=lambda path: (len(path), path))
-    y = route[0][1]
-    centers = [(old_width + 3 + 8 * index, y)
-               for index in range(len(definitions) + int(gated))]
-    last_x = centers[-1][0]
-    new_stairs = None
-    if descending:
-        new_stairs = Stairway(tuple((last_x + 6 + offset, y)
-                                   for offset in range(options.stair_length)), "E", True)
-        width = new_stairs.cells[-1][0] + 4
-    else:
-        width = last_x + 4
+    # Short maps use three-row chambers to keep a wall above the common corridor.
+    half_height = min(2, (height - 5) // 2)
+    y, hall_y = half_height + 1, height - 2
+    exit_count = min(sum(p.passage for p in definitions), max(1, len(removed))) if descending else 0
+    placements = []
+    new_stairs = []
+    centers = []
+    cursor = old_width
+    for index, definition in enumerate(definitions):
+        center = (cursor + 4, y)
+        reward = (cursor + 12, y) if definition.passage else None
+        gate = (center[0] + 3, y) if definition.passage else None
+        has_exit = index < exit_count
+        centers.append(center)
+        end = center[0]
+        if reward:
+            centers.append(reward)
+            end = reward[0]
+        if has_exit:
+            stairs = Stairway(tuple((end + 6 + offset, y)
+                                    for offset in range(options.stair_length)), "E", True)
+            new_stairs.append(stairs)
+            end = stairs.cells[-1][0]
+        placements.append(PlacedPuzzle(
+            definition, center, gate=gate, next_level=depth + 1 if has_exit else None,
+            reward_cell=reward,
+        ))
+        cursor = end + 4
+    width = cursor
     for row in rows:
         row.extend(["#"] * (width - old_width))
     lengths = list(level.corridor_lengths)
@@ -201,33 +188,38 @@ def _attach_puzzles(
         if rows[cy][x] == "#":
             rows[cy][x] = " "
             added += 1
+    corridors = {(x, route[0][1]) for x in range(old_width - 2, old_width + 1)}
+    corridors.update((old_width, cy) for cy in range(min(route[0][1], hall_y), hall_y + 1))
+    corridors.update((x, hall_y) for x in range(old_width, placements[-1].cell[0] + 1))
+    for placement in placements:
+        cx, cy = placement.cell
+        corridors.update((cx, yy) for yy in range(cy, hall_y + 1))
+        if placement.reward_cell:
+            end = placement.reward_cell[0]
+            if placement.next_level:
+                end = next(p.entrance[0] for p in new_stairs
+                           if p.cells[0][0] == placement.reward_cell[0] + 6)
+            corridors.update((x, cy) for x in range(cx, end + 1))
     footprints = []
     for cx, cy in centers:
         cells = tuple((x, yy) for x in range(cx - 2, cx + 3)
-                      for yy in range(cy - 2, cy + 3))
+                      for yy in range(cy - half_height, cy + half_height + 1))
         footprints.append(cells)
         for x, yy in cells:
             rows[yy][x] = " "
-    end = new_stairs.entrance[0] if new_stairs else last_x
-    for x in range(old_width - 1, end + 1):
-        if rows[y][x] == "#":
-            rows[y][x] = " "
+    for x, cy in corridors:
+        if rows[cy][x] == "#":
+            rows[cy][x] = " "
             added += 1
     lengths.append(added)
-    placements = []
-    for definition, center in zip(definitions, centers):
-        gate = (center[0] + 3, y) if definition.passage else None
-        if gate:
-            rows[gate[1]][gate[0]] = "D"
-        placements.append(PlacedPuzzle(
-            definition, center, gate=gate, next_level=depth + 1 if descending else None,
-        ))
-    if new_stairs:
-        for x, cy in new_stairs.cells:
-            rows[cy][x] = new_stairs.tile
-        stairways += (new_stairs,)
+    for placement in placements:
+        if placement.gate:
+            rows[placement.gate[1]][placement.gate[0]] = "D"
+    for stairs in new_stairs:
+        for x, cy in stairs.cells:
+            rows[cy][x] = stairs.tile
+    stairways += tuple(new_stairs)
     grid = DungeonMap(tuple("".join(row) for row in rows))
-    validate_map(grid)
     if not is_connected(grid):
         raise ValueError("puzzle wing must be connected when its gates are solved")
     all_floor = {(x, yy) for yy, row in enumerate(grid.rows)
@@ -239,17 +231,18 @@ def _attach_puzzles(
         for placement in placements
     ]
     notes = list(level.layout_notes)
-    notes.append("Added a single-entry puzzle wing; map width grew from {} to {} squares.".format(
+    notes.append("Added independent puzzle branches off a common corridor; "
+                 "map width grew from {} to {} squares.".format(
         old_width, width))
     if descending:
-        notes.append("Removed {} old down stairways/ramps; one new exit stairway lies "
-                     "behind all passage puzzles.".format(len(removed)))
+        notes.append("Removed {} old down stairways/ramps; {} new exit stairway(s) lie "
+                     "behind separate puzzle gates.".format(len(removed), len(new_stairs)))
     return replace(
         level, grid=grid, stairways=stairways,
         room_cells=level.room_cells + tuple(footprints),
         room_areas=level.room_areas + tuple(len(cells) for cells in footprints),
         corridor_lengths=tuple(lengths), layout_notes=tuple(notes),
-    ), tuple(placements), centers[-1] if gated else None
+    ), tuple(placements)
 
 
 def _empty_area(cell: Cell) -> EncounterArea:
@@ -259,18 +252,25 @@ def _empty_area(cell: Cell) -> EncounterArea:
 
 def _stock_wing(
     before: GeneratedDungeon, after: GeneratedDungeon, contents: EncounterLevel,
-    placements: Tuple[PlacedPuzzle, ...], goal: Optional[Cell],
+    placements: Tuple[PlacedPuzzle, ...],
 ) -> EncounterLevel:
     areas = list(contents.areas)
     for cells in after.room_cells[len(before.room_cells):]:
         center = (sum(x for x, y in cells) // len(cells),
                   sum(y for x, y in cells) // len(cells))
         areas.append(_empty_area(center))
-    if goal is not None:
-        richest = max(range(len(contents.areas)), key=lambda index: treasure_value(areas[index]))
-        source = areas[richest]
-        target = next(index for index, area in enumerate(areas) if area.cell == goal)
-        if treasure_value(source) > (0, 0, Decimal(0)):
+    available = set(range(len(contents.areas)))
+    values = [treasure_value(area) for area in contents.areas]
+    targets = {area.cell: index for index, area in enumerate(areas)}
+    for puzzle in placements:
+        goal = puzzle.reward_cell
+        if goal is None:
+            continue
+        richest = max(available, key=lambda index: (values[index], -index)) if available else None
+        target = targets[goal]
+        if richest is not None and values[richest] > (0, 0, Decimal(0)):
+            source = areas[richest]
+            available.remove(richest)
             areas[target] = replace(
                 source, cell=goal, trap="None.", notes=(),
                 debug=source.debug + ("Encounter and treasure relocated behind puzzle gates.",),
@@ -281,21 +281,16 @@ def _stock_wing(
                 debug=source.debug + ("Monster and treasure moved to puzzle reward chamber "
                                      "at column {}, row {}.".format(goal[0] + 1, goal[1] + 1),),
             )
-        else:
+        value = treasure_value(areas[target])
+        if value < (0, 0, Decimal(1000)):
+            loot = tuple(line for line in areas[target].treasure if line != "None.")
             areas[target] = replace(
-                areas[target], treasure=("Coins: 100 sp.",), container="chest", chest_locked=False,
-                debug=areas[target].debug + ("No rolled loot; supplied a 100 sp puzzle reward.",),
+                areas[target], treasure=loot + ("Coins: {} sp.".format((1000 - value[2]) / 10),),
+                container=areas[target].container or "chest",
+                chest_locked=areas[target].chest_locked if areas[target].container else False,
+                debug=areas[target].debug + ("Topped up puzzle reward to a minimum of 100 sp.",),
             )
-    areas = [replace(area, number=number) for number, area in enumerate(
-        sorted(areas, key=lambda area: (area.cell[1], area.cell[0])), 1)]
-    return replace(contents, areas=tuple(areas), puzzles=placements)
-
-
-def _location(level: int, cell: Cell, keys: List[EncounterLevel]) -> str:
-    area = next((area for area in keys[level - 1].areas if area.cell == cell), None)
-    if area is None:
-        raise ValueError("puzzle reference does not identify an encounter area")
-    return "Level {}, Area {}".format(level, area.number)
+    return replace(contents, areas=number_areas(areas), puzzles=placements)
 
 
 def _exchange_hoards(
@@ -315,28 +310,51 @@ def _exchange_hoards(
         ))
 
 
-def _finalize_rewards(keys: List[EncounterLevel]) -> None:
-    if not any(puzzle.gate for puzzle in keys[-1].puzzles):
-        return
-    final_index = len(keys) - 1
-    goal = max(keys[-1].areas, key=lambda area: area.cell[0])
-    richest = max(((index, area) for index, key in enumerate(keys) for area in key.areas),
-                  key=lambda item: treasure_value(item[1]))
-    if treasure_value(richest[1]) > treasure_value(goal):
-        _exchange_hoards(keys, richest, (final_index, goal))
-    # An earlier gated hoard may have moved downstairs; keep its best remaining
-    # local encounter behind its gate too, without duplicating either hoard.
-    for index, contents in enumerate(keys[:-1]):
-        if any(puzzle.gate for puzzle in contents.puzzles):
-            goal = max(contents.areas, key=lambda area: area.cell[0])
-            best = max(contents.areas, key=treasure_value)
+def _finalize_rewards(keys: List[EncounterLevel], rules: EncounterRules, seed: int) -> None:
+    final_gate = next((p for p in keys[-1].puzzles if p.gate), None)
+    if final_gate:
+        goal = next(area for area in keys[-1].areas if area.cell == final_gate.reward_cell)
+        richest = max(((index, area) for index, key in enumerate(keys) for area in key.areas),
+                      key=lambda item: treasure_value(item[1]))
+        if treasure_value(richest[1]) > treasure_value(goal):
+            _exchange_hoards(keys, richest, (len(keys) - 1, goal))
+    for index in range(len(keys)):
+        assigned = set()
+        rng = random.Random("{}:puzzle-guards:{}".format(seed, index + 1))
+        for puzzle in keys[index].puzzles:
+            if not puzzle.gate:
+                continue
+            goal = next(area for area in keys[index].areas if area.cell == puzzle.reward_cell)
+            best = max((area for area in keys[index].areas if area.cell not in assigned),
+                       key=treasure_value)
             if treasure_value(best) > treasure_value(goal):
                 _exchange_hoards(keys, (index, best), (index, goal))
+            assigned.add(goal.cell)
+            goal = next(area for area in keys[index].areas if area.cell == goal.cell)
+            if goal.monster is None:
+                debug = ["Guaranteed guardian for an independent puzzle reward encounter."]
+                roll = basic_roll(rng)
+                guard = monster_encounter(rules, rng, index + 1, roll, debug)
+                guarded = replace(goal, monster=guard, table_roll=roll,
+                                  debug=goal.debug + tuple(debug))
+                keys[index] = replace(keys[index], areas=tuple(
+                    guarded if area.cell == goal.cell else area for area in keys[index].areas
+                ))
 
 
-def _write_puzzle_notes(keys: List[EncounterLevel]) -> None:
+def _write_puzzle_notes(keys: List[EncounterLevel], dungeon: GeneratedDungeon) -> None:
+    locations = [{area.cell: area.number for area in key.areas} for key in keys]
+
+    def location(level, cell):
+        number = locations[level - 1].get(cell)
+        if number is None:
+            raise ValueError("puzzle reference does not identify an encounter area")
+        return "Level {}, Area {}".format(level, number)
+
     additions = {}  # type: Dict[Tuple[int, Cell], List[str]]
     for depth, contents in enumerate(keys, 1):
+        gates = [p for p in contents.puzzles if p.gate]
+        exits = [p for p in gates if p.next_level]
         for puzzle in contents.puzzles:
             definition = puzzle.definition
             title = "P{:02d}: {}".format(definition.number, definition.name)
@@ -347,33 +365,61 @@ def _write_puzzle_notes(keys: List[EncounterLevel]) -> None:
                 "props and creatures; puzzle creatures replace, rather than join, a random encounter.",
             ]
             if puzzle.gate:
+                protected_cells = set(puzzle.protected_cells)
                 protected = [area.number for area in contents.areas
-                             if area.cell in puzzle.protected_cells]
+                             if area.cell in protected_cells]
                 destination = (
-                    "the only exit stairway to Level {}".format(puzzle.next_level)
+                    "{} exit stairway to Level {}".format(
+                        "the only" if len(exits) == 1 else "an independent", puzzle.next_level)
                     if puzzle.next_level else "an isolated section of this level, with no stairs or ramps"
                 )
                 notes.append(
                     "**Progression gate:** The D at column {}, row {} stays impassable until "
                     "this puzzle is solved, then latches open. It blocks {}. Protected areas: {}. "
-                    "All passage puzzles on this level must be solved; there is no alternate "
-                    "mapped entrance. Any catalog shortcut, return route, or emergency release "
+                    "This branch is independent: other puzzles need not be solved to enter this "
+                    "puzzle room, and solving this puzzle does not unlock their reward areas. "
+                    "There is no alternate mapped entrance to its reward area. "
+                    "Any catalog shortcut, return route, or emergency release "
                     "leads back to the accessible side, never around this gate.".format(
                         puzzle.gate[0] + 1, puzzle.gate[1] + 1, destination,
                         ", ".join(map(str, protected)),
                     )
                 )
-                reward_area = max(contents.areas, key=lambda area: area.cell[0])
+                reward_area = next(area for area in contents.areas if area.cell == puzzle.reward_cell)
+                primary = puzzle == gates[0]
+                ranking = ("the highest-ranked generated treasure in the entire dungeon"
+                           if primary and depth == len(keys) else
+                           "the highest-ranked generated treasure remaining on this level"
+                           if primary else "one of this level's next-highest-ranked generated hoards")
                 notes.append(
-                    "**Protected reward:** Area {} holds the highest-ranked generated treasure "
-                    "{} and its guarding encounter (permanent magic first, then "
-                    "potions/scrolls, then money and gems). An otherwise empty protected "
-                    "reward room receives 100 sp. Use the catalog reward as descriptive "
+                    "**Protected reward:** Area {} holds {} and its guarding encounter "
+                    "(permanent magic first, then potions/scrolls, then money and gems). "
+                    "Each branch receives at least 100 sp in value or magic, plus a guardian; "
+                    "existing hoards are moved, not duplicated. Use the catalog reward as descriptive "
                     "inspiration, not an extra rolled hoard.".format(
                         reward_area.number,
-                        "in the entire dungeon" if depth == len(keys) else "remaining on this level",
+                        ranking,
                     )
                 )
+                if puzzle.next_level and len(exits) > 1:
+                    stair_cell = next(
+                        passage.cells[0] for passage in dungeon.levels[depth - 1].stairways
+                        if passage.tile in "ER" and protected_cells.issuperset(passage.cells)
+                    )
+                    seal = (
+                        "**Linked stair seal:** The stairway at column {}, row {} between "
+                        "Levels {} and {} is sealed at both ends until {} in {} is solved. "
+                        "Other exits do not release this seal; returning from below cannot "
+                        "bypass this puzzle. Once solved, normal two-way travel is allowed.".format(
+                            stair_cell[0] + 1, stair_cell[1] + 1, depth, puzzle.next_level,
+                            title, location(depth, puzzle.cell),
+                        )
+                    )
+                    notes.append(seal)
+                    lower = keys[puzzle.next_level - 1]
+                    keys[puzzle.next_level - 1] = replace(
+                        lower, stair_notes=lower.stair_notes + (seal,),
+                    )
                 if definition.number in (20, 21):
                     notes.append("**Key binding:** The key obtained from this creature opens "
                                  "this chamber's progression gate; it is not an unassigned key.")
@@ -384,8 +430,8 @@ def _write_puzzle_notes(keys: List[EncounterLevel]) -> None:
                     "seals reopen as described in the solution or emergency-release clues."
                 )
             for item in puzzle.items:
-                source = _location(item.source_level, item.source_cell, keys)
-                destination = _location(depth, puzzle.cell, keys)
+                source = location(item.source_level, item.source_cell)
+                destination = location(depth, puzzle.cell)
                 notes.append("**Required item:** {} -- found at {} before this puzzle; "
                              "it is not part of a treasure container or locked behind a puzzle "
                              "on its source level.".format(item.name, source))
@@ -414,6 +460,23 @@ def validate_puzzle_dungeon(dungeon: GeneratedDungeon, keys: Tuple[EncounterLeve
         if not is_connected(layout.grid):
             raise ValueError("puzzle dungeon is disconnected with gates open")
         gates = {puzzle.gate for puzzle in contents.puzzles if puzzle.gate is not None}
+        gated = [puzzle for puzzle in contents.puzzles if puzzle.gate]
+        item_accessible = None
+        downs = [passage for passage in layout.stairways if passage.tile in "ER"]
+        exit_count = sum(bool(p.next_level) for p in gated)
+        if gated:
+            accessible = reachable_cells(layout.grid, gated[0].cell, gates)
+            if any(puzzle.cell not in accessible for puzzle in contents.puzzles):
+                raise ValueError("puzzle rooms must be accessible without solving another puzzle")
+            protected_sets = [set(p.protected_cells) for p in gated]
+            if any(first & second for index, first in enumerate(protected_sets)
+                   for second in protected_sets[index + 1:]):
+                raise ValueError("puzzle reward branches must not overlap or be nested")
+            if depth < len(keys) and (
+                not downs or any(sum(set(passage.cells) <= region for region in protected_sets) != 1
+                                 for passage in downs)
+            ):
+                raise ValueError("each descending exit must belong to one independent puzzle branch")
         for puzzle in contents.puzzles:
             if not puzzle.definition.eligible(depth):
                 raise ValueError("puzzle is not eligible at this dungeon depth")
@@ -429,24 +492,30 @@ def validate_puzzle_dungeon(dungeon: GeneratedDungeon, keys: Tuple[EncounterLeve
                     raise ValueError("puzzle gate has an alternate route")
                 if not any(area.cell in protected for area in contents.areas):
                     raise ValueError("puzzle gate must protect at least one chamber")
-                downs = [passage for passage in layout.stairways if passage.tile in "ER"]
                 if puzzle.next_level:
-                    if len(downs) != 1 or not set(downs[0].cells) <= protected:
-                        raise ValueError("all descending access must be behind the puzzle")
+                    if (puzzle.next_level != depth + 1 or depth == len(keys)
+                            or sum(set(p.cells) <= protected for p in downs) != 1):
+                        raise ValueError("an exit puzzle must protect its own next-level stairway")
                 for passage in layout.stairways:
                     if set(passage.cells) & protected and (
                         not puzzle.next_level or passage.tile in "UI"
                     ):
                         raise ValueError("a stairway bypasses the protected section")
-                best = max(map(treasure_value, contents.areas))
-                if not any(area.cell in protected and treasure_value(area) == best
-                           for area in contents.areas):
-                    raise ValueError("the most valuable encounter must be behind the puzzle")
-                if depth == len(keys):
+                reward = next((area for area in contents.areas if area.cell == puzzle.reward_cell), None)
+                if (reward is None or reward.cell not in protected or reward.monster is None
+                        or treasure_value(reward) < (0, 0, Decimal(1000))):
+                    raise ValueError("each puzzle branch must protect a valuable guarded encounter")
+                if puzzle == gated[0] and treasure_value(reward) != max(map(treasure_value, contents.areas)):
+                    raise ValueError("the primary branch must protect the level's best hoard")
+                if puzzle == gated[0] and depth == len(keys):
                     best_in_dungeon = max(treasure_value(area) for key in keys for area in key.areas)
                     if not any(area.cell in protected and treasure_value(area) == best_in_dungeon
                                for area in contents.areas):
                         raise ValueError("the final gated section must contain the dungeon's best hoard")
+                if exit_count > 1 and puzzle.next_level:
+                    marker = "P{:02d}: {}".format(puzzle.definition.number, puzzle.definition.name)
+                    if not any(marker in note for note in keys[depth].stair_notes):
+                        raise ValueError("multiple exits require a keyed stair seal on the lower level")
             for item in puzzle.items:
                 if not 1 <= item.source_level <= depth:
                     raise ValueError("puzzle item must be on this or an earlier level")
@@ -459,15 +528,23 @@ def validate_puzzle_dungeon(dungeon: GeneratedDungeon, keys: Tuple[EncounterLeve
                 if any(item.source_cell in other.protected_cells for other in source_key.puzzles):
                     raise ValueError("puzzle item is locked behind a source-level puzzle")
                 if item.source_level == depth:
-                    start = next((passage.entrance for passage in layout.stairways
-                                  if passage.tile in "UI"), next(
-                                      area.cell for area in contents.areas
-                                      if area.cell in layout.room_cells[0]
-                                  ))
-                    if item.source_cell not in reachable_cells(layout.grid, start, gates):
+                    if item_accessible is None:
+                        start = next((passage.entrance for passage in layout.stairways
+                                      if passage.tile in "UI"), next(
+                                          area.cell for area in contents.areas
+                                          if area.cell in layout.room_cells[0]
+                                      ))
+                        item_accessible = reachable_cells(layout.grid, start, gates)
+                    if item.source_cell not in item_accessible:
                         raise ValueError("puzzle item is unreachable before solving this level")
                 if not _open_sides(source_layout.grid, *item.source_cell):
                     raise ValueError("puzzle item is not on walkable floor")
+        if gated:
+            reward_cells = {p.reward_cell for p in gated}
+            rewards = [treasure_value(area) for area in contents.areas if area.cell in reward_cells]
+            remaining = [treasure_value(area) for area in contents.areas if area.cell not in reward_cells]
+            if remaining and max(remaining) > min(rewards):
+                raise ValueError("independent reward branches must receive the highest-ranked hoards")
         if depth < len(keys):
             down = {(passage.cells, passage.tile, passage.horizontal)
                     for passage in layout.stairways if passage.tile in "ER"}
@@ -517,20 +594,24 @@ def generate_adventure(
             remaining.remove(definition)
         if definitions:
             before = level
-            level, placements, goal = _attach_puzzles(level, definitions, options, depth)
-            contents = _stock_wing(before, level, contents, placements, goal)
+            level, placements = _attach_puzzles(level, definitions, options, depth)
+            contents = _stock_wing(before, level, contents, placements)
+            candidates = []
+            for source_depth, source_key in enumerate(keys + [contents], 1):
+                protected = {cell for other in source_key.puzzles for cell in other.protected_cells}
+                candidates.extend(
+                    (source_depth, area.cell) for area in source_key.areas
+                    if area.cell not in protected
+                )
             placed = []
             for puzzle in placements:
-                candidates = [
-                    (source_depth, area.cell)
-                    for source_depth, source_key in enumerate(keys + [contents], 1)
-                    for area in source_key.areas
-                    if not (source_depth == depth and area.cell == puzzle.cell)
-                    and not any(area.cell in other.protected_cells for other in source_key.puzzles)
+                item_candidates = [
+                    candidate for candidate in candidates
+                    if candidate != (depth, puzzle.cell)
                 ]
-                if puzzle.definition.required_items and not candidates:
+                if puzzle.definition.required_items and not item_candidates:
                     raise ValueError("no accessible encounter area for required puzzle items")
-                items = tuple(PuzzleItem(name, *puzzle_rng.choice(candidates))
+                items = tuple(PuzzleItem(name, *puzzle_rng.choice(item_candidates))
                               for name in puzzle.definition.required_items)
                 placed.append(replace(puzzle, items=items))
             contents = replace(contents, puzzles=tuple(placed))
@@ -548,8 +629,8 @@ def generate_adventure(
         return level
 
     dungeon = generate_dungeon(options, level_transform=finish_level)
-    _finalize_rewards(keys)
-    _write_puzzle_notes(keys)
+    _finalize_rewards(keys, rules, dungeon.seed)
+    _write_puzzle_notes(keys, dungeon)
     result = tuple(keys)
     validate_puzzle_dungeon(dungeon, result)
     return dungeon, result
