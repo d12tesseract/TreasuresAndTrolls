@@ -13,11 +13,37 @@ python ascii_map_to_svg.py map.txt --output map.svg
 python generate_dungeon_map.py --width 60 --height 40 --seed 42 --output dungeon.svg
 ```
 
-The generator writes `dungeon.txt` as well as `dungeon.svg`. Both programs use
-`dungeon_map.py` for validation, wall geometry, symbols, and physical scaling.
-The generator also uses that module for layout and feature placement.  
-`generate_dungeon_map.py` also uses `dungeon_encounters.py` to generate random 
-encounters in the dungeon if needed.
+The generator writes `dungeon.txt` as well as `dungeon.svg`. The ASCII converter
+and generator share geometry, rendering, and command-line options.
+
+## Module organization
+
+`Tools_temp` is the canonical implementation. The commands and map/encounter
+imports in `campaigns/ur` are compatibility entry points, not separate copies.
+Keep the shared Python modules and puzzle catalog together.
+
+| Module | Responsibility |
+| --- | --- |
+| `dungeon_geometry.py` | ASCII model, tile validation, walkable connectivity, and stair footprints |
+| `dungeon_render.py` | Wall geometry, rough edges, feature symbols, and SVG serialization |
+| `dungeon_map.py` | Seeded room/corridor generation, stair placement, and linked levels |
+| `dungeon_encounters.py` | Rules-based stocking, treasure ranking, chamber numbering, and encounter documents |
+| `dungeon_puzzles.py` | Catalog loading, puzzle branches, reward placement, and progression validation |
+| `dungeon_games.py` | Deterministic strategy-game rules and validation |
+| `dungeon_cli.py` | Shared command-line value validators and rendering options |
+
+The two command scripts handle argument parsing and file output. Existing
+imports such as `from dungeon_map import DungeonMap, svg_document` remain
+supported; new rendering-only callers can import the geometry and rendering
+modules directly. `dungeon_puzzles.treasure_value` and
+`dungeon_puzzles.reachable_cells` remain available as compatibility imports,
+but their implementations belong to encounters and geometry respectively.
+
+Optimizations preserve the seeded random-call order and output ordering.
+Room placement maintains a local exclusion set instead of rescanning each
+candidate's neighbors; stair candidates reserve their bounds before construction.
+Puzzle placement reuses per-operation treasure rankings, item-source sets, and
+location indexes. These are local to an operation, not persistent caches.
 
 ## ASCII format
 
@@ -204,7 +230,7 @@ doors and covered pits as passable.
 | `--chamfer-probability` | `0` | Probability of converting an eligible smooth room corner to a diagonal |
 | `--generate-encounters` | off | Force ordinary encounter stocking when puzzles are disabled; enabled puzzles already imply stocking and TM output |
 | `--puzzle-probability` | `0.35` | Independent probability, 0-1, for each puzzle slot per level; 0 disables puzzles |
-| `--max-puzzles-per-level` | `2` | Number of independent puzzle slots, integer 0-40; 0 disables puzzles |
+| `--max-puzzles-per-level` | `2` | Number of independent puzzle slots, integer 0-50; 0 disables puzzles |
 | `--encounter-chance` | `11` | Minimum basic roll for a monster in each chamber, integer 0-33 inclusive |
 | `--treasure-chest-dc` | `17` | Generation threshold for treasure in a chest; otherwise a bag/pack. Integer 0-34: 0 always, 34 never |
 | `--chest-trap-dc` | `19` | Generation threshold for a treasure chest to be trapped. Integer 0-34: 0 always, 34 never |
@@ -235,7 +261,8 @@ and map density.
 
 Base feature counts are **exact**, with no overlap. Puzzle gates add their own
 `D` tiles beyond the requested door counts; progression puzzles replace all
-down passages with one gated stairway, as described below. Other features cannot replace the
+down passages with independently gated stairways (at most one per puzzle),
+as described below. Other features cannot replace the
 literal neighbors required by doors or diagonals. Placement retries up to
 12 layouts before reporting an error rather than silently reducing counts.
 The same seed and options reproduce the layout, features, and SVG geometry.
@@ -293,8 +320,9 @@ With more than one level:
 - Each non-final level has the requested `--stairs-down` passages, or a seeded
   random count of 1-3 if omitted. Each is independently replaced by a ramp with
   the given percentage chance. `--ramps-down` adds guaranteed ramps per
-  connection. A progression puzzle explicitly replaces all these down passages
-  with one gated stairway and reports the replacement. Without such a puzzle,
+  connection. Progression puzzles explicitly replace these down passages
+  with independent gated stairways, up to the smaller of the original exit
+  count and the number of passage puzzles, and report the replacement. Without such a puzzle,
   counts are preserved; at least one passage per connection is required.
 - Every descending passage is copied to the next level at **all the same
   coordinates**, with the same length and axis. `E` becomes `U`, and `R`
@@ -329,7 +357,7 @@ stairs/ramps is unchanged.
 
 ### Random puzzles and progression gates
 
-The 40 puzzles in [dungeon_puzzles.md](dungeon_puzzles.md) are the live catalog,
+The 50 puzzles in [dungeon_puzzles.md](dungeon_puzzles.md) are the live catalog,
 loaded by `dungeon_puzzles.py`; keep both files together. The encounter key
 includes the selected puzzles' setup, clues, solutions, failure guidance, and
 rewards rather than requiring the TM to consult a separate catalog.
@@ -390,6 +418,41 @@ Depth restrictions do not guarantee every new puzzle will appear in a given
 dungeon. A single-level dungeon cannot select the longer chess/Go entries;
 unused shallow-only entries also cannot be placed on deeper levels.
 
+#### Escape-room codes and hidden evidence
+
+Puzzles 41-50 add dungeon-themed cipher rooms: a fallen adventurer's gear,
+an apprentice's study, a tomb painter's chamber, a monastery library, a
+smuggler's cache, a mine survey station, a bellmaker's workshop, an observatory,
+a field infirmary, and a cartographer's outpost.
+
+Each has **2-4 genuine hidden clues and 2-4 hidden decoys**, with individual
+**DC 17 or 20 WIS searches**, exact hiding places and discovered text, an
+intact visible cipher key, and a complete solution. The key and its public
+instructions are room fixtures, not additional hidden clues. Substitution,
+letter shifts, reversal, coordinate and book lookups, binary lamps, signal
+codes, ordering, letter extraction, and a serpentine reading route yield
+numeric, letter, or symbol passwords.
+
+The TM key labels genuine evidence and decoys separately, but the TM should
+reveal only the object's text and observable identifying marks to players.
+Every decoy can be excluded using a visible rule such as the wrong seal,
+date, material, or orientation; no arbitrary guess about which clue the TM
+prefers is necessary. All required evidence is inside the puzzle room.
+
+Discovery rolls happen **during play**, not during dungeon generation:
+basic roll + WIS modifier + applicable bonuses must meet the listed DC.
+These are ordinary clue searches, with no class restriction or trap-specific
+penalty. A failed search costs an exploration turn and may be retried;
+precise inspection of the actual hiding place reveals its clue without a
+roll. Failures never remove clues or permanently lock the solution.
+Wrong-code responses and recovery hints are given separately for each puzzle.
+Neither codes nor the genuine/decoy classifications are added to the SVG.
+
+The study, library, mine, observatory, and cartographer puzzles use the existing
+progression-gate geometry. The others protect local treasure or provide a
+temporary escape-room challenge. All ten use the existing nonrepeating
+selection pool and are eligible on any level; probability defaults are unchanged.
+
 #### Generation and placement
 
 Generation proceeds in order: generate Level 1, stock its encounters, select
@@ -400,8 +463,10 @@ per-level encounter streams. Seed replay reproduces layouts, loot, selections,
 and required-item locations. Disabling puzzles preserves the original layout
 and encounter-generation streams.
 
-**Layout changes:** Selected puzzles receive dedicated 5-by-5 chambers in a
-single-entry wing appended to the right of the generated map. This deliberately
+**Layout changes:** Selected puzzles receive dedicated 5-by-5 chambers on
+independent branches off a common, ungated corridor appended to the right of
+the generated map. Maps only 7-8 rows high use 5-by-3 chambers so a separating
+wall still fits above that corridor. This deliberately
 **increases the requested width**, rather than erasing stocked rooms or allowing
 accidental alternate corridors; height and physical drawing scale do not change.
 A lower level grows in width when necessary to contain its inherited stairwell.
@@ -409,9 +474,9 @@ The CLI and debug log report expansions and stair replacements. Corridor and
 room metadata, ASCII, SVG, and encounter labels all describe the final layout.
 The requested density and average room size remain soft targets.
 
-Local puzzles (chests and temporary escape rooms) follow the wing's progression
-puzzles and do not change the level's stairs. This also places their written
-treasure and magical rewards inside the protected section when gates are present.
+Local puzzles (chests and temporary escape rooms) open off the common corridor
+and do not change the level's stairs. Every puzzle room is reachable without
+solving another puzzle; local challenges are not hidden behind progression gates.
 The ogre's and wizard's reward keys open their respective progression gates,
 rather than being unassigned keys. A progression
 puzzle has a **real `D` gate** at the exit of its chamber, with a corridor beyond
@@ -421,31 +486,46 @@ ASCII connectivity and SVG rendering represent the solved, passable state.
 Puzzle contents and solutions never appear on the player SVG.
 
 - On a non-final level, all previously generated down stairs **and ramps** are
-  removed. One new down stairway, with the configured stair length, is placed
-  beyond the gated chambers and their reward room. It is inherited at exactly
-  the same coordinates by the next level. Puzzle progression intentionally
-  takes precedence over requested down-passage counts and ramp probability.
+  removed. The first passage puzzle gates a reward chamber and a new down
+  stairway of the configured length. Additional passage puzzles guard their
+  **own separate high-value encounter areas**, not a nested continuation.
+  If the original layout selected multiple down exits (explicit counts or
+  automatic selection), additional branches also receive a stairway, up to
+  the smaller of the original exit count and the number of passage puzzles.
+  The wing expands to fit these stairways, which are inherited at exactly the
+  same coordinates on the next level. Replacements are stairs, not ramps.
+- With multiple gated exits, solving **any one exit puzzle** permits descent.
+  Each stairway has a **linked seal at both ends** that opens only when its own
+  puzzle is solved. This prevents entering another unsolved reward branch by
+  going downstairs and returning through a different stairway. The TM key
+  describes each seal on both levels; after release, travel is two-way.
+  Like puzzle doors, the map renders these stairs in their open state.
 - On the final level, including a one-level dungeon, the gates instead protect
-  a new room section with **no up or down stairs or ramps and no other entrance**.
+  separate reward sections with **no up or down stairs or ramps and no other entrance**.
   Optional single-level stairs remain in the accessible original layout.
-- Multiple progression puzzles form a serial chain: every one must be solved
-  to reach the terminal reward and, where applicable, the next-level stairway.
-  Catalog shortcuts and emergency releases never bypass these progression gates.
+- Gates never form a serial chain. Opening one gate reveals only its own
+  encounter area; other branches remain locked until their own puzzles are solved.
+  Catalog shortcuts and emergency releases never bypass a branch's gate.
 
-The final protected chamber receives the original level's highest-ranked
-treasure **together with its guarding encounter, container, lock, and chest trap**.
+The first branch receives the level's highest-ranked treasure; subsequent
+branches receive the next-highest-ranked hoards, each **together with its
+guarding encounter, container, lock, and chest trap**.
 Floor traps stay at their original locations. Loot is moved, not duplicated.
 If the bottom level has a gated section, a final stocking pass exchanges hoards
 as necessary to put the **entire dungeon's** highest-ranked generated treasure
-there, not merely the best treasure originally rolled on that floor. Earlier
-gated sections retain their best remaining local encounter. This pass does not
+in its first branch, not merely the best treasure originally rolled on that floor.
+All levels then redistribute their best remaining hoards among their independent
+branches. This pass does not
 move map features or required puzzle items, so their keyed locations stay valid.
 Ranking compares permanent/reusable magic-item count first (including wands
 and staves), then potion/scroll count, then the combined coin and gem value
 converted to copper pieces. Thus any permanent magic outranks any quantity of
 consumables, and any magic outranks monetary treasure; money breaks remaining
-ties. One of equally ranked best hoards is sufficient. If all rooms rolled no
-loot, the protected chamber receives an unlocked chest containing 100 sp.
+ties. One of equally ranked best hoards is sufficient. Each branch receives at
+least **100 sp of treasure value or magic**, topping up poor/empty rewards when
+necessary (an empty reward becomes an unlocked chest). A branch without a
+guarding encounter receives a guaranteed encounter from the normal depth-based
+monster table, independently of the ordinary monster-presence threshold.
 The catalog's suggested gate reward supplies flavor rather than an additional
 generated hoard; local chest/item puzzles retain their written rewards.
 
@@ -461,8 +541,9 @@ These references are added after all levels have final chamber numbers, so
 an earlier area's key includes items needed by later levels.
 
 Before writing output, the generator checks that solved maps are connected,
-closed progression gates cannot be bypassed, protected areas contain the best
-loot and only permitted stairs, every prerequisite is accessible before its
+closed progression gates cannot be bypassed, reward branches do not overlap or
+nest, protected areas contain valuable guarded loot and only permitted stairs,
+multiple exits have lower-level seal instructions, every prerequisite is accessible before its
 puzzle, IDs are unique, and adjacent stair footprints match. Impossible safe
 wing connections produce an explicit error rather than an unkeyed or bypassable
 puzzle; try a larger map, fewer crowded features, or another seed.

@@ -21,7 +21,7 @@ from dungeon_games import (
     validate_strategy_game, wythoff_moves, wythoff_winning,
 )
 from dungeon_map import GenerationOptions
-from dungeon_puzzles import generate_adventure, load_puzzles, validate_puzzle_dungeon
+from dungeon_puzzles import PUZZLE_COUNT, generate_adventure, load_puzzles, validate_puzzle_dungeon
 
 
 HISTORICAL_SCORES = {
@@ -222,14 +222,14 @@ class StrategyPlacementTests(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, "-S", str(script), "--seed", "42", "--width", "24",
                  "--height", "16", "--levels", "4", "--puzzle-probability", "1",
-                 "--max-puzzles-per-level", "40", "--output", str(output)],
+                 "--max-puzzles-per-level", str(PUZZLE_COUNT), "--output", str(output)],
                 env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 universal_newlines=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             key = output.with_name("games-encounters.md").read_text(encoding="utf-8")
             self.assertEqual(key.count("**Game:**"), 10)
-            self.assertEqual(key.count("**Solution:**"), 40)
+            self.assertEqual(key.count("**Solution:**"), PUZZLE_COUNT)
             self.assertIn("**FEN:**", key)
             self.assertIn("**Winning line:** B4 C3 D3 C4 C5 D4 E4 D5 E5", key)
             self.assertEqual(len(list(Path(directory).iterdir())), 10)

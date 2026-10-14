@@ -4,8 +4,9 @@ import random
 import re
 from collections import Counter
 from dataclasses import dataclass, replace
+from decimal import Decimal
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Tuple
 
 from dungeon_map import Cell, GeneratedDungeon
 
@@ -381,10 +382,38 @@ class EncounterLevel:
     traps: Tuple[Tuple[Cell, str], ...]
     doors: Tuple[Tuple[Cell, str, int], ...]
     puzzles: Tuple["PlacedPuzzle", ...] = ()
+    stair_notes: Tuple[str, ...] = ()
 
     @property
     def labels(self) -> Dict[Cell, str]:
         return {area.cell: str(area.number) for area in self.areas}
+
+
+def number_areas(areas: Iterable[EncounterArea]) -> Tuple[EncounterArea, ...]:
+    """Assign chamber numbers in map reading order after stocking or relocation."""
+    return tuple(
+        replace(area, number=number)
+        for number, area in enumerate(
+            sorted(areas, key=lambda area: (area.cell[1], area.cell[0])), 1,
+        )
+    )
+
+
+def treasure_value(area: EncounterArea) -> Tuple[int, int, Decimal]:
+    """Lexicographic priority: permanent magic, consumable magic, then money."""
+    permanent = consumable = 0
+    money = Decimal(0)
+    factors = {"cp": 1, "sp": 10, "gp": 100, "pp": 1000}
+    for line in area.treasure:
+        if "(power +" in line:
+            if line.startswith(("Magic Potion", "Magic Scroll")):
+                consumable += 1
+            else:
+                permanent += 1
+        if line.startswith(("Coins:", "Gems/jewelry:")):
+            for amount, currency in re.findall(r"(\d+(?:\.\d+)?) (cp|sp|gp|pp)\b", line):
+                money += Decimal(amount) * factors[currency]
+    return permanent, consumable, money
 
 
 def generate_encounters(dungeon: GeneratedDungeon, encounter_chance: int = 11,
@@ -440,8 +469,6 @@ def generate_encounters(dungeon: GeneratedDungeon, encounter_chance: int = 11,
                     container = container_rng.choice(("bag", "pack"))
             areas.append(EncounterArea(number, cell, presence, roll, monster, loot, trap,
                                        tuple(debug), container, chest_trap, chest_locked))
-        areas = [replace(area, number=number) for number, area in enumerate(
-            sorted(areas, key=lambda area: (area.cell[1], area.cell[0])), 1)]
         traps, doors = [], []
         for y, row in enumerate(level.grid.rows):
             for x, tile in enumerate(row):
@@ -450,7 +477,7 @@ def generate_encounters(dungeon: GeneratedDungeon, encounter_chance: int = 11,
                 elif tile in "SC":
                     doors.append(((x, y), "Secret" if tile == "S" else "Concealed",
                                   20 if tile == "S" else 17))
-        levels.append(EncounterLevel(tuple(areas), tuple(traps), tuple(doors)))
+        levels.append(EncounterLevel(number_areas(areas), tuple(traps), tuple(doors)))
     return tuple(levels)
 
 
@@ -466,6 +493,9 @@ def encounter_document(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, 
     for index, (layout, contents) in enumerate(zip(dungeon.levels, levels), 1):
         lines.extend(["", "## Level {}".format(index), "",
                       "Depth: {} feet.".format(layout.depth_feet)])
+        if contents.stair_notes:
+            lines.extend(["", "### Puzzle-linked stairways", ""])
+            lines.extend(contents.stair_notes)
         for area in contents.areas:
             loot = [item for item in area.treasure
                     if item not in ("None.", "Gems/jewelry: none.", "Magic: none.",
@@ -522,6 +552,7 @@ def encounter_log(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, ...],
         band = ("1-3", "4-6", "7-9")[min((index - 1) // 3, 2)]
         lines.extend(["", "Level {}".format(index), "Encounter table: levels {}.".format(band)])
         lines.extend(dungeon.levels[index - 1].layout_notes)
+        lines.extend(contents.stair_notes)
         for area in contents.areas:
             lines.extend([
                 "", "Area {} (column {}, row {})".format(area.number, area.cell[0] + 1, area.cell[1] + 1),
