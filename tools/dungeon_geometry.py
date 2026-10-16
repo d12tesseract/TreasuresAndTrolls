@@ -1,8 +1,9 @@
 """ASCII dungeon geometry, validation, connectivity, and stair footprints."""
 
 import math
+from collections import deque
 from dataclasses import dataclass
-from typing import AbstractSet, Optional, Sequence, Set, Tuple
+from typing import AbstractSet, Dict, List, Optional, Sequence, Set, Tuple
 
 
 TILES = frozenset("# .\\/|_LDSCTEURIP")
@@ -74,7 +75,7 @@ def _diagonal_sides(tile: str, neighbors: Sequence[str]) -> Set[int]:
     pairs = ((0, 1), (2, 3)) if tile == "\\" else ((0, 3), (1, 2))
     for pair in pairs:
         if all(
-            neighbor == (" " if side in pair else "#")
+            (neighbor in " ." if side in pair else neighbor == "#")
             for side, neighbor in enumerate(neighbors)
         ):
             return set(pair)
@@ -93,6 +94,28 @@ def _door_axis(neighbors: Sequence[str]) -> Optional[str]:
     return None
 
 
+def clear_invalid_diagonals(rows: List[List[str]]) -> None:
+    """Open generated half-squares whose solid side was carved by a connection."""
+    height, width = len(rows), len(rows[0])
+    pending = deque(
+        (x, y) for y, row in enumerate(rows)
+        for x, tile in enumerate(row) if tile in DIAGONALS
+    )
+    while pending:
+        x, y = pending.popleft()
+        if rows[y][x] not in DIAGONALS:
+            continue
+        neighbors = tuple(
+            rows[y + dy][x + dx] if 0 <= x + dx < width and 0 <= y + dy < height else "#"
+            for dx, dy in DIRECTIONS
+        )
+        if not _diagonal_sides(rows[y][x], neighbors):
+            rows[y][x] = " "
+            pending.extend((x + dx, y + dy) for dx, dy in DIRECTIONS
+                           if 0 <= x + dx < width and 0 <= y + dy < height
+                           and rows[y + dy][x + dx] in DIAGONALS)
+
+
 def validate_map(grid: DungeonMap) -> None:
     for y, row in enumerate(grid.rows):
         for x, tile in enumerate(row):
@@ -102,7 +125,7 @@ def validate_map(grid: DungeonMap) -> None:
             problem = None
             if tile in DIAGONALS and not _diagonal_sides(tile, neighbors):
                 problem = (
-                    "diagonal needs two literal spaces on one open side "
+                    "diagonal needs two space/period neighbors on one open side "
                     "and two '#' neighbors on the solid side"
                 )
             elif tile in DOORS and _door_axis(neighbors) is None:
@@ -174,6 +197,63 @@ def is_connected(grid: DungeonMap) -> bool:
     return bool(cells) and reachable_cells(grid, next(iter(cells))) == cells
 
 
+def _route(
+    start: Cell, targets: Set[Cell], width: int, height: int, forbidden: Set[Cell],
+) -> Optional[Tuple[Cell, ...]]:
+    if start in forbidden:
+        return None
+    pending = deque([start])
+    previous = {start: None}
+    while pending:
+        cell = pending.popleft()
+        if cell in targets:
+            path = []
+            while cell is not None:
+                path.append(cell)
+                cell = previous[cell]
+            return tuple(reversed(path))
+        for dx, dy in DIRECTIONS:
+            neighbor = (cell[0] + dx, cell[1] + dy)
+            if (1 <= neighbor[0] < width - 1 and 1 <= neighbor[1] < height - 1
+                    and neighbor not in forbidden and neighbor not in previous):
+                previous[neighbor] = cell
+                pending.append(neighbor)
+    return None
+
+
+def _rough_cells(grid: DungeonMap) -> Set[Cell]:
+    rough = {
+        (x, y) for y, row in enumerate(grid.rows)
+        for x, tile in enumerate(row) if tile == "."
+    }
+    features = {
+        (x, y) for y, row in enumerate(grid.rows)
+        for x, tile in enumerate(row) if tile in FEATURES or tile in DIAGONALS
+    }
+    # Infer touching feature clusters together, without recursive terrain dependencies.
+    for start in sorted(features):
+        if start not in features:
+            continue
+        features.remove(start)
+        cluster = {start}
+        pending = [start]
+        terrain = set()
+        while pending:
+            x, y = pending.pop()
+            for dx, dy in DIRECTIONS:
+                neighbor = (x + dx, y + dy)
+                tile = grid.tile(*neighbor)
+                if neighbor in features:
+                    features.remove(neighbor)
+                    cluster.add(neighbor)
+                    pending.append(neighbor)
+                elif tile in " .|_L":
+                    terrain.add("." if tile == "." else " ")
+        if terrain == {"."}:
+            rough.update(cluster)
+    return rough
+
+
 @dataclass(frozen=True)
 class Stairway:
     """A straight footprint, ordered west-to-east or north-to-south."""
@@ -219,3 +299,33 @@ class Stairway:
         return self.walls | set(self.cells + self.landings) | {
             (first[0] - dx, first[1] - dy), (last[0] + dx, last[1] + dy),
         }
+
+
+def _stair_runs(grid: DungeonMap) -> Dict[Cell, Stairway]:
+    """Recognize straight ASCII runs; ambiguous clusters retain per-tile symbols."""
+    remaining = {
+        (x, y) for y, row in enumerate(grid.rows)
+        for x, tile in enumerate(row) if tile in "EURI"
+    }
+    result = {}
+    for start in sorted(remaining):
+        if start not in remaining:
+            continue
+        remaining.remove(start)
+        cells = {start}
+        pending = [start]
+        tile = grid.tile(*start)
+        while pending:
+            x, y = pending.pop()
+            for dx, dy in DIRECTIONS:
+                neighbor = (x + dx, y + dy)
+                if neighbor in remaining and grid.tile(*neighbor) == tile:
+                    remaining.remove(neighbor)
+                    cells.add(neighbor)
+                    pending.append(neighbor)
+        horizontal = len({y for x, y in cells}) == 1
+        vertical = len({x for x, y in cells}) == 1
+        if len(cells) > 1 and (horizontal or vertical):
+            run = Stairway(tuple(sorted(cells)), tile, horizontal)
+            result.update((cell, run) for cell in cells)
+    return result

@@ -8,13 +8,20 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Tuple
 
-from dungeon_map import Cell, GeneratedDungeon
+from dungeon_geometry import Cell
 
 if TYPE_CHECKING:
+    from dungeon_map import GeneratedDungeon
     from dungeon_puzzles import PlacedPuzzle
 
 
 RULES_PATH = Path(__file__).resolve().parents[1] / "TreasuresAndTrollsBasicMD.md"
+_COIN_VALUES = {"cp": 1, "sp": 10, "gp": 100, "pp": 1000}
+_CREATURE_ALIASES = {
+    "Wolves": "Wolf", "Dire Wolves": "Dire Wolf", "Lizard Men": "Lizard Man",
+    "Mummys": "Mummy", "Pegasi": "Pegasus", "Sphynx": "Sphinx",
+    "Slime": "Green Slime", "Slimes": "Green Slime",
+}
 RULINGS = (
     "All generation basic rolls are exactly 3 independent integers from 0 through 11, "
     "summed without symbol rerolls, including magic-item power. Symbol rerolls apply "
@@ -160,12 +167,7 @@ class EncounterRules:
         }
 
     def creature_level(self, name: str, depth: int) -> Tuple[int, bool]:
-        aliases = {
-            "Wolves": "Wolf", "Dire Wolves": "Dire Wolf", "Lizard Men": "Lizard Man",
-            "Mummys": "Mummy", "Pegasi": "Pegasus", "Sphynx": "Sphinx",
-            "Slime": "Green Slime", "Slimes": "Green Slime",
-        }
-        name = aliases.get(name, name)
+        name = _CREATURE_ALIASES.get(name, name)
         if name not in self.creature_levels and name.endswith("s"):
             name = name[:-1]
         if name in self.creature_levels:
@@ -278,11 +280,12 @@ def treasure(rules: EncounterRules, rng: random.Random, depth: int,
     level = max(levels)
     coins = Counter()
     for index, individual in enumerate(levels, 1):
-        expression, currency = rules.money[_table_level(individual)][0].rsplit(" ", 1)
+        table_level = _table_level(individual)
+        expression, currency = rules.money[table_level][0].rsplit(" ", 1)
         coins[currency] += _dice(rng, expression, debug, "Creature {} coins ({}, table level {})".format(
-            index, currency, _table_level(individual)))
+            index, currency, table_level))
     if dragon:
-        copper = sum(amount * {"cp": 1, "sp": 10, "gp": 100, "pp": 1000}[unit]
+        copper = sum(amount * _COIN_VALUES[unit]
                      for unit, amount in coins.items())
         money = "{:g} gp".format(copper / 10)
     else:
@@ -296,9 +299,10 @@ def treasure(rules: EncounterRules, rng: random.Random, depth: int,
     if gems_roll + len(levels) >= 23:
         count = _dice(rng, "d6", debug, "Gem count{}".format(
             " (doubled for dragon)" if dragon else "")) * (2 if dragon else 1)
-        expression, currency = rules.gems[_table_level(level)][0].rsplit(" ", 1)
+        table_level = _table_level(level)
+        expression, currency = rules.gems[table_level][0].rsplit(" ", 1)
         values = ["{} {}".format(_dice(rng, expression, debug, "Gem {} value ({}, table level {})".format(
-            index, currency, _table_level(level))), currency) for index in range(1, count + 1)]
+            index, currency, table_level)), currency) for index in range(1, count + 1)]
         lines.append("Gems/jewelry: {} pieces, worth {} individually.".format(count, ", ".join(values)))
     else:
         lines.append("Gems/jewelry: none.")
@@ -403,7 +407,6 @@ def treasure_value(area: EncounterArea) -> Tuple[int, int, Decimal]:
     """Lexicographic priority: permanent magic, consumable magic, then money."""
     permanent = consumable = 0
     money = Decimal(0)
-    factors = {"cp": 1, "sp": 10, "gp": 100, "pp": 1000}
     for line in area.treasure:
         if "(power +" in line:
             if line.startswith(("Magic Potion", "Magic Scroll")):
@@ -412,11 +415,11 @@ def treasure_value(area: EncounterArea) -> Tuple[int, int, Decimal]:
                 permanent += 1
         if line.startswith(("Coins:", "Gems/jewelry:")):
             for amount, currency in re.findall(r"(\d+(?:\.\d+)?) (cp|sp|gp|pp)\b", line):
-                money += Decimal(amount) * factors[currency]
+                money += Decimal(amount) * _COIN_VALUES[currency]
     return permanent, consumable, money
 
 
-def generate_encounters(dungeon: GeneratedDungeon, encounter_chance: int = 11,
+def generate_encounters(dungeon: "GeneratedDungeon", encounter_chance: int = 11,
                         rules: Optional[EncounterRules] = None, *,
                         treasure_chest_dc: int = 17, chest_trap_dc: int = 19,
                         chest_lock_dc: int = 17, start_level: int = 1) -> Tuple[EncounterLevel, ...]:
@@ -481,7 +484,7 @@ def generate_encounters(dungeon: GeneratedDungeon, encounter_chance: int = 11,
     return tuple(levels)
 
 
-def encounter_document(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, ...],
+def encounter_document(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel, ...],
                        encounter_chance: int) -> str:
     if len(levels) != len(dungeon.levels):
         raise ValueError("encounter key must include every dungeon level")
@@ -535,7 +538,7 @@ def encounter_document(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, 
     return "\n".join(lines) + "\n"
 
 
-def encounter_log(dungeon: GeneratedDungeon, levels: Tuple[EncounterLevel, ...],
+def encounter_log(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel, ...],
                   encounter_chance: int) -> str:
     if len(levels) != len(dungeon.levels):
         raise ValueError("encounter log must include every dungeon level")

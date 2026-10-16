@@ -18,13 +18,14 @@ and generator share geometry, rendering, and command-line options.
 
 ## Module organization
 
-`Tools_temp` is the canonical implementation. The commands and map/encounter
+`tools` is the canonical implementation. The commands and map/encounter
 imports in `campaigns/ur` are compatibility entry points, not separate copies.
 Keep the shared Python modules and puzzle catalog together.
 
 | Module | Responsibility |
 | --- | --- |
-| `dungeon_geometry.py` | ASCII model, tile validation, walkable connectivity, and stair footprints |
+| `dungeon_geometry.py` | ASCII model, validation and diagonal cleanup, connectivity and routing, terrain inference, and stair geometry |
+| `dungeon_passages.py` | Sixteen-heading cavern centerlines, bounded backtracking, and diagonal floor footprints |
 | `dungeon_render.py` | Wall geometry, rough edges, feature symbols, and SVG serialization |
 | `dungeon_map.py` | Seeded room/corridor generation, stair placement, and linked levels |
 | `dungeon_encounters.py` | Rules-based stocking, treasure ranking, chamber numbering, and encounter documents |
@@ -39,11 +40,16 @@ modules directly. `dungeon_puzzles.treasure_value` and
 `dungeon_puzzles.reachable_cells` remain available as compatibility imports,
 but their implementations belong to encounters and geometry respectively.
 
-Optimizations preserve the seeded random-call order and output ordering.
-Room placement maintains a local exclusion set instead of rescanning each
-candidate's neighbors; stair candidates reserve their bounds before construction.
-Puzzle placement reuses per-operation treasure rankings, item-source sets, and
-location indexes. These are local to an operation, not persistent caches.
+Behavior-preserving optimizations retain random-call and output ordering;
+the new cavern algorithm intentionally changes maps containing natural terrain.
+Room placement maintains a local exclusion set. Stair selection translates two
+footprint templates per stair type instead of constructing a `Stairway` and
+its wall/clearance sets at every candidate square; only tested finalists become
+objects. Puzzle placement reuses per-operation treasure rankings, item-source
+sets, and location indexes. These are local to an operation, not persistent
+caches. Encounter stocking depends on geometry rather than importing the
+generator at runtime, and shares currency values between hoard generation
+and treasure ranking. Compatibility exports in `dungeon_map` remain available.
 
 ## ASCII format
 
@@ -84,12 +90,18 @@ For example, this map joins a worked room to a cavern through a door:
 
 ### Diagonals, partitions, and doors
 
-Diagonals represent a half-open square, **always with smooth floor**. For `\`,
+Diagonals represent a half-open square. For `\`,
 the open neighbors must be north+east **or** south+west. For `/`, they must be
-north+west **or** south+east. Both open neighbors must be literal spaces; both
-remaining neighbors must be `#`. Periods and feature tiles are not allowed in
-these four positions. The diagonal itself is the exposed wall of the solid
+north+west **or** south+east. Both open neighbors must be spaces or periods;
+both remaining neighbors must be `#`. Feature tiles are not allowed in these
+four positions. Two period neighbors give the diagonal rough cavern texture;
+mixed or space neighbors give it smooth texture. The diagonal itself is the exposed wall of the solid
 triangle; no extra square-edge walls are drawn across the open triangle.
+
+Generated connections that invalidate a diagonal, for example by opening a
+third side, replace it with a literal empty-space floor square. This cleanup
+also runs after puzzle wings are joined. Authored ASCII maps remain strict:
+the converter reports invalid diagonals instead of silently rewriting them.
 
 `|` and `L` require a literal space to their left. `_` and `L` require a literal
 space below. Their partitions are rendered once, even though both sides are
@@ -103,7 +115,8 @@ adjacent to other feature tiles are rejected. Doors span the passage width.
 Feature tiles replace the floor character. A touching group of feature tiles
 inherits rough wall texture only when it borders rough floor and no smooth
 floor. Otherwise it is smooth, including isolated groups with no terrain to
-infer from. Diagonal floor and partition tiles count as smooth terrain.
+infer from. Diagonals infer their terrain from their open neighbors as above;
+partition tiles remain smooth.
 
 ## Rendering and symbols
 
@@ -127,7 +140,9 @@ Omitting `--corner-radius` keeps the automatic radius rule: three times
 both jitter and rounding. An explicit positive radius still rounds corners
 when roughness is zero, producing clean circular curves; an explicit radius
 of zero disables rounding without disabling jitter. Smooth worked walls and
-their diagonal corners are unaffected.
+their diagonal corners are unaffected. Natural diagonal wall faces use rough
+texture too; their chamfer vertices remain shared endpoints rather than being
+treated as right-angle rounding arcs.
 The small segments approximate circular arcs while remaining individually
 editable; increase `--rough-segments` for finer curves.
 The outline remains connected. At a normal
@@ -189,24 +204,49 @@ python generate_dungeon_map.py --rough-probability 1 --corner-radius 0.5 --outpu
 ## Procedural generation
 
 The generator places separated rectangular worked rooms and irregular,
-connected cavern footprints, then joins each new room to the nearest existing
-room with an orthogonal corridor. Corridors are rough when both endpoint rooms
+connected cavern footprints. Each room's position is sampled uniformly at
+random across all positions where its footprint fits inside the map. Overlaps,
+the one-square buffer around existing rooms and passages, and reserved stair
+footprints are rejected; the first valid position is accepted. Placement does
+not favor either nearby or distant rooms and does not impose a regular grid.
+After placement, each new room is joined to an existing room, preferring the
+connection closest to the corridor-length target, with shorter complete routes
+breaking ties. Worked corridors remain orthogonal. Corridors are rough when both endpoint rooms
 are rough, otherwise smooth; existing room/corridor terrain is preserved where
-paths cross. Rough corridors meander by replacing short sections of that direct
-route with lateral detours, rather than carving a straight shortcut alongside
-them. Detour legs and intervening straight sections are 2-3 squares long,
-except where room entrances, the original bend, or the destination interrupt
-a section. Each detour returns farther along the original route, so passageways
-always make progress toward their target. They deviate at most 3 squares from
-that route, stay inside the map border, and keep a stone gap to nearby rooms
-and other route segments.
+paths cross. Natural passages choose among **16 compass headings**, represented
+on the grid by cardinal, 1:1 diagonal, and 2:1/1:2 steps and their reflections.
+Their target is the **exterior square immediately in front of the destination
+room's opening**, not its center. The final connection through that opening
+is preserved.
 
-`--meandering` sets the probability of taking an eligible detour: `0` restores
-the original direct orthogonal corridors, `1` uses every available opportunity,
-and the default is `0.6`. Lower settings leave longer straight stretches.
-Insufficient space can prevent a detour even at `1`. Worked-stone corridors
-are unaffected. Every generated walkable square remains connected, treating
-doors and covered pits as passable.
+Natural passages follow a **smoothly varying random resistance field**:
+neighboring squares have similar routing costs, encouraging broad, irregular
+bends through lower-resistance regions instead of independent random turns.
+Obstacle-aware distances from the destination guide a bounded search through
+that field. All **16 headings** remain available: passages may move temporarily
+away from the target, double back, turn more than 90 degrees, or detour even
+within three squares of the destination. A soft preference for continuing the
+current heading smooths bends without prohibiting sharp turns.
+
+The route must still stay inside the map, avoid blocked terrain, and avoid
+crossing or tangling with its earlier footprint. Backtracking compensates for
+blocked or tangled choices; if no route is found within the search budget,
+the generator retries the layout rather than carving a self-crossing fallback.
+The exterior target square and final connection through the opening are
+preserved.
+
+`--meandering` controls **winding strength**: `0` uses uniform routing costs
+for direct routes, `1` gives the strongest preference for winding low-resistance
+routes, and the default is `0.6`. It is no longer a per-step heading-change
+probability. Obstacles and narrow spaces can limit available bends; even at
+`0`, a passage can detour when a direct route is blocked.
+Diagonal steps fill their adjoining half-squares so the passage is physically
+connected. **Natural rooms and passages always chamfer eligible corners**,
+including at `--chamfer-probability 0` and `--meandering 0`; that chamfer option
+controls only worked-room corners. Protected stair approaches and features
+are not chamfered. Stair-collision repair still routes around protected
+footprints before final chamfering. Every generated walkable square remains
+connected, treating doors and covered pits as passable.
 
 | Option | Default | Meaning |
 |---|---|---|
@@ -216,7 +256,7 @@ doors and covered pits as passable.
 | `--ramp-probability` | `0` | **Percentage, 0-100**, that a multi-level down stairway becomes a ramp |
 | `--room-size` | `35` | Target average room floor area in squares, at least 4 |
 | `--corridor-length` | `8` | Target new corridor squares per connection, positive |
-| `--meandering` | `0.6` | Rough-corridor detour probability, from `0` (off) to `1` (maximum) |
+| `--meandering` | `0.6` | Natural-passage winding strength; `0` is direct, `1` gives the strongest bends |
 | `--density` | `0.3` | Target open fraction of all map squares, strictly between 0 and 1 |
 | `--rough-probability` | `0.4` | Probability each room is a cavern |
 | `--door-probability` | `0.45` | Normal door probability at an eligible room entrance |
@@ -252,12 +292,19 @@ room spacing, and corridor intersections constrain them. Room dimensions vary,
 are at least 3 by 3 before cavern shaping, and are capped to fit the map.
 The program reports achieved open area, counting diagonal squares as half a
 square. High densities or small maps may fall short; adding the last room can
-overshoot. Corridor length counts newly carved squares outside room footprints,
-not the distance between room centers. Longer target corridors generally use
-more rock separation, but are not guaranteed for every pair of rooms. Room
-spacing is chosen using the direct route length; meanders add extra corridor
-squares afterward, and those squares count toward achieved corridor lengths
-and map density.
+overshoot. Density controls the open-area budget, including passages, so the
+number of chambers varies with the seed, room sizes, and connecting passages.
+Lower density generally produces fewer chambers distributed across the same
+map area, increasing average chamber spacing and passage length rather than
+confining the dungeon to a small cluster. Individual random layouts can still
+cluster by chance; very small budgets may allow only one chamber.
+
+Corridor length counts newly carved squares outside room footprints, not the
+distance between room centers. Its target influences the choice of connection,
+not the random chamber coordinates, and is not guaranteed for every pair of
+rooms. Connections are compared using preliminary orthogonal routes; natural
+headings and their diagonal footprints can change their lengths afterward.
+All newly carved footprint squares count toward corridor lengths and density.
 
 Base feature counts are **exact**, with no overlap. Puzzle gates add their own
 `D` tiles beyond the requested door counts; progression puzzles replace all
@@ -362,6 +409,21 @@ loaded by `dungeon_puzzles.py`; keep both files together. The encounter key
 includes the selected puzzles' setup, clues, solutions, failure guidance, and
 rewards rather than requiring the TM to consult a separate catalog.
 
+Exactly **35 of the 50 catalog puzzles (70%)** have added consequences.
+Treasure-only puzzles have finite failure limits and permanently unavailable
+prizes after exhaustion. The Broken King's Shadow and Pilgrim's Three
+Offerings now protect local treasure vaults, never generated progression gates.
+Escape traps and dungeon-access puzzles keep unlimited retries, with progressive
+penalties capped at the dungeon level plus two. These caps reduce risk but
+do not prevent deaths or party wipes; saves and combat resolve normally.
+Bookkeeping uses one party-wide failure count per puzzle. Repeated temporary
+effects replace their magnitude and refresh their duration rather than stacking;
+prop and board resets do not clear them. Combat injuries resolve normally.
+The TM key includes shared consequence rules, the actual dungeon level used
+for scaling, and each selected puzzle's specific triggers and limits.
+Failure counts persist across rest and resets; clue searches, questions,
+practice, and refused illegal moves do not spend attempts.
+
 ```powershell
 python generate_dungeon_map.py --levels 3 --seed 42 --output adventure.svg
 python generate_dungeon_map.py --levels 3 --puzzle-probability 0.7 --max-puzzles-per-level 2 --output puzzles.svg
@@ -386,10 +448,12 @@ can unlock entries that were ineligible above it.
 Puzzles 31-40 add four normal-play Nim variations, two historical chess mates,
 two Capture Go ladders, Wythoff's game, and Chomp. Their rules, exact starts,
 boards, winning strategies, and fixed opponent policies are included directly
-in the generated TM key. All give the party the first move and unlimited free
-retries from the **identical position** after a loss; the playing tokens are
-not repeatable treasure. Random selection of a dungeon puzzle is separate
-from playing it: no move or outcome uses chance.
+in the generated TM key. All give the party the first move and restore the
+**identical position** after a loss while attempts remain. Treasure games have
+finite attempts; access games remain retryable, with any stated capped penalty.
+The playing tokens are not repeatable treasure. Random selection and
+consequence combat are separate from deterministic board-game play:
+no board move or board-game outcome uses chance.
 
 The Nim variants use three or four gem/coin piles, or markers on 3-by-9 and
 4-by-9 boards labeled 0-8. All starting nim-sums are nonzero. Removing the
@@ -399,10 +463,15 @@ restore xor zero after every guardian move.
 Chess uses the published Immortal Game continuation (mate in **3**) and the
 Evergreen Game's announced mate (mate in **4**), with FENs, diagrams, citations,
 and complete branches for every legal Black defense along the supplied White
-strategy. A visible move counter counts **White's moves**, not both players'
-moves or real time. Mate on the final allowed move or earlier succeeds; draws
-or expiration reset the board. The regular tabletop mate in 3 appears only
-on **Levels 1-3**; the giant spectral mate in 4 appears only on **Level 4+**.
+strategy. The Immortal puzzle has **no move deadline**: three moves is its
+shortest solution, not a limit. Failed games animate progressively more black
+pieces, from one pawn to all 14 starting black pieces; after 14 failures its
+reliquary seals permanently. Piece combat stats scale by dungeon level and
+piece type. The Evergreen puzzle retains its visible **four-White-move**
+counter, unlimited retries, and a capped failure penalty. Mate on the final
+allowed move or earlier succeeds. The regular tabletop Immortal puzzle
+appears only on **Levels 1-3**; the giant spectral Evergreen puzzle only on
+**Level 4+**.
 
 The Go entries are explicitly **five-by-five Capture Go**, not full-board
 territory-scoring problems: capture the marked White chain within **3** or
@@ -869,14 +938,14 @@ Run the focused tests from `campaigns\ur`:
 python -m unittest test_dungeon_map
 ```
 
-For the shared generator and strategy-game proofs, run from `Tools_temp`:
+For the shared generator and strategy-game proofs, run from `tools`:
 
 ```powershell
-python -m pip install -r requirements-test.txt
 python -m unittest test_dungeon_map test_dungeon_puzzles test_dungeon_games
 ```
 
-The `chess` package is **test-only**; the generator still requires only Python's
+The `chess` package is **test-only** (install with `python -m pip install chess`
+if it is not already available); the generator still requires only Python's
 standard library. The chess tests reconstruct the source-game positions,
 check every defending branch, and independently search all legal moves to
 verify both the claimed mate and the impossibility of a shorter forced mate.

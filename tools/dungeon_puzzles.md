@@ -13,8 +13,9 @@ Multiple passage puzzles guard independent reward branches, never a nested
 sequence; selected multiple exits can lead down from separate branches.
 Keep this catalog beside `dungeon_puzzles.py`, which loads its descriptions.
 
-These system-neutral puzzles use classic dungeon and escape-room ideas, with
-solutions provided for the game master. Choose by challenge type, or roll 1d6
+These puzzles use classic dungeon and escape-room ideas, with solutions
+provided for the game master and Treasures and Trolls rules for consequences.
+Choose by challenge type, or roll 1d6
 (reroll a 6) and 1d10: add ten times (the d6 result minus one) to the d10 result.
 For manual selection, reroll a puzzle outside its stated dungeon-level range.
 Place any required items and their clues before the
@@ -79,6 +80,57 @@ memories, and performances without their players having to perform them.
 | 49 | The Field Surgeon's Linen Cipher | Escape rooms: ordering and extraction | Open an infirmary medicine chest | None |
 | 50 | The Cartographer's Serpent Trail | Escape rooms: ordering and extraction | Unlock a hidden survey passage | None |
 
+## Consequence Rules
+
+**Coverage:** Exactly **35 of 50 puzzles (70%)** have a **Consequences**
+entry: 1, 2, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18, 20, 23, 24,
+25, 26, 27, 28, 30, 31, 32, 33, 35, 36, 37, 38, 40, 41, 43, 45, 47,
+and 49. The other 15 retain their existing low-pressure failure guidance;
+ordinary resets, delays, and flavor in those entries are not added penalties.
+
+**Running consequences:** Let **L** be the dungeon level where the puzzle is
+found (not a character's level). Track one failure count **f** per puzzle for
+the whole party, initially **0**. On each failure, increase f by 1, then
+resolve the listed consequence once. Resting, changing solvers, leaving,
+or resetting props does not clear f. Before play, show the risk and any
+remaining attempts through warnings, demonstrations, or a visible counter.
+Only submitting a wrong answer, completing a losing game, or explicitly
+abandoning a started game counts. Questions, hints, provided practice
+demonstrations, legal intermediate steps, refused illegal moves, and failed
+clue searches do not count. A successful submission never increases f.
+
+**Treasure:** Every treasure-only puzzle has a stated finite failure limit.
+On the final failure, resolve any listed penalty, then permanently seal its
+prize, making it unobtainable for this adventure even by forcing or dismantling
+the container. Never put a required key, clue, item, exit, or onward route in
+that prize. Puzzles 4 and 9 seal treasure-only side vaults, not dungeon routes.
+The trap puzzles' incidental rewards do not impose a retry limit on escape.
+
+**Trap and access:** Escape puzzles and puzzles gating dungeon areas always
+allow **unlimited retries**, keep their solution and supplies available, and
+never permanently seal an exit after failure. For their progressive penalties,
+use **S = min(f, L + 2)**; escalation stops at that dungeon-level ceiling.
+Waiting is allowed, but does not reset f.
+Penalties do not disable or destroy clues, controls, or required supplies.
+
+**Temporary effects:** Unless stated otherwise, a temporary penalty lasts
+one exploration turn. Reapplying the same puzzle's effect replaces its
+magnitude and refreshes its duration, never adds them together. Prop and
+board resets do not clear active effects. Time costs use declared exploration
+turns, not real-world timers. These rules apply to treasure penalties too;
+they do not undo combat injuries, incapacitation, or death.
+
+**Lethal risk:** Resolve saves, injuries, incapacitation, and death normally,
+including for the last surviving character. A party wipe remains possible
+despite level caps.
+
+**Penalty saves and combat:** Use the Treasures and Trolls saving-throw and
+combat rules. An **ST 11 (WIS / death)** is a Wisdom saving throw against death;
+apply normal character bonuses before the stated penalty. Resolve attacks on
+the normal damage table with the listed attack power and target toughness,
+not as automatic hit-point loss. Combat triggered by failure is separate from
+deterministic board-game play.
+
 ## Deduction and Ordering
 
 ### 1. The Four Watchers
@@ -95,8 +147,11 @@ cannot occupy the last two sockets because the serpent must follow; putting
 the wolf last would force the serpent beside it.
 
 **Failure and hints:** A wrong arrangement produces a loud growl and releases
-the figures without harming anyone. If the group stalls, a worn relief shows
+the figures. If the group stalls, a worn relief shows
 the owl and stag sharing a pedestal.
+
+**Consequences:** Treasure; **3 failed submissions**. Three carved eyes close
+one by one; the third growl seals the chest permanently. No additional harm.
 
 **Reward:** The chest opens to reveal a valuable moonstone and a signet ring
 that identifies a forgotten noble family.
@@ -118,6 +173,11 @@ Only the flame makes exactly one statement true: the wave's inscription.
 **Failure and hints:** Wrong selections briefly open shallow alcoves whose
 brass faces shout an alarm, then reset the dial. Chalk and a slate nearby allow
 players to test each possibility explicitly.
+
+**Consequences:** Access; unlimited retries. Each wrong lever pull makes the
+brass alarm shriek for **S exploration turns**, preventing quiet travel near
+the room during that time. The alarm does not automatically summon additional
+encounters.
 
 **Reward:** The flame door opens a shortcut around a guarded hall; an alcove
 beyond contains a safe resting niche.
@@ -170,6 +230,10 @@ mosaic's image; no physical drawing or precise real-world lighting is needed.
 activate the latch. The maintenance carving can be found by inspecting the
 lamp base without a required roll.
 
+**Consequences:** Treasure; **4 failed handle pulls**. Each failure snuffs one
+of four crown-shaped lights. When the fourth goes out the treasury and its
+contents become permanently inaccessible; no onward passage lies inside.
+
 **Reward:** A hidden treasury opens, containing a jeweled ceremonial key and
 a map marking one unexplored dungeon chamber.
 
@@ -195,6 +259,11 @@ striker registers, but it need not be wielded by a particular character.
 stone choir. There is no countdown or suffocation hazard. If the striker was
 missed, an interior emergency crank slowly opens the entrance door; using it
 also rings an alarm elsewhere in the dungeon.
+
+**Consequences:** Trap; unlimited retries. A wrong note produces a numbing
+chord: each character must **ST 11 (CON / magic), with -S on the save**,
+or suffer **-S to hit** for one exploration turn. The choir never damages
+hearing or prevents communication, and the emergency crank remains usable.
 
 **Reward:** Both doors open, and a compartment offers a silver tuning fork
 valuable to musicians or useful as a later magical focus.
@@ -244,6 +313,14 @@ ejecting it. Resetting the balance requires turning a noisy wheel, not an
 expendable resource. A diagram under the balance depicts groups of three,
 three, and two.
 
+**Consequences:** Treasure; **3 wrong tins submitted to the recess**. Weighing
+and resetting are not submissions. Each rejection cracks one of three wax
+seals; the third permanently seals the reliquary and all remaining gold in
+the tins.
+Breaking a tin before then is a submitted choice: the correct tin grants its
+gold, while a wrong tin counts as a failure. The potion still requires solving
+the recess before the limit.
+
 **Reward:** The reliquary contains a restorative potion and the apothecary's
 gold reserve. Breaking tins open also exposes the gold, allowing a destructive
 shortcut, but ruins their collectible medicinal seals.
@@ -265,9 +342,14 @@ into it. Refill the five-liter jug, then top up the three-liter jug with one
 liter. **Four liters remain in the five-liter jug**; pour these into the
 receiving bowl and pull the lever.
 
-**Failure and hints:** Wrong amounts drain harmlessly away with a message of
+**Failure and hints:** Wrong amounts drain away with a message of
 "too much" or "too little." The water supply never runs out. A scratched note
 says, "First keep two in the smaller vessel."
+
+**Consequences:** Access; unlimited retries. Each wrong lever pull sprays
+chilling water at the operator: **ST 11 (CON / cold), with -S on the save**,
+or **-S attack power** for one exploration turn. The room never fills and
+the unlimited water supply remains safe to use.
 
 **Reward:** The cistern drains, exposing stairs to a lower level and a small
 offering of old silver coins on the lowest step.
@@ -294,8 +376,13 @@ so meaning rather than shape determines the answer.
 token is lost, the door accepts a recognizable carved or drawn substitute;
 an inscription inside a recess explains, "The deed's sign, not its substance."
 
+**Consequences:** Treasure; **4 failed submissions**, tested with a central
+handle once all three tokens are placed. Each rejection extinguishes one of
+four pilgrim lights; the fourth permanently seals the treasure vault. The
+tokens are still returned and never become inaccessible required items.
+
 **Reward:** The vault contains a valuable pilgrim's necklace and supplies,
-and opens a sheltered route past a dangerous dungeon faction.
+but contains no onward route or required dungeon item.
 
 ### 10. The Absent Jailer
 
@@ -321,6 +408,11 @@ but does not consume the objects. If the party missed the badge, a speaking
 tube reaches a bored guard spirit, who lends a spare in exchange for a true
 story about the world outside; the spirit can also clarify what "office"
 means. The spirit always answers and does not require a successful roll.
+
+**Consequences:** Trap; unlimited retries. Each wrong release-handle pull
+projects ghostly manacles: the operator must **ST 11 (WIS / magic), with
+-S on the save**, or suffer **-S toughness** for one exploration turn.
+The manacles do not bind hands, remove gear, or block the speaking tube.
 
 **Reward:** The exit unlocks and the evidence cabinet's false back opens,
 revealing confiscated jewelry and a letter exposing a dungeon resident's secret.
@@ -371,6 +463,11 @@ parts matters, not guessing the GM's preferred pronunciation.
 any correct beginning, helping the group locate a mistake. If the fragment
 is destroyed, its impression survives in the hut's clay repair mold.
 
+**Consequences:** Access; unlimited retries. Speaking a complete wrong name
+calls up a cold mist. The speaker must **ST 11 (CON / cold), with -S on
+the save**, or suffer **-S to hit** for one exploration turn. The water
+never rises above its original level and correct syllable hints remain audible.
+
 **Reward:** The bridge rises permanently, and the grateful spirit reveals a
 hidden pearl before departing.
 
@@ -394,6 +491,11 @@ put; the scribe then remembers the hollow foot of the writing desk.
 not combat. The ghosts answer specific questions consistently and can replay
 their arrivals and departures as silent images.
 
+**Consequences:** Access; unlimited retries. A submitted wrong verdict makes
+the ghosts impose **S exploration turns** of noisy testimony before they
+will hear another verdict. The party can still question them and view the
+memory mural during the capped delay; no combat or extra encounters result.
+
 **Reward:** Returning the sapphire to its display ends the trial and clears
 the stairs; the ghosts award a separate silver advocate's chain.
 
@@ -415,6 +517,10 @@ accepts a brief summary rather than exact wording.
 **Failure and hints:** A mismatched lantern projects the relevant memory and
 returns its token. The keeper challenges assumptions such as equating a crown
 with glory, but never conceals the necessary stories.
+
+**Consequences:** Treasure; **4 mismatched token submissions**. One memorial
+shutter closes after each mismatch; the fourth seals only the chest
+permanently. The keeper still supplies stories and hints before that limit.
 
 **Reward:** The chest opens to offer four modest gems and a lantern that glows
 softly whenever its bearer speaks one of the remembered names.
@@ -439,6 +545,12 @@ that does not conflict with its posted rules.
 than hostility. The golem can lift a tile to demonstrate its other face but
 cannot lay its own route, because its hands cannot reach outside its square.
 
+**Consequences:** Access; unlimited retries. A command to start walking along
+an invalid route makes the hatch exhale stone dust. The commanding character
+must **ST 11 (CON / dust), with -S on the save**, or suffer **-S to hit**
+for one exploration turn. Questions and tile demonstrations are free; the
+golem still explains the broken rule and never destroys a tile.
+
 **Reward:** The hatch opens to a lower level, and the golem offers to hold it
 while the party descends.
 
@@ -451,14 +563,20 @@ the right; the last pedestal affects only its own statue. All begin standing.
 **Clues:** Each pedestal has a clear diagram showing which statues it affects.
 The door reads, "Let every knight kneel before the absent sovereign." A reset
 cord returns all three to standing.
+An INSPECT handle tests the final posture without changing it.
 
-**Solution:** Press **the leftmost pedestal, then the rightmost**. The first
+**Solution:** Press **the leftmost pedestal, then the rightmost**, then INSPECT. The first
 press kneels the left and middle knights; the second kneels the right knight.
 Either order works.
 
 **Failure and hints:** Other sequences merely change the displayed postures.
 The knights complain theatrically but explain which linkage moved them.
 If needed, point out that only the leftmost button affects the leftmost knight.
+
+**Consequences:** Access; unlimited retries. Pulling INSPECT while a knight
+still stands provokes a thunderous salute: **ST 11 (WIS / magic), with -S
+on the save**, for the operator, or **-S attack power** for one exploration
+turn. Pressing pedestals or using the reset cord is never itself a failure.
 
 **Reward:** The royal tomb opens, and the statues salute the party as temporary
 honor guards.
@@ -502,6 +620,11 @@ The golem supplies the seed, song, and water itself.
 the first broken rule and returns the plaques. Its practice pot demonstrates
 each command without consuming materials.
 
+**Consequences:** Access; unlimited retries. A wrong start-lever sequence
+sprouts clinging stone roots around the operator, reducing movement speed
+by **5 x S feet**, to a minimum of 5 feet, for one exploration turn.
+The roots never pin hands or drag anyone toward the chasm.
+
 **Reward:** A permanent stone-vine bridge grows across the chasm, bearing one
 gem-like fruit valuable to an artisan.
 
@@ -544,8 +667,18 @@ the oven, which is on the right. The ogre agrees to these rules in advance.
 on the right**. The skeleton buffers the quarrelsome living guests.
 
 **Failure and hints:** An unhappy guest explains the violated preference and
-stands up. The ogre grows impatient but accepts retries; a snack from its
-well-stocked pantry restores its good humor.
+stands up. Testing means asking the ogre to approve a complete seating;
+conversation and moving guests before that submission do not count.
+
+**Consequences:** Access; unlimited retries. After **3 failures**, the angry
+ogre orders the party to leave and not try again, explicitly warning that
+another failure means a fight. If they return and fail a **4th time**, it
+attacks; later failed submissions provoke the same fixed encounter, never
+further escalation. Use normal **Troll** stats, adding **+L to hit, attack
+power, and toughness**: to hit **2 + L**, attack power **10 + L**, toughness
+**14 + L**, dodge **5**, movement **30 feet**. It does not pursue a retreating
+party and allows another seating attempt when they return. Defeating the
+ogre also recovers the key.
 
 **Reward:** The ogre returns the key and provides a meal and gossip about the
 other dungeon inhabitants.
@@ -618,6 +751,12 @@ The preserved spring charge survives into the cycle when the door can use it.
 Trying OPEN too early produces "Come back next cycle." Handle cycles as player
 declared actions, not a real-world timer; the spirit explains any lost charge.
 
+**Consequences:** Trap; unlimited retries. Pulling OPEN without the required
+preserved charge triggers a temporal shiver: the operator must **ST 11
+(WIS / magic), with -S on the save**, or suffer **-S to hit** for one
+exploration turn. Ordinary cycle transitions and preparatory lever pulls
+are not failures.
+
 **Reward:** The party escapes with a silver pocket watch, and the spirit is
 released from maintaining the loop.
 
@@ -640,6 +779,11 @@ to weight the second plate; moving it takes effort but no special ability.
 **Failure and hints:** Bad recordings can be erased freely. The ghost suggests
 recording a sustained action rather than rushing between all three stations.
 The door latches open once triggered, so nobody must be left behind.
+
+**Consequences:** Access; unlimited retries. Pulling the door lever without
+both plates held produces discordant feedback: the operator must **ST 11
+(WIS / magic), with -S on the save**, or suffer **-S attack power** for one
+exploration turn. Recording, playback, and erasing echoes remain free.
 
 **Reward:** The sound-sealed door opens into a musician's treasury containing
 a fine instrument and silver strings.
@@ -665,12 +809,17 @@ departure and rejects collisions without exposing riders. The sentinel
 answers questions about its route; PAUSE can correct a departure selected
 one beat too early but is not required.
 
+**Consequences:** Access; unlimited retries. Submitting a colliding CROSS
+preview charges the platform's brake for **S exploration turns** before it
+can run again. Its preview and PAUSE remain usable during that capped delay;
+no one is dropped and successful crossings remain permanent.
+
 **Reward:** The platform delivers everyone across the warded gallery and
 unlocks a safe return walkway.
 
 ### 26. The Four Seasons' Audience
 
-**Setup:** An enchanted tree statue changes through spring, summer, autumn,
+**Setup:** An enchanted dog statue changes through spring, summer, autumn,
 and winter whenever a wheel turns. Four petitions must be delivered in their
 appropriate seasons before the statue will reveal a staircase.
 
@@ -686,6 +835,11 @@ all supplied at the statue's base.
 **Failure and hints:** A mismatched petition is returned with a seasonal clue;
 it does not erase prior correct petitions. Skipping a season resets the
 sequence, but the wheel can always be turned around to start again.
+
+**Consequences:** Access; unlimited retries. A mismatched petition or skipped
+season releases winter frost. The operator must **ST 11 (CON / cold), with
+-S on the save**, or suffer **-S toughness** for one exploration turn.
+Turning the wheel through the correct seasons is not a failure.
 
 **Reward:** Roots withdraw from a descending staircase and expose a small
 amber bird that can carry one short spoken message to a nearby room.
@@ -715,6 +869,11 @@ them in that order by pressing their sockets. The golem confirms each stage:
 activation sequence powers down safely. Replacement parts can be assembled
 from clearly labeled spares in their respective rooms if originals are lost.
 
+**Consequences:** Access; unlimited retries. An incorrect activation sequence
+discharges a stunning spark: the operator must **ST 11 (CON / magic), with
+-S on the save**, or suffer **-S attack power** for one exploration turn.
+Merely trying a component in a socket is safe; no failure consumes a component.
+
 **Reward:** The lift resumes service, and the golem becomes a helpful guide
 to the level, though its body remains attached to the lift mechanism.
 
@@ -739,6 +898,11 @@ aromas and warm dishes work; the toast may be one simple sentence.
 **Failure and hints:** Material offerings pass harmlessly through the spirit,
 which explains what it could sense. The recipe has a duplicate painted on
 the dining-hall wall if the tablet is missed or damaged.
+
+**Consequences:** Treasure; **3 failed completed feasts**. Ask the party when
+its offering is finished; conversations and individual cooking steps are not
+submissions. Each rejected feast extinguishes one hearth rune; the third
+seals the cache permanently. The spirit never withholds a required route.
 
 **Reward:** The satisfied spirit opens its cache of silver tableware and
 teaches the party the location of a concealed servants' passage.
@@ -792,6 +956,12 @@ for characters who cannot read the script.
 merciful gesture. The cleric can reset all props, and the statue's threats
 remain theatrical rather than imposing an unannounced combat encounter.
 
+**Consequences:** Access; unlimited retries. Declaring an incorrect complete
+ritual makes the false liturgy ring out. The declarant must **ST 11
+(WIS / magic), with -S on the save**, or suffer **-S to hit** for one
+exploration turn. Replacing tablets, examining the shadow, and practicing
+individual gestures do not count as failures or consume props.
+
 **Reward:** The restored statue removes the ward, grants access to the lower
 level, and opens a donation drawer containing a valuable sun-shaped brooch.
 
@@ -800,9 +970,10 @@ level, and opens a donation drawer containing a valuable sun-shaped brooch.
 These are **normal-play Nim**, not misere Nim: taking the last object wins.
 The players always move first, and every listed initial nim-sum is nonzero.
 Each game is deterministic; random dungeon selection does not introduce luck
-into playing the game. A loss restores the identical starting position and
-permits unlimited free retries, not a new randomized or potentially unwinnable
-position. The enchanted playing pieces cannot be kept as treasure.
+into playing the game. A loss restores the identical starting position while
+attempts remain, not a new randomized or potentially unwinnable position.
+Treasure games have finite attempts; access games have unlimited retries with
+any stated capped penalty. The enchanted playing pieces cannot be kept as treasure.
 
 ### 31. The Troll's Three Gem Heaps
 
@@ -836,8 +1007,12 @@ in the lowest-numbered eligible bowl. With zero xor, it removes one gem from
 the lowest-numbered nonempty bowl. These tie-breaks are fixed, not rolled.
 
 **Failure and hints:** If the troll takes the last gem, all bowls immediately
-reset to 3, 4, 5. The players may retry without limit or cost and always go
-first. The troll will demonstrate xor column addition after a loss.
+reset to 3, 4, 5 while attempts remain; the players always go first.
+The troll will demonstrate xor column addition after a loss.
+
+**Consequences:** Treasure; **3 lost or surrendered games**. Each loss turns
+one of three real rubies on the chest black; the third seals the prize
+permanently. No entry fee or additional harm; illegal moves are refused freely.
 
 **Reward:** On victory, all playing gems vanish and the separate chest opens
 to reveal a real cut ruby and a silver counting frame.
@@ -869,8 +1044,12 @@ stack when possible; otherwise it removes one coin from the first nonempty
 stack. Its choices never depend on dice.
 
 **Failure and hints:** A statue victory restores exactly 2, 3, 5, 7.
-Retries are unlimited, free, and always player-first. An incorrect or illegal
+Retries are player-first while attempts remain. An incorrect or illegal
 move does not consume money from the characters' own purses.
+
+**Consequences:** Treasure; **4 lost or surrendered games**. Each loss seals
+one of four offering slots; the fourth permanently seals the coffer.
+The statue explains this limit before accepting the first move.
 
 **Reward:** On victory, the playing coins disappear and an offering coffer
 opens, containing ordinary silver coins and a finely worked ceremonial bowl.
@@ -905,8 +1084,12 @@ This is ordinary Nim in a different physical form.
 if none exists, it moves the first nonzero marker left by one square.
 
 **Failure and hints:** If the golem parks the last marker, all markers return
-to 2, 5, 8. Unlimited free retries always give the players the first turn.
+to 2, 5, 8. Unlimited retries always give the players the first turn.
 The bridge remains retracted until a win; no one falls during a failed game.
+
+**Consequences:** Access; unlimited retries. Each lost or surrendered game
+makes the golem recalibrate for **S exploration turns** before restarting.
+The identical board remains visible for planning during the capped delay.
 
 **Reward:** All markers sink into their zero squares and the passage bridge
 lowers and locks in place.
@@ -946,13 +1129,14 @@ solution for unequal heaps.
 
 ## Strategy Games: Chess
 
-A move budget counts **White's moves only**, not both sides' plies and not
-elapsed seconds. The visible display decrements after each legal White move;
-checkmate on the final allowed move succeeds before any reset. Earlier mates
-also succeed. The party is always White and always moves first. Illegal moves
-are refused without using a turn; stalemate, a drawn game, losing, or exhausting
-the budget without mate resets the identical position for an unlimited free
-retry. Any legal winning continuation counts, not just the printed solution.
+The party is always White and always moves first. Illegal moves are refused
+without using a turn. Any legal winning continuation counts, not just the
+printed solution. Puzzle 35 has **no move deadline**; its three-move solution
+is guidance only. Puzzle 36 retains a budget counting **White's moves only**,
+not both sides' plies or elapsed seconds; checkmate on the final allowed move
+or earlier succeeds before a reset. A loss, draw, surrender, or (in 36 only)
+budget expiration counts as one failed attempt and restores the identical
+position while retries remain. Resolve the entry's consequences before retrying.
 
 The positions below come from publicly documented nineteenth-century games,
 not copied modern-book annotations. The supplied trees cover **every legal
@@ -966,15 +1150,15 @@ files run a-h from left to right and ranks 8-1 from top to bottom.
 
 **Game:** Chess
 **Dungeon levels:** 1-3
-**Move budget:** 3
+**Solution length:** 3
 **FEN:** r1b1k1nr/p2p1ppp/n2B4/1p1NPN1P/6P1/3P1Q2/P1P1K3/q5b1 w kq - 2 21
 
 **Setup:** A normal-sized ivory chessboard stands before a master's reliquary.
 A ghostly tutor invites the party to finish the commonly published mating
 continuation of **Anderssen-Kieseritzky, the Immortal Game (1851)**, after
 20...Na6. The continuation is traditionally associated with the game, although
-historical reports differ on when play actually ended. Three bright beads
-above the board show how many White moves remain.
+historical reports differ on when play actually ended. Fourteen dark beads
+above the board show how many failed attempts remain.
 
 **Board:**
 ```text
@@ -991,10 +1175,10 @@ q.....b.
 Read files a-h left to right and ranks 8-1 top to bottom; capitals are White,
 lowercase letters are Black, and dots are empty squares.
 
-**Rules:** Standard chess; White moves first and must checkmate within **three
-White moves**. Black's turns do not consume beads, and this is not a real-time
-clock. Black retains kingside and queenside castling rights as encoded in the
-FEN, although the forced checks prevent castling in the winning line.
+**Rules:** Standard chess; White moves first and wins by checkmate, with
+**no move limit** or real-time clock. The title names the shortest solution,
+not a deadline. Black retains kingside and queenside castling rights as encoded
+in the FEN, although the forced checks prevent castling in the winning line.
 The enchanted pieces, not the characters, perform captures.
 
 **Clues:** The tutor says, "Your king needs no rescue; the queen can finish
@@ -1014,13 +1198,30 @@ cannot be forced in two from the starting position.
 
 **Guardian policy:** Along this strategy, the tutor chooses the first listed
 available defense, so its correct-play replies are deterministic. On deviations,
-it tries to defeat the mate deadline rather than reproducing an illegal or
+it tries to win or draw rather than reproducing an illegal or
 cooperative historical move; it never rolls for a reply.
 
-**Failure and hints:** A loss, draw, or third White move without checkmate
-restores the same board and all three beads. Retries are unlimited and free;
-White always starts. Illegal moves are simply refused. Mate on or before the
-third White move succeeds.
+**Failure and hints:** A loss, draw, or surrender restores the same board
+after resolving the attack below, while attempts remain. Taking more than
+three White moves is not a failure. White always starts; illegal moves are
+simply refused. The tutor will demonstrate the opening knight check.
+
+**Consequences:** Treasure; **14 failed games**. On failure f, animate **f
+black pieces**, capped at all **14 pieces in the starting FEN**: six pawns,
+two bishops, two knights, two rooks, king, queen. Select cumulatively in that
+order (within each type, file then rank). Thus one pawn attacks after the
+first loss, two after the second, and eventually the whole black force
+attacks together. Finish or escape this combat before restarting the board;
+the pieces reform for the next failure.
+
+Each animated piece makes one melee attack per round using **+2 x P to hit,
+attack power 2 x P, and toughness 2 x P**, where piece level **P** is **L**
+for pawns, **L + 2** for bishops, **L + 4** for knights and rooks, and
+**L + 6** for king and queen. Rooks add another **+4 toughness**. All have
+dodge 0 and movement 30 feet; resolve wounds and death as for ordinary
+creatures. They pursue only within the puzzle room and become inert when the
+party withdraws. The fourteenth failure triggers the full force and then
+permanently seals the reliquary; no further games or attacks can be triggered.
 
 **Reward:** The reliquary opens to reveal a jeweled chess knight and the
 master's annotated map of nearby chambers.
@@ -1058,7 +1259,7 @@ lowercase letters are Black, and dots are empty squares.
 **Rules:** Standard chess, White first, no castling rights or en-passant
 capture. Checkmate must occur within **four White moves**; Black's moves and
 deliberation time do not spend rings. Characters direct the spectral pieces
-without replacing them or risking their own lives.
+without replacing them; losing triggers the separate ward described below.
 
 **Clues:** The king boasts that two checking pieces cannot both be captured.
 The queen on a4 and bishop on d3 glow briefly when a player asks for guidance.
@@ -1084,9 +1285,14 @@ it seeks the strongest legal defense, with no random choice or forced
 cooperation.
 
 **Failure and hints:** A loss, draw, or fourth White move without mate resets
-the exact position and all four rings. Retries are unlimited and free, always
+the exact position and all four rings. Retries are unlimited, always
 with White first. Illegal moves do not consume rings; an earlier checkmate,
 including the two-move Kf8 branch, is a full success.
+
+**Consequences:** Access; unlimited retries. Each failed game releases the
+court's oppressive aura: the directing character must **ST 11 (WIS / magic),
+with -S on the save**, or suffer **-S to hit, attack power, and toughness**
+for one exploration turn. The spectral court never joins ordinary combat.
 
 **Reward:** All spectral pieces kneel and the monumental gate opens.
 
@@ -1155,8 +1361,12 @@ It chooses moves strategically rather than randomly.
 The guarantee also holds if it chooses any other legal defense.
 
 **Failure and hints:** A third Black turn without capture, or surrender,
-restores the exact board, marked stone, and three pearls. Retries are unlimited,
-free, and Black-first. Illegal moves are refused without spending a turn.
+restores the exact board, marked stone, and three pearls while attempts remain.
+Retries are Black-first. Illegal moves are refused without spending a turn.
+
+**Consequences:** Treasure; **3 failed games**. Each loss or surrender clouds
+one of three pearls on the casket; the third permanently seals its real prize.
+These failure pearls are separate from the resettable Black-move counter.
 
 **Reward:** On capture, the playing stones dissolve into mist and the separate
 pearl casket opens.
@@ -1207,9 +1417,14 @@ capture (earlier in the ladder, sooner than the main line), so success does
 not depend on cooperation.
 
 **Failure and hints:** Five Black turns without capture reset the identical
-position and all five scales. Unlimited free retries always let Black start.
+position and all five scales. Unlimited retries always let Black start.
 Illegal moves do not consume scales; players can request a demonstration
 of liberty counting before trying again.
+
+**Consequences:** Access; unlimited retries. Each failed game makes the
+dragon exhale numbing mist at the directing character: **ST 11 (CON / cold),
+with -S on the save**, or **-S attack power and toughness** for one exploration
+turn.
 
 **Reward:** The dragon dissolves the passage ward and permits onward travel.
 
@@ -1284,10 +1499,13 @@ coordinate. With only A1 left it takes that tile. Its choices involve no dice,
 and the mirror strategy defeats every possible legal reply after B2.
 
 **Failure and hints:** If a player takes A1, the skull laughs and the full
-three-by-three tablet resets. Retries are unlimited, free, and player-first.
+three-by-three tablet resets while attempts remain. Retries are player-first.
 Illegal selections are refused. No actual food, treasure, or character health
 is consumed by a failed attempt.
 
+**Consequences:** Treasure; **3 lost or surrendered games**. Three silver
+spoons beside the chest curl shut one per loss; the third permanently locks
+the pantry chest. A1 still never poisons anyone.
 **Reward:** Victory opens the ogre's pantry chest, revealing preserved treats
 and a silver dessert service separate from the enchanted playing tiles.
 
@@ -1339,9 +1557,17 @@ HEART, HEEL order, and translate FLAME, WAVE, ROOT to **472**. The moon and
 lightning markings are observable evidence against the competing scraps.
 
 **Failure and hints:** A wrong combination clicks and returns the wheels to
-zero; retries are unlimited. If the party mixes in a gaming chit, point out
+zero while attempts remain. If the party mixes in a gaming chit, point out
 that its seal differs from the strongbox's sun. No clue is consumed.
 
+**Consequences:** Treasure; **4 wrong combinations**. On each failure the
+corpse's vengeful spirit touches **one randomly selected living party member**
+in the room. That character must **ST 11 (WIS / death) or die**, with a
+penalty of **-(L + f - 1)**: -L on the first failure, -(L + 1) on the second,
+and so on. Resolve the fourth touch, then permanently seal the strongbox and
+end the haunting; no further touches can be triggered. A visible four-link
+spirit chain and a warning scratched into the lid disclose the danger.
+Searching, handling clues, or turning wheels before submission is safe.
 **Reward:** The box holds a valuable garnet and the adventurer's salvage
 notes, including a warning about a nearby dungeon hazard.
 
@@ -1414,9 +1640,12 @@ four-letter string to obtain **BONE**. Reversing each half separately without
 reversing their order would incorrectly give NEBO.
 
 **Failure and hints:** Wrong words make the coffer whisper the example,
-"TAC becomes CAT," then reset the wheels. Repeated attempts are safe and free;
+"TAC becomes CAT," then reset the wheels while attempts remain;
 the painter's belongings and all clues remain intact.
 
+**Consequences:** Treasure; **3 wrong words**. Each rejected word shatters one
+of three painted flowers on the lid; the third permanently seals the coffer.
+The mirror and clues are never damaged; there is no additional harm.
 **Reward:** The funerary coffer opens to reveal a carved ivory cameo and a
 silver burial mask.
 
@@ -1508,8 +1737,13 @@ Direct inspection of the precise hiding place finds the clue without a roll.
 is the complete lookup text; no book elsewhere in the dungeon is needed.
 
 **Failure and hints:** Wrong words produce three hollow knocks. The chest
-does not flood or consume clues, and entries may be retried indefinitely.
+does not flood or consume clues, and entries may be retried while attempts remain.
 The margin's worked example says that 2/1 yields A.
+
+**Consequences:** Treasure; **4 wrong words**. Each rejection releases a cold
+brine jet at the operator: **ST 11 (CON / cold), with -f on the save**, or
+**-f toughness** for one exploration turn.
+The fourth jet is followed by a permanent seal over the chest and prize.
 
 **Reward:** The chest contains pearls wrapped in waxed cloth and a smuggler's
 map identifying a useful dungeon shortcut.
@@ -1589,6 +1823,11 @@ can be repeated. An interior emergency crank opens the way back after one
 exploration turn of noisy work, but does not award the puzzle treasure or
 bypass any separate progression gate.
 
+**Consequences:** Trap; unlimited retries. Each wrong submitted word rings a
+stunning peal: the operator must **ST 11 (CON / magic), with -S on the save**,
+or suffer **-S to hit and attack power** for one exploration turn. It never
+deafens a solver or affects searches; the emergency crank remains usable.
+
 **Reward:** The workshop releases its seals and opens a drawer containing
 a silver handbell and a finely made set of clockmaker's tools.
 
@@ -1666,8 +1905,12 @@ Together they give **HEAL**. Do not rearrange the second frame's 3,2 into
 ascending order.
 
 **Failure and hints:** Incorrect words illuminate the frames' numbered
-slots, then reset the lock. Attempts are unlimited. No chemicals, medicines,
+slots, then reset the lock while attempts remain. No chemicals, medicines,
 or real wounds need to be tested to solve the cipher.
+
+**Consequences:** Treasure; **3 wrong words**. Each wrong entry closes one
+of three brass clasps; the third permanently seals the medicines and silver
+case. This is an optional supply cache, never the party's only required cure.
 
 **Reward:** The chest contains a restorative potion and a silver surgical
 instrument case.

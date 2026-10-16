@@ -36,7 +36,7 @@ def main() -> None:
     parser.add_argument("--corridor-length", type=positive_number, default=8,
                         help="target newly carved corridor length in squares (default: 8)")
     parser.add_argument("--meandering", type=probability, default=0.6,
-                        help="rough corridor detour probability, 0 disables, 1 maximizes (default: 0.6)")
+                        help="natural passage winding strength, 0 direct, 1 strongest bends (default: 0.6)")
     parser.add_argument("--density", type=probability, default=0.3,
                         help="target open fraction of the whole map, strictly between 0 and 1 (default: 0.3)")
     parser.add_argument("--rough-probability", type=probability, default=0.4,
@@ -57,7 +57,7 @@ def main() -> None:
         parser.add_argument("--" + name, type=nonnegative_integer, default=0,
                             help="exact {} count (default: 0)".format(name.replace("-", " ")))
     parser.add_argument("--chamfer-probability", type=probability, default=0,
-                        help="probability of replacing an eligible worked corner with a diagonal (default: 0)")
+                        help="worked-corner chamfer probability; natural corners always chamfer (default: 0)")
     parser.add_argument("--generate-encounters", action="store_true",
                         help="write encounters even when puzzles are disabled (puzzles imply encounters)")
     parser.add_argument("--puzzle-probability", type=probability, default=0.35,
@@ -87,14 +87,17 @@ def main() -> None:
         options = GenerationOptions(**{
             name: getattr(args, name) for name in GenerationOptions.__dataclass_fields__
         })
+        encounter_options = {
+            name: getattr(args, name) for name in (
+                "encounter_chance", "treasure_chest_dc", "chest_trap_dc", "chest_lock_dc",
+            )
+        }
         encounters = None
         if args.puzzle_probability > 0 and args.max_puzzles_per_level > 0:
             result, encounters = generate_adventure(
                 options, puzzle_probability=args.puzzle_probability,
                 max_puzzles_per_level=args.max_puzzles_per_level,
-                encounter_chance=args.encounter_chance,
-                treasure_chest_dc=args.treasure_chest_dc, chest_trap_dc=args.chest_trap_dc,
-                chest_lock_dc=args.chest_lock_dc,
+                **encounter_options,
             )
         else:
             result = generate_dungeon(options)
@@ -113,11 +116,7 @@ def main() -> None:
                  for path in (text_path, svg_path)]
         if args.generate_encounters or encounters is not None:
             if encounters is None:
-                encounters = generate_encounters(
-                    result, args.encounter_chance,
-                    treasure_chest_dc=args.treasure_chest_dc, chest_trap_dc=args.chest_trap_dc,
-                    chest_lock_dc=args.chest_lock_dc,
-                )
+                encounters = generate_encounters(result, **encounter_options)
             encounter_path = args.output.with_name(args.output.stem + "-encounters.md")
             log_path = encounter_path.with_suffix(".log")
             paths.extend((encounter_path.resolve(), log_path.resolve()))
