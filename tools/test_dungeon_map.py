@@ -11,7 +11,8 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from dungeon_geometry import reachable_cells
+from dungeon_geometry import clear_invalid_diagonals, reachable_cells
+from dungeon_passages import HEADINGS, _cavern_path, _passage_cells, _segment_steps
 from dungeon_encounters import (
     EncounterRules,
     MonsterEncounter,
@@ -44,6 +45,7 @@ from dungeon_map import (
     _prune_unreachable,
     _rebuild_layout,
     _reroute_corridors,
+    _terrain,
 )
 
 
@@ -129,13 +131,38 @@ class InputTests(unittest.TestCase):
 
     def test_reject_invalid_diagonals(self):
         for rows in (
-            ("#.#", "#\\.", "###"),
-            ("# #", "#\\.", "###"),
+            ("#.#", ".\\.", "###"),
+            ("#.#", "#\\T", "###"),
             ("# #", " \\ ", "# #"),
             ("###", "#\\ ", "###"),
         ):
             with self.subTest(rows=rows), self.assertRaisesRegex(ValueError, "diagonal"):
                 validate_map(DungeonMap(rows))
+
+    def test_natural_and_mixed_diagonal_terrain_is_walkable(self):
+        for rows, rough in (
+            (("#.#", "#\\.", "###"), True),
+            (("# #", "#\\.", "###"), False),
+        ):
+            with self.subTest(rows=rows):
+                grid = DungeonMap(rows)
+                validate_map(grid)
+                self.assertTrue(is_connected(grid))
+                root = xml(grid, roughness=0, corner_radius=0)
+                diagonal = [line for line in walls(root)
+                            if endpoints(line) == ((1, 1), (2, 2))]
+                self.assertEqual(len(diagonal), 1)
+                self.assertEqual(diagonal[0].get("data-texture"), "rough" if rough else "smooth")
+
+    def test_generated_connections_clear_only_invalid_diagonals(self):
+        rows = [list(row) for row in ("#######", "#.##.##", "#\\.#\\.#", "#######")]
+        rows[2][0] = "."
+        clear_invalid_diagonals(rows)
+        self.assertEqual(rows[2][1], " ")
+        self.assertEqual(rows[2][4], "\\")
+        grid = DungeonMap(tuple("".join(row) for row in rows))
+        validate_map(grid)
+        self.assertEqual(reachable_cells(grid, (0, 2)), {(0, 2), (1, 2), (1, 1), (2, 2)})
 
     def test_doors_accept_both_axes_and_mixed_terrain(self):
         for symbol in "DSC":
@@ -453,60 +480,78 @@ class RenderingTests(unittest.TestCase):
 
 
 class MeanderingTests(unittest.TestCase):
-    @staticmethod
-    def run_lengths(path):
-        runs = []
-        previous = None
-        for first, last in zip(path, path[1:]):
-            direction = (last[0] - first[0], last[1] - first[1])
-            if direction == previous:
-                runs[-1] += 1
-            else:
-                runs.append(1)
-                previous = direction
-        return runs
-
-    def test_detours_have_short_runs_and_reach_the_goal_without_shortcuts(self):
-        for start, end in (((3, 15), (57, 15)), ((15, 57), (15, 3)),
-                           ((3, 10), (50, 45))):
+    def test_winding_routes_reach_all_octants_without_crossing(self):
+        for end in ((30, 3), (45, 3), (57, 30), (57, 45),
+                    (30, 57), (15, 57), (3, 30), (3, 15)):
+            start = (30, 30)
             for seed in range(5):
                 with self.subTest(start=start, end=end, seed=seed):
                     direct = _path(start, end, True)
                     path = _meander_path(direct, set(), 61, 61, 1, random.Random(seed))
                     self.assertEqual((path[0], path[-1]), (start, end))
                     self.assertEqual(len(path), len(set(path)))
-                    self.assertGreater(len(path), len(direct))
-                    self.assertLessEqual(len(path) - 1, 4 * (len(direct) - 1))
-                    positions = {cell: index for index, cell in enumerate(path)}
-                    for index, (x, y) in enumerate(path):
+                    raster = [start]
+                    for first, last in zip(path, path[1:]):
+                        heading = (last[0] - first[0], last[1] - first[1])
+                        self.assertIn(heading, HEADINGS)
+                        raster.extend(_segment_steps(first, last))
+                    self.assertEqual(len(raster), len(set(raster)))
+                    crossings = [(first[0] + last[0], first[1] + last[1])
+                                 for first, last in zip(raster, raster[1:])
+                                 if first[0] != last[0] and first[1] != last[1]]
+                    self.assertEqual(len(crossings), len(set(crossings)))
+                    for x, y in _passage_cells(path):
                         self.assertTrue(1 <= x < 60 and 1 <= y < 60)
-                        for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
-                            if (x + dx, y + dy) in positions:
-                                self.assertEqual(abs(positions[(x + dx, y + dy)] - index), 1)
-                    self.assertTrue(all(
-                        abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1
-                        for a, b in zip(path, path[1:])
-                    ))
-                    if start[0] == end[0] or start[1] == end[1]:
-                        self.assertTrue(all(2 <= run <= 3 for run in self.run_lengths(path)[1:-1]))
-                    self.assertTrue(set(direct) - set(path), "the bypass must replace the straight route")
                     self.assertEqual(
                         path, _meander_path(direct, set(), 61, 61, 1, random.Random(seed))
                     )
 
-    def test_meandering_strength_and_zero_preserve_direct_route(self):
+    def test_meandering_produces_wide_bends_and_moves_away_from_the_target(self):
+        start, end = (3, 15), (57, 15)
+        for amount in (0.6, 1):
+            spans, retreats, reversals = [], [], []
+            for seed in range(8):
+                path = _cavern_path(start, end, set(), 61, 31, amount, random.Random(seed))
+                self.assertIsNotNone(path)
+                spans.append(max(y for x, y in path) - min(y for x, y in path))
+                retreats.append(any(
+                    math.hypot(end[0] - b[0], end[1] - b[1])
+                    > math.hypot(end[0] - a[0], end[1] - a[1])
+                    for a, b in zip(path, path[1:])
+                ))
+                lateral = [b[1] - a[1] for a, b in zip(path, path[1:]) if b[1] != a[1]]
+                reversals.append(sum(a * b < 0 for a, b in zip(lateral, lateral[1:])))
+            with self.subTest(amount=amount):
+                self.assertGreaterEqual(max(spans), 8)
+                self.assertTrue(any(retreats))
+                self.assertGreaterEqual(max(reversals), 2)
+
+    def test_nearby_target_can_require_retreat_and_a_turn_over_ninety_degrees(self):
+        start, end = (8, 10), (10, 10)
+        occupied = {(9, y) for y in range(3, 13)}
+        heading = (0, -1)
+        for amount in (0, 1):
+            path = _cavern_path(start, end, occupied, 20, 20, amount, random.Random(4), heading)
+            self.assertIsNotNone(path)
+            self.assertEqual((path[0], path[-1]), (start, end))
+            first = (path[1][0] - start[0], path[1][1] - start[1])
+            self.assertLess(first[0] * heading[0] + first[1] * heading[1], 0)
+            self.assertGreater(math.hypot(end[0] - path[1][0], end[1] - path[1][1]), 2)
+            self.assertTrue(occupied.isdisjoint(_passage_cells(path)))
+
+    def test_zero_meandering_is_direct_and_random_meandering_changes_shape(self):
         direct = _path((3, 15), (57, 15), True)
         rng = random.Random(9)
         before = rng.getstate()
         self.assertEqual(_meander_path(direct, set(), 61, 31, 0, rng), direct)
         self.assertEqual(rng.getstate(), before)
-        lengths = []
-        for amount in (0.2, 0.9):
-            lengths.append(sum(
-                len(_meander_path(direct, set(), 61, 31, amount, random.Random(seed)))
-                for seed in range(20)
-            ))
-        self.assertGreater(lengths[1], lengths[0] * 1.3)
+        diagonal = _path((3, 3), (25, 25), True)
+        straight = _meander_path(diagonal, set(), 31, 31, 0, rng)
+        self.assertEqual(straight, [(value, value) for value in range(3, 26)])
+        varied = {tuple(_meander_path(direct, set(), 61, 31, 1, random.Random(seed)))
+                  for seed in range(10)}
+        self.assertGreater(len(varied), 1)
+        self.assertNotIn(tuple(direct), varied)
 
     def test_bounds_and_occupied_rooms_can_limit_detours(self):
         direct = _path((1, 2), (1, 18), True)
@@ -515,15 +560,98 @@ class MeanderingTests(unittest.TestCase):
         )
         direct = _path((3, 5), (25, 5), True)
         occupied = {(x, y) for x in range(1, 29) for y in range(1, 12)} - set(direct)
-        self.assertEqual(
-            _meander_path(direct, occupied, 30, 13, 1, random.Random(4)), direct
-        )
+        self.assertEqual(_meander_path(direct, occupied, 30, 13, 1, random.Random(4)), direct)
+        self.assertIsNone(_cavern_path((3, 5), (25, 5), occupied | {(15, 5)},
+                                       30, 13, 1, random.Random(4)))
         self.assertEqual(
             _meander_path([(2, 2)], set(), 5, 5, 1, random.Random(4)), [(2, 2)]
         )
 
 
 class GenerationTests(unittest.TestCase):
+    def test_random_room_positions_do_not_favor_nearby_or_distant_rooms(self):
+        shape = (3, 3, {(x, y) for x in range(3) for y in range(3)}, False)
+        same_half = [0, 0]
+        options = GenerationOptions(width=60, height=40, density=0.005)
+        with patch("dungeon_map._room_shape", return_value=shape):
+            for seed in range(100):
+                _, rooms, _, _ = _terrain(options, random.Random(seed))
+                self.assertEqual(len(rooms), 2)
+                for axis, middle in enumerate((30, 20)):
+                    same_half[axis] += (
+                        (rooms[0].center[axis] < middle)
+                        == (rooms[1].center[axis] < middle)
+                    )
+        for count in same_half:
+            self.assertGreater(count, 35)
+            self.assertLess(count, 65)
+
+    def test_sparse_density_increases_chamber_spacing_and_passage_length(self):
+        for width, height in ((60, 40), (40, 60)):
+            for rough in (0, 1):
+                measurements = {}
+                for density in (0.1, 0.4):
+                    counts, spacings, lengths = [], [], []
+                    for seed in range(12):
+                        result = generate_dungeon(GenerationOptions(
+                            width=width, height=height, seed=seed, density=density,
+                            rough_probability=rough, doors=0,
+                            secret_doors=0, concealed_doors=0,
+                        ))
+                        centers = [
+                            (sum(x for x, y in room) / len(room),
+                             sum(y for x, y in room) / len(room))
+                            for room in result.room_cells
+                        ]
+                        nearest = [
+                            min(math.hypot(x - a, y - b)
+                                for j, (a, b) in enumerate(centers) if i != j)
+                            for i, (x, y) in enumerate(centers)
+                        ]
+                        counts.append(len(centers))
+                        spacings.append(sum(nearest) / len(nearest))
+                        lengths.append(sum(result.corridor_lengths) / len(result.corridor_lengths))
+                    measurements[density] = tuple(
+                        sum(values) / len(values) for values in (counts, spacings, lengths)
+                    )
+                with self.subTest(width=width, height=height, rough=rough):
+                    sparse, dense = measurements[0.1], measurements[0.4]
+                    self.assertLess(sparse[0], dense[0])
+                    self.assertGreater(sparse[1], dense[1] * 1.5)
+                    self.assertGreater(sparse[2], dense[2] * 1.5)
+
+    def test_cavern_routing_targets_the_exterior_of_the_destination_opening(self):
+        targets = []
+
+        def observe(path, occupied, width, height, amount, rng):
+            targets.append(path[-1])
+            return _meander_path(path, occupied, width, height, amount, rng)
+
+        def terrain(*args):
+            targets.clear()
+            return _terrain(*args)
+
+        options = GenerationOptions(seed=42, rough_probability=1)
+        with patch("dungeon_map._meander_path", side_effect=observe), \
+                patch("dungeon_map._terrain", side_effect=terrain):
+            result = generate_dungeon(options)
+        self.assertEqual(len(targets), len(result.room_cells) - 1)
+        for target, cells in zip(targets, result.room_cells[1:]):
+            self.assertNotIn(target, cells)
+            self.assertTrue(any((target[0] + dx, target[1] + dy) in cells
+                                for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0))))
+
+    def test_natural_chamfers_ignore_worked_corner_probability(self):
+        for amount in (0, 1):
+            options = GenerationOptions(seed=42, rough_probability=1, meandering=amount,
+                                        doors=0, secret_doors=0, concealed_doors=0)
+            plain = generate_dungeon(options)
+            self.assertEqual(plain, generate_dungeon(replace(options, chamfer_probability=1)))
+            self.assertTrue(set("\\/") & set(plain.grid.to_ascii()))
+            validate_map(plain.grid)
+        worked = generate_dungeon(GenerationOptions(seed=42, rough_probability=0))
+        self.assertFalse(set("\\/") & set(worked.grid.to_ascii()))
+
     def test_repeatable_ascii_and_svg(self):
         options = GenerationOptions(width=30, height=24, seed=31, traps=2)
         first, second = generate_dungeon(options), generate_dungeon(options)
@@ -586,12 +714,13 @@ class GenerationTests(unittest.TestCase):
                 self.assertTrue(any(direct != path for direct, path, occupied in routes[1]))
                 for amount, result in enumerate(results):
                     self.assertEqual(result.corridor_lengths, tuple(
-                        sum(cell not in occupied for cell in path)
+                        sum(cell not in occupied for cell in _passage_cells(path))
                         for direct, path, occupied in routes[amount]
                     ))
                     self.assertTrue(all(
-                        result.grid.tile(x, y) == "."
-                        for direct, path, occupied in routes[amount] for x, y in path
+                        result.grid.tile(x, y) in ".\\/"
+                        for direct, path, occupied in routes[amount]
+                        for x, y in _passage_cells(path)
                     ))
             else:
                 self.assertEqual(results[0], results[1])

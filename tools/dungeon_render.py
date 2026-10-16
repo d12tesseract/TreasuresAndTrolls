@@ -5,50 +5,16 @@ import random
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence
 
 from dungeon_geometry import (
     Cell, DIAGONALS, DIRECTIONS, DOORS, DungeonMap, FEATURES, FLOORS, Point,
-    Stairway, _door_axis, _finite_positive, _neighbors, _open_sides, _partition,
-    validate_map,
+    _door_axis, _finite_positive, _neighbors, _open_sides, _partition,
+    _rough_cells, _stair_runs, validate_map,
 )
 
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
-
-
-def _rough_cells(grid: DungeonMap) -> Set[Cell]:
-    rough = {
-        (x, y) for y, row in enumerate(grid.rows)
-        for x, tile in enumerate(row) if tile == "."
-    }
-    features = {
-        (x, y) for y, row in enumerate(grid.rows)
-        for x, tile in enumerate(row) if tile in FEATURES
-    }
-    # Infer an entire touching feature cluster together, avoiding recursive
-    # terrain dependencies when several feature characters replace the floor.
-    for start in sorted(features):
-        if start not in features:
-            continue
-        features.remove(start)
-        cluster = {start}
-        pending = [start]
-        terrain = set()
-        while pending:
-            x, y = pending.pop()
-            for dx, dy in DIRECTIONS:
-                neighbor = (x + dx, y + dy)
-                tile = grid.tile(*neighbor)
-                if neighbor in features:
-                    features.remove(neighbor)
-                    cluster.add(neighbor)
-                    pending.append(neighbor)
-                elif tile in " .|_L\\/":
-                    terrain.add("." if tile == "." else " ")
-        if terrain == {"."}:
-            rough.update(cluster)
-    return rough
 
 
 @dataclass(frozen=True)
@@ -65,10 +31,16 @@ def _wall_edges(grid: DungeonMap) -> List[_Edge]:
     for y, row in enumerate(grid.rows):
         for x, tile in enumerate(row):
             if tile in DIAGONALS:
+                natural = (x, y) in rough
+                sides = _open_sides(grid, x, y)
+                inward = tuple(
+                    sum(DIRECTIONS[side][axis] for side in sides) / math.sqrt(2)
+                    for axis in (0, 1)
+                ) if natural else (0, 0)
                 if tile == "\\":
-                    edges.append(_Edge((x, y), (x + 1, y + 1), False, (0, 0)))
+                    edges.append(_Edge((x, y), (x + 1, y + 1), natural, inward))
                 else:
-                    edges.append(_Edge((x, y + 1), (x + 1, y), False, (0, 0)))
+                    edges.append(_Edge((x, y + 1), (x + 1, y), natural, inward))
             elif tile in FLOORS:
                 endpoints = (
                     ((x, y), (x + 1, y)),
@@ -171,6 +143,8 @@ def svg_document(
                 other = edge.end if edge.start == point else edge.start
                 directions.append((other[0] - point[0], other[1] - point[1]))
             if directions[0][0] * directions[1][1] == directions[0][1] * directions[1][0]:
+                continue
+            if directions[0][0] * directions[1][0] + directions[0][1] * directions[1][1]:
                 continue
             # At radius 0.5, neighboring quarter circles meet at tile-edge
             # midpoints, replacing an isolated square's entire boundary.
@@ -352,33 +326,3 @@ def svg_document(
 def render_rows(rows: Sequence[str], **options) -> str:
     """Convenience API for an array of row strings instead of a text file."""
     return svg_document(DungeonMap(tuple(rows)), **options)
-
-
-def _stair_runs(grid: DungeonMap) -> Dict[Cell, Stairway]:
-    """Recognize straight ASCII runs; ambiguous clusters retain per-tile symbols."""
-    remaining = {
-        (x, y) for y, row in enumerate(grid.rows)
-        for x, tile in enumerate(row) if tile in "EURI"
-    }
-    result = {}
-    for start in sorted(remaining):
-        if start not in remaining:
-            continue
-        remaining.remove(start)
-        cells = {start}
-        pending = [start]
-        tile = grid.tile(*start)
-        while pending:
-            x, y = pending.pop()
-            for dx, dy in DIRECTIONS:
-                neighbor = (x + dx, y + dy)
-                if neighbor in remaining and grid.tile(*neighbor) == tile:
-                    remaining.remove(neighbor)
-                    cells.add(neighbor)
-                    pending.append(neighbor)
-        horizontal = len({y for x, y in cells}) == 1
-        vertical = len({x for x, y in cells}) == 1
-        if len(cells) > 1 and (horizontal or vertical):
-            run = Stairway(tuple(sorted(cells)), tile, horizontal)
-            result.update((cell, run) for cell in cells)
-    return result

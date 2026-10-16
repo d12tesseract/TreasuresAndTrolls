@@ -200,16 +200,26 @@ class StrategyGameTests(unittest.TestCase):
                 self.assertTrue(board.is_valid())
                 self.assertEqual(tuple(str(board).replace(" ", "").splitlines()), block(body, "Board"))
                 self.verify_chess_tree(board, [line.split() for line in block(body, "Winning lines")],
-                                       int(field(body, "Move budget")))
+                                       int(field(body, "Solution length" if number == 35 else "Move budget")))
 
-    def test_chess_mates_are_forced_in_exactly_the_claimed_move_budgets(self):
+    def test_chess_mates_are_forced_in_exactly_the_claimed_solution_lengths(self):
         for number in HISTORICAL_SCORES:
             body = self.games[number].body
-            fen, budget = field(body, "FEN"), int(field(body, "Move budget"))
+            fen = field(body, "FEN")
+            budget = int(field(body, "Solution length" if number == 35 else "Move budget"))
             with self.subTest(puzzle=number):
                 self.assertFalse(forced_mate(fen, budget - 1))
                 self.assertTrue(forced_mate(fen, budget))
                 forced_mate.cache_clear()
+
+    def test_unlimited_chess_game_validates_solution_without_a_move_deadline(self):
+        body = self.games[35].body
+        self.assertNotIn("**Move budget:**", body)
+        validate_strategy_game(body)
+        with self.assertRaisesRegex(ValueError, "Solution length"):
+            validate_strategy_game(body.replace("**Solution length:** 3\n", ""))
+        with self.assertRaisesRegex(ValueError, "stated length"):
+            validate_strategy_game(body.replace("Bxe7#", "Bxe7"))
 
 
 class StrategyPlacementTests(unittest.TestCase):

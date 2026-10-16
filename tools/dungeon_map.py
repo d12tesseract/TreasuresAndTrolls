@@ -12,16 +12,18 @@ from typing import Callable, List, Optional, Sequence, Set, Tuple
 from dungeon_geometry import (
     Cell, DIAGONALS, DIRECTIONS, DOORS, DungeonMap, FEATURES, FLOORS, Point,
     Stairway, TILES, _diagonal_sides, _door_axis, _finite_positive, _neighbors,
-    _open_sides, _partition, is_connected, parse_ascii, validate_map,
+    _open_sides, _partition, _rough_cells, _route, _stair_runs,
+    clear_invalid_diagonals, is_connected, parse_ascii, validate_map,
 )
 from dungeon_render import (
-    SVG_NAMESPACE, _Edge, _rough_cells, _stair_runs, _wall_edges,
+    SVG_NAMESPACE, _Edge, _wall_edges,
     render_rows, svg_document,
 )
 from dungeon_cli import (
     add_render_arguments, nonnegative_integer, positive_number, probability,
     render_options,
 )
+from dungeon_passages import CavernRoutingError, _meander_path, _passage_cells, _path
 
 
 def _probability(name: str, value: float) -> None:
@@ -167,76 +169,6 @@ def _room_shape(options: GenerationOptions, rng: random.Random) -> Tuple[int, in
     return width, height, cells, rough
 
 
-def _path(start: Cell, end: Cell, horizontal_first: bool) -> List[Cell]:
-    x, y = start
-    result = [(x, y)]
-    for axis in ((0, 1) if horizontal_first else (1, 0)):
-        while (x, y)[axis] != end[axis]:
-            if axis == 0:
-                x += 1 if end[0] > x else -1
-            else:
-                y += 1 if end[1] > y else -1
-            result.append((x, y))
-    return result
-
-
-def _meander_path(
-    path: List[Cell],
-    occupied: Set[Cell],
-    width: int,
-    height: int,
-    amount: float,
-    rng: random.Random,
-) -> List[Cell]:
-    """Replace short straight spans with bounded detours, advancing along path."""
-    if not amount:
-        return path
-    result = [path[0]]
-    reserved = set(path) | occupied
-    index = 0
-    may_detour = True
-    while index < len(path) - 1:
-        dx = path[index + 1][0] - path[index][0]
-        dy = path[index + 1][1] - path[index][1]
-        stop = index + 1
-        limit = min(index + rng.randint(2, 3), len(path) - 1)
-        while stop < limit and path[stop + 1] == (path[stop][0] + dx, path[stop][1] + dy):
-            stop += 1
-        direct = path[index:stop + 1]
-        replacement = direct
-        if (
-            may_detour and stop - index >= 2
-            and not any(cell in occupied for cell in direct)
-            and rng.random() < amount
-        ):
-            unaffected = (reserved - set(direct)) | set(result[:-1])
-            offsets = [-3, -2, 2, 3]
-            rng.shuffle(offsets)
-            for offset in offsets:
-                start, end = direct[0], direct[-1]
-                shifted_start = (start[0] - dy * offset, start[1] + dx * offset)
-                shifted_end = (end[0] - dy * offset, end[1] + dx * offset)
-                candidate = (
-                    _path(start, shifted_start, True)
-                    + _path(shifted_start, shifted_end, True)[1:]
-                    + _path(shifted_end, end, True)[1:]
-                )
-                # Keep a stone gap to rooms and other route segments, so a
-                # detour cannot carve a shortcut or double back into itself.
-                if all(
-                    1 <= x < width - 1 and 1 <= y < height - 1
-                    and (x, y) not in unaffected
-                    and not any((x + nx, y + ny) in unaffected for nx, ny in DIRECTIONS)
-                    for x, y in candidate[1:-1]
-                ):
-                    replacement = candidate
-                    break
-        may_detour = replacement is direct
-        result.extend(replacement[1:])
-        index = stop
-    return result
-
-
 def _terrain(
     options: GenerationOptions, rng: random.Random,
     excluded_rooms: Optional[Set[Cell]] = None,
@@ -252,7 +184,7 @@ def _terrain(
     misses = 0
     while len(occupied) < target and misses < 80:
         width, height, local_cells, rough = _room_shape(options, rng)
-        best = None
+        room = None
         for _ in range(24):
             left = rng.randint(1, options.width - width - 1)
             top = rng.randint(1, options.height - height - 1)
@@ -261,33 +193,30 @@ def _terrain(
                 continue
             if not cells.isdisjoint(room_exclusion):
                 continue
-            center = (left + width // 2, top + height // 2)
-            room = _Room(center, cells, rough)
-            if not rooms:
-                best = (0, room, [], None)
-                break
-            previous = min(
-                rooms,
-                key=lambda other: abs(center[0] - other.center[0])
-                + abs(center[1] - other.center[1]),
-            )
-            path = _path(previous.center, center, rng.choice((True, False)))
-            length = sum(cell not in occupied and cell not in cells for cell in path)
-            score = abs(length - options.corridor_length) + rng.random()
-            if best is None or score < best[0]:
-                best = (score, room, path, previous)
-        if best is None:
+            room = _Room((left + width // 2, top + height // 2), cells, rough)
+            break
+        if room is None:
             misses += 1
             continue
         misses = 0
-        _, room, path, previous = best
-        if previous is not None:
+        path = []
+        if rooms:
+            connection = None
+            for previous in rooms:
+                route = _path(previous.center, room.center, rng.choice((True, False)))
+                length = sum(cell not in occupied and cell not in room.cells for cell in route)
+                score = (abs(length - options.corridor_length), len(route))
+                if connection is None or score < connection[0]:
+                    connection = (score, route, previous)
+            _, path, previous = connection
             corridor_tile = "." if previous.rough and room.rough else " "
             if corridor_tile == ".":
-                path = _meander_path(
-                    path, occupied | room.cells, options.width, options.height,
+                opening = next(index for index, cell in enumerate(path) if cell in room.cells)
+                centerline = _meander_path(
+                    path[:opening], occupied | room.cells, options.width, options.height,
                     options.meandering, rng,
                 )
+                path = list(_passage_cells(centerline + path[opening:]))
             lengths.append(sum(cell not in occupied and cell not in room.cells for cell in path))
             corridors.append(_Corridor(tuple(path), corridor_tile))
             for x, y in path:
@@ -323,12 +252,24 @@ def _decorate(
             continue
         for x, y in sorted(room.cells):
             adjacent = neighbors(x, y)
-            if (x, y) in reserved or tile(x, y) != " " or any(value in DIAGONALS for value in adjacent):
+            if (x, y) in reserved or tile(x, y) not in " ." or any(value in DIAGONALS for value in adjacent):
                 continue
             for diagonal in ("\\", "/"):
                 if _diagonal_sides(diagonal, adjacent):
                     if rng.random() < options.chamfer_probability:
                         rows[y][x] = diagonal
+                    break
+
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            if (x, y) in reserved or tile(x, y) != ".":
+                continue
+            adjacent = neighbors(x, y)
+            if any(value in DIAGONALS for value in adjacent):
+                continue
+            for diagonal in ("\\", "/"):
+                if _diagonal_sides(diagonal, adjacent):
+                    rows[y][x] = diagonal
                     break
 
     room_cells = set().union(*(room.cells for room in rooms))
@@ -393,31 +334,8 @@ def _decorate(
         for _ in range(count):
             x, y = free.pop()
             rows[y][x] = symbol
+    clear_invalid_diagonals(rows)
     return DungeonMap(tuple("".join(row) for row in rows))
-
-
-def _route(
-    start: Cell, targets: Set[Cell], width: int, height: int, forbidden: Set[Cell],
-) -> Optional[Tuple[Cell, ...]]:
-    if start in forbidden:
-        return None
-    pending = deque([start])
-    previous = {start: None}
-    while pending:
-        cell = pending.popleft()
-        if cell in targets:
-            path = []
-            while cell is not None:
-                path.append(cell)
-                cell = previous[cell]
-            return tuple(reversed(path))
-        for dx, dy in DIRECTIONS:
-            neighbor = (cell[0] + dx, cell[1] + dy)
-            if (1 <= neighbor[0] < width - 1 and 1 <= neighbor[1] < height - 1
-                    and neighbor not in forbidden and neighbor not in previous):
-                previous[neighbor] = cell
-                pending.append(neighbor)
-    return None
 
 
 def _reroute_corridors(
@@ -526,26 +444,30 @@ def _place_stairways(
         length = 1
     for symbol in symbols:
         candidates = []
+        unavailable = blocked | room_cells
         for horizontal in (True, False):
             dx, dy = (1, 0) if horizontal else (0, 1)
+            template = Stairway(tuple((step * dx, step * dy) for step in range(length)),
+                                symbol, horizontal)
+            clearance = template.clearance
+            solid = set(template.cells) | template.walls
+            ax, ay = template.approach[-1]
             # Leave side walls and two-square approaches inside the stone border.
             for y in range(2 + dy, options.height - 2 - length * dy):
                 for x in range(2 + dx, options.width - 2 - length * dx):
-                    cells = tuple((x + step * dx, y + step * dy)
-                                  for step in range(length))
-                    passage = Stairway(cells, symbol, horizontal)
-                    area = passage.clearance
-                    if area & blocked:
+                    if any((x + ox, y + oy) in unavailable for ox, oy in clearance):
                         continue
-                    if area & room_cells:
-                        continue
-                    collisions = len((set(cells) | passage.walls) & floor)
-                    candidates.append(((collisions, distances[passage.approach[-1]]), passage))
+                    collisions = sum((x + ox, y + oy) in floor for ox, oy in solid)
+                    candidates.append(((collisions, distances[(x + ax, y + ay)]),
+                                       (x, y, horizontal)))
         rng.shuffle(candidates)
         candidates.sort(key=lambda item: item[0])
         passage = None
         forbidden = set().union(*(p.walls | set(p.cells) for p in passages))
-        for _, candidate in candidates:
+        for _, (x, y, horizontal) in candidates:
+            dx, dy = (1, 0) if horizontal else (0, 1)
+            candidate = Stairway(tuple((x + step * dx, y + step * dy)
+                                      for step in range(length)), symbol, horizontal)
             exclusion = forbidden | candidate.walls | set(candidate.cells)
             if _route(candidate.approach[-1], floor - exclusion,
                       options.width, options.height, exclusion) is not None:
@@ -607,11 +529,10 @@ def _generate_level(
         set(passage.cells + passage.approach) | passage.walls for passage in incoming
     ))
     for _ in range(12):
-        rows, rooms, lengths, corridors = _terrain(options, rng, excluded_rooms)
         try:
+            rows, rooms, lengths, corridors = _terrain(options, rng, excluded_rooms)
             stairways, reserved = (), set()
             notes = ()
-            decoration = options
             if options.levels > 1 or any((
                 options.stairs_down, options.stairs_up, options.ramps_down, options.ramps_up,
             )):
@@ -619,9 +540,8 @@ def _generate_level(
                     rows, options, rng, incoming, down_count, rooms, corridors,
                 )
                 lengths = _rebuild_layout([row[:] for row in rows], rooms, corridors)
-                decoration = replace(options, stairs_down=0, stairs_up=0, ramps_down=0, ramps_up=0)
-            grid = _decorate(rows, rooms, decoration, rng, reserved)
-        except _PlacementError as error:
+            grid = _decorate(rows, rooms, options, rng, reserved)
+        except (_PlacementError, CavernRoutingError) as error:
             problem = error
             continue
         if not is_connected(grid):

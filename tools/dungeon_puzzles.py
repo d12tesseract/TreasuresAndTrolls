@@ -13,17 +13,18 @@ from dungeon_encounters import (
 )
 from dungeon_games import field as game_field, validate_strategy_game
 from dungeon_geometry import (
-    Cell, DungeonMap, Stairway, _open_sides, is_connected, reachable_cells,
+    Cell, DungeonMap, Stairway, _open_sides, _route, clear_invalid_diagonals,
+    is_connected, reachable_cells,
 )
 from dungeon_map import (
-    GeneratedDungeon, GenerationOptions, _probability, _route, generate_dungeon,
+    GeneratedDungeon, GenerationOptions, _probability, generate_dungeon,
 )
 
 
 CATALOG_PATH = Path(__file__).with_suffix(".md")
 PUZZLE_COUNT = 50
 PASSAGE_PUZZLES = frozenset((
-    2, 3, 4, 6, 8, 9, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 29, 30,
+    2, 3, 6, 8, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 29, 30,
     33, 34, 36, 38, 39,
     42, 44, 46, 48, 50,
 ))
@@ -49,6 +50,7 @@ class PuzzleDefinition:
     required_items: Tuple[str, ...]
     min_level: int = 1
     max_level: Optional[int] = None
+    consequence_rules: str = ""
 
     def eligible(self, depth: int) -> bool:
         return self.min_level <= depth and (self.max_level is None or depth <= self.max_level)
@@ -74,6 +76,9 @@ class PlacedPuzzle:
 
 def load_puzzles(path: Path = CATALOG_PATH) -> Tuple[PuzzleDefinition, ...]:
     text = path.read_text(encoding="utf-8")
+    consequence_rules = re.search(
+        r"(?ms)^(\*\*Running consequences:\*\*.*?)(?=^## |\Z)", text,
+    )
     entries = re.findall(
         r"(?ms)^### (\d+)\. ([^\n]+)\n(.*?)(?=^### \d+\. |^## |\Z)", text,
     )
@@ -93,6 +98,9 @@ def load_puzzles(path: Path = CATALOG_PATH) -> Tuple[PuzzleDefinition, ...]:
         for field in ("Setup", "Solution", "Failure and hints", "Reward"):
             if "**{}:**".format(field) not in body:
                 raise ValueError("puzzle {} is missing {}".format(number, field))
+        has_consequences = "**Consequences:**" in body
+        if has_consequences and consequence_rules is None:
+            raise ValueError("puzzle consequences require shared consequence rules")
         min_level, max_level = 1, None
         if "**Game:**" in body:
             validate_strategy_game(body)
@@ -111,6 +119,7 @@ def load_puzzles(path: Path = CATALOG_PATH) -> Tuple[PuzzleDefinition, ...]:
             number, name, categories[number][1], body.strip(),
             number in PASSAGE_PUZZLES, REQUIRED_ITEMS.get(number, ()),
             min_level, max_level,
+            consequence_rules[1].strip() if has_consequences else "",
         ))
     return tuple(result)
 
@@ -135,12 +144,12 @@ def _attach_puzzles(
     forbidden = set().union(*(passage.clearance for passage in stairways))
     for y, row in enumerate(grid.rows):
         for x, tile in enumerate(row):
-            if tile in "DSC\\/":
+            if tile in "DSC":
                 forbidden.update((x + dx, y + dy)
                                  for dx in (-1, 0, 1) for dy in (-1, 0, 1))
     targets = {
         (x, y) for y, row in enumerate(grid.rows) for x, tile in enumerate(row)
-        if tile in " .TP" and (x, y) not in forbidden
+        if tile in " .TP\\/" and (x, y) not in forbidden
     }
     candidates = []
     for y in range(3, height - 3):
@@ -219,6 +228,7 @@ def _attach_puzzles(
         for x, cy in stairs.cells:
             rows[cy][x] = stairs.tile
     stairways += tuple(new_stairs)
+    clear_invalid_diagonals(rows)
     grid = DungeonMap(tuple("".join(row) for row in rows))
     if not is_connected(grid):
         raise ValueError("puzzle wing must be connected when its gates are solved")
@@ -443,6 +453,9 @@ def _write_puzzle_notes(keys: List[EncounterLevel], dungeon: GeneratedDungeon) -
                         item.name, title, destination,
                     )
                 )
+            if definition.consequence_rules:
+                notes.append("**Puzzle consequence level:** L = {}.".format(depth))
+                notes.append(definition.consequence_rules)
             notes.append(definition.body)
             additions.setdefault((depth, puzzle.cell), []).extend(notes)
     for index, contents in enumerate(keys):

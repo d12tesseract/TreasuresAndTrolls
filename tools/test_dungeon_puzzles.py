@@ -107,6 +107,12 @@ class PuzzleGenerationTests(unittest.TestCase):
                 self.assertIn("**Puzzle item:** " + item.name, markdown)
         self.assertEqual(markdown.count("**Solution:**"), PUZZLE_COUNT)
         self.assertIn("Progression gate:", log)
+        for depth, key in enumerate(keys, 1):
+            for puzzle in key.puzzles:
+                if puzzle.definition.consequence_rules:
+                    area = next(a for a in key.areas if a.cell == puzzle.cell)
+                    self.assertIn("**Puzzle consequence level:** L = {}.".format(depth),
+                                  area.notes)
 
     def test_pool_exhaustion_does_not_repeat_puzzles(self):
         with self.catalog_only(3, 5, 12):
@@ -158,7 +164,7 @@ class PuzzleGenerationTests(unittest.TestCase):
     def test_passage_puzzles_replace_all_down_exits_and_preserve_alignment(self):
         options = GenerationOptions(seed=42, width=30, height=24, levels=3,
                                     stairs_down=2, ramps_down=1, ramp_probability=100)
-        with self.catalog_only(2, 3, 6, 9, 11, 12):
+        with self.catalog_only(2, 3, 6, 8, 11, 12):
             dungeon, keys = self.adventure(options, puzzle_probability=1)
         for depth, (level, key) in enumerate(zip(dungeon.levels, keys), 1):
             validate_map(level.grid)
@@ -361,6 +367,56 @@ class PuzzleGenerationTests(unittest.TestCase):
             path = Path(directory) / "catalog.md"
             path.write_text("### 1. Missing everything\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "1 through {}".format(PUZZLE_COUNT)):
+                load_puzzles(path)
+
+    def test_consequence_coverage_and_retry_classes(self):
+        affected = [p for p in self.catalog if "**Consequences:**" in p.body]
+        self.assertGreaterEqual(100 * len(affected) / len(self.catalog), 69)
+        self.assertLessEqual(100 * len(affected) / len(self.catalog), 70)
+        traps = set()
+        for puzzle in affected:
+            with self.subTest(puzzle=puzzle.number):
+                kind = re.search(r"\*\*Consequences:\*\* (Treasure|Trap|Access);", puzzle.body)[1]
+                self.assertTrue(puzzle.consequence_rules)
+                self.assertIn("S = min(f, L + 2)", puzzle.consequence_rules)
+                self.assertIn("A party wipe remains", puzzle.consequence_rules)
+                self.assertIn("including for the last surviving character", puzzle.consequence_rules)
+                if kind == "Treasure":
+                    self.assertFalse(puzzle.passage)
+                    self.assertRegex(puzzle.body, r"\*\*\d+ (?:failed|wrong|lost|mismatched)")
+                    self.assertIn("permanent", puzzle.body)
+                else:
+                    self.assertIn("unlimited retries", puzzle.body)
+                    if kind == "Trap":
+                        traps.add(puzzle.number)
+                    else:
+                        self.assertTrue(puzzle.passage)
+        self.assertEqual(traps, {5, 10, 23, 47})
+        self.assertTrue(all(not p.consequence_rules for p in self.catalog if p not in affected))
+
+    def test_generated_key_carries_consequence_rules_at_actual_dungeon_level(self):
+        with self.catalog_only(4, 9, 20, 35, 41, 47):
+            dungeon, keys = self.adventure(
+                GenerationOptions(seed=42, width=30, height=24),
+                puzzle_probability=1, max_puzzles_per_level=6,
+            )
+        self.assertEqual({p.definition.number for p in keys[0].puzzles}, {4, 9, 20, 35, 41, 47})
+        guide = encounter_document(dungeon, keys, 11)
+        for puzzle in keys[0].puzzles:
+            area = next(a for a in keys[0].areas if a.cell == puzzle.cell)
+            notes = "\n".join(area.notes)
+            self.assertIn("**Puzzle consequence level:** L = 1.", notes)
+            self.assertIn(puzzle.definition.consequence_rules, notes)
+            self.assertIn(puzzle.definition.body, guide)
+            self.assertEqual(puzzle.gate is not None, puzzle.definition.number == 20)
+
+    def test_consequences_without_shared_rules_are_rejected(self):
+        text = dungeon_puzzles.CATALOG_PATH.read_text(encoding="utf-8")
+        text = re.sub(r"(?ms)^## Consequence Rules\n.*?(?=^## )", "", text)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "catalog.md"
+            path.write_text(text, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "shared consequence rules"):
                 load_puzzles(path)
 
     def test_escape_clues_have_search_dcs_fair_decoys_and_correct_codes(self):

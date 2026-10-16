@@ -213,12 +213,13 @@ def validate_strategy_game(body: str) -> None:
         if (len(parts) != 6 or parts[1] != "w" or len(parts[0].split("/")) != 8
                 or parts[0].count("K") != 1 or parts[0].count("k") != 1):
             raise ValueError("chess puzzle needs a complete White-to-move FEN with both kings")
-        budget = int(field(body, "Move budget"))
+        length_field = "Move budget" if "**Move budget:**" in body else "Solution length"
+        budget = int(field(body, length_field))
         if not 3 <= budget <= 6:
-            raise ValueError("chess move budget must be 3 through 6")
+            raise ValueError("chess {} must be 3 through 6".format(length_field.lower()))
         lines = block(body, "Winning lines")
         if not lines or any(len(line.split()) > 2 * budget - 1 or not line.endswith("#") for line in lines):
-            raise ValueError("chess solution must include mating lines within its move budget")
+            raise ValueError("chess solution must include mating lines within its stated length")
     elif game == "Capture Go":
         board = block(body, "Board")
         line = field(body, "Winning line").split()
