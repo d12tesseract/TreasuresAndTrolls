@@ -6,6 +6,7 @@ from typing import Dict
 
 
 def positive_number(value: str) -> float:
+    """Parse a finite, strictly positive command-line number."""
     number = float(value)
     if not math.isfinite(number) or number <= 0:
         raise argparse.ArgumentTypeError("must be finite and greater than zero")
@@ -13,6 +14,7 @@ def positive_number(value: str) -> float:
 
 
 def probability(value: str) -> float:
+    """Parse a finite probability in the inclusive range zero through one."""
     number = float(value)
     if not math.isfinite(number) or not 0 <= number <= 1:
         raise argparse.ArgumentTypeError("must be between zero and one")
@@ -20,6 +22,7 @@ def probability(value: str) -> float:
 
 
 def nonnegative_integer(value: str) -> int:
+    """Parse a command-line integer that is zero or greater."""
     number = int(value)
     if number < 0:
         raise argparse.ArgumentTypeError("must be a nonnegative integer")
@@ -27,6 +30,7 @@ def nonnegative_integer(value: str) -> int:
 
 
 def add_render_arguments(parser: argparse.ArgumentParser, seed_default=0) -> None:
+    """Register the scale, wall appearance, seed, and player-view options."""
     parser.add_argument("--feet-per-pixel", "--feet-per-square", type=positive_number, default=10,
                         help="map feet per ASCII square (default: 10)")
     parser.add_argument("--feet-per-inch", type=positive_number, default=50,
@@ -46,6 +50,7 @@ def add_render_arguments(parser: argparse.ArgumentParser, seed_default=0) -> Non
 
 
 def render_options(args: argparse.Namespace) -> Dict:
+    """Select the shared SVG renderer's keyword arguments from parsed options."""
     return {
         name: getattr(args, name) for name in (
             "feet_per_pixel", "feet_per_inch", "line_width", "seed",

@@ -22,6 +22,7 @@ class CavernRoutingError(ValueError):
 
 
 def _path(start: Cell, end: Cell, horizontal_first: bool) -> List[Cell]:
+    """Connect two cells with an axis-aligned, single-elbow centerline."""
     x, y = start
     result = [(x, y)]
     for axis in ((0, 1) if horizontal_first else (1, 0)):
@@ -35,6 +36,7 @@ def _path(start: Cell, end: Cell, horizontal_first: bool) -> List[Cell]:
 
 
 def _segment_steps(start: Cell, end: Cell) -> Tuple[Cell, ...]:
+    """Expand a long heading into its intermediate cell and endpoint."""
     dx, dy = end[0] - start[0], end[1] - start[1]
     if max(abs(dx), abs(dy)) == 2:
         return ((start[0] + (dx // 2 if abs(dx) == 2 else 0),
@@ -58,11 +60,11 @@ def _passage_cells(path: List[Cell]) -> Tuple[Cell, ...]:
     return tuple(cells)
 
 
-def _cavern_field(
-    target: Cell, occupied: Set[Cell], width: int, height: int,
+def _cavern_resistance(
+    occupied: Set[Cell], width: int, height: int,
     amount: float, rng: random.Random,
 ):
-    """Interpolate broad resistance bands and measure obstacle-aware costs to the target."""
+    """Interpolate seeded resistance bands over the unoccupied interior."""
     spacing = 6
     noise = [
         [rng.random() for _ in range(width // spacing + 2)]
@@ -83,7 +85,15 @@ def _cavern_field(
                 lower = noise[row + 1][column] * (1 - fx) + noise[row + 1][column + 1] * fx
                 value = upper * (1 - fy) + lower * fy
             resistance[(x, y)] = math.exp(6 * amount * value)
+    return resistance
 
+
+def _cavern_field(
+    target: Cell, occupied: Set[Cell], width: int, height: int,
+    amount: float, rng: random.Random,
+):
+    """Measure obstacle-aware target costs through broad resistance bands."""
+    resistance = _cavern_resistance(occupied, width, height, amount, rng)
     distances = {}
     if target not in resistance:
         return resistance, distances
@@ -116,6 +126,38 @@ def _cavern_field(
     return resistance, distances
 
 
+def _cavern_choices(
+    cell, previous, target, used, segments, visited, resistance, distances, amount,
+):
+    """Rank untangled next headings by target cost and forward alignment."""
+    dx, dy = target[0] - cell[0], target[1] - cell[1]
+    older = set(used)
+    for recent in segments[-2:]:
+        older.difference_update(recent)
+    older.discard(cell)
+    result = []
+    for sx, sy in HEADINGS:
+        end = (cell[0] + sx, cell[1] + sy)
+        if end not in distances:
+            continue
+        steps = _segment_steps(cell, end)
+        if any(point in visited for point in steps):
+            continue
+        footprint = set(_passage_cells([cell, end]))
+        if any((x, y) not in resistance or (x, y) in older
+               or any((x + nx, y + ny) in older for nx, ny in DIRECTIONS)
+               for x, y in footprint):
+            continue
+        length = math.hypot(sx, sy)
+        cost = length * sum(resistance[point] for point in footprint) / len(footprint)
+        if previous is not None:
+            alignment = (sx * previous[0] + sy * previous[1]) / (length * math.hypot(*previous))
+            cost *= 1 + 0.2 * amount * (1 - alignment)
+        result.append(((distances[end] + cost, -(dx * sx + dy * sy) / length), end, footprint))
+    result.sort(key=lambda choice: choice[0])
+    return [(end, footprint) for _, end, footprint in result]
+
+
 def _cavern_path(
     start: Cell, target: Cell, occupied: Set[Cell], width: int, height: int,
     amount: float, rng: random.Random, heading: Optional[Cell] = None,
@@ -132,32 +174,10 @@ def _cavern_path(
     visited = {start}
 
     def choices(cell, previous):
-        dx, dy = target[0] - cell[0], target[1] - cell[1]
-        older = set(used)
-        for recent in segments[-2:]:
-            older.difference_update(recent)
-        older.discard(cell)
-        result = []
-        for sx, sy in HEADINGS:
-            end = (cell[0] + sx, cell[1] + sy)
-            if end not in distances:
-                continue
-            steps = _segment_steps(cell, end)
-            if any(point in visited for point in steps):
-                continue
-            footprint = set(_passage_cells([cell, end]))
-            if any((x, y) not in resistance or (x, y) in older
-                   or any((x + nx, y + ny) in older for nx, ny in DIRECTIONS)
-                   for x, y in footprint):
-                continue
-            length = math.hypot(sx, sy)
-            cost = length * sum(resistance[point] for point in footprint) / len(footprint)
-            if previous is not None:
-                alignment = (sx * previous[0] + sy * previous[1]) / (length * math.hypot(*previous))
-                cost *= 1 + 0.2 * amount * (1 - alignment)
-            result.append(((distances[end] + cost, -(dx * sx + dy * sy) / length), end, footprint))
-        result.sort(key=lambda choice: choice[0])
-        return [(end, footprint) for _, end, footprint in result]
+        """Evaluate headings against the current backtracking footprint."""
+        return _cavern_choices(
+            cell, previous, target, used, segments, visited, resistance, distances, amount,
+        )
 
     pending = [choices(start, heading)]
     budget = max(128, width * height * 4)
@@ -186,6 +206,7 @@ def _meander_path(
     path: List[Cell], occupied: Set[Cell], width: int, height: int,
     amount: float, rng: random.Random,
 ) -> List[Cell]:
+    """Replace a corridor's unoccupied suffix with a winding cavern route."""
     if len(path) < 2:
         return path
     first = next((index for index, cell in enumerate(path) if cell not in occupied), len(path))

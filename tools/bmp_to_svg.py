@@ -89,6 +89,7 @@ class Bitmap:
     """Binary image, top-down: ``ink[y * width + x]`` is 1 for ink, 0 for paper."""
 
     def __init__(self, width: int, height: int, ink=None, ppm_x: int = 0, ppm_y: int = 0):
+        """Copy binary pixels and retain the image dimensions and resolution."""
         self.width = width
         self.height = height
         self.ink = bytearray(width * height) if ink is None else bytearray(ink)
@@ -96,18 +97,22 @@ class Bitmap:
         self.ppm_y = ppm_y
 
     def get(self, x: int, y: int) -> int:
+        """Return the pixel at the unchecked image coordinates."""
         return self.ink[y * self.width + x]
 
     def set(self, x: int, y: int, value: int = 1) -> None:
+        """Set an in-bounds pixel to ink or paper; ignore out-of-bounds writes."""
         if 0 <= x < self.width and 0 <= y < self.height:
             self.ink[y * self.width + x] = 1 if value else 0
 
 
 def _luminance(r: int, g: int, b: int) -> float:
+    """Compute weighted RGB luminance for thresholding."""
     return 0.299 * r + 0.587 * g + 0.114 * b
 
 
 def _mask_info(mask: int) -> Tuple[int, int]:
+    """Return the shift and maximum value of a contiguous channel mask."""
     if mask == 0:
         return 0, 0
     shift = 0
@@ -147,6 +152,24 @@ def read_bmp(data: bytes, threshold: int = 128) -> Bitmap:
     if bpp not in (1, 4, 8, 16, 24, 32):
         raise ValueError(f"unsupported BMP bit depth {bpp}")
 
+    masks, palette_offset = _bmp_masks(data, dib_size, compression, bpp)
+    ink_lookup = _bmp_palette(data, bpp, colors_used, palette_offset, palette_entry, threshold)
+    stride = ((width * bpp + 31) // 32) * 4
+    if pixel_offset + stride * height > len(data):
+        raise ValueError("BMP pixel data is truncated")
+    channel = None
+    if masks is not None:
+        channel = [_mask_info(m) for m in masks]
+    ink = bytearray(width * height)
+    for row in range(height):
+        y = row if top_down else height - 1 - row
+        base = pixel_offset + row * stride
+        _decode_bmp_row(data, base, ink, y * width, width, bpp, ink_lookup, channel, threshold)
+    return Bitmap(width, height, ink, max(ppm_x, 0), max(ppm_y, 0))
+
+
+def _bmp_masks(data, dib_size, compression, bpp):
+    """Read explicit or default RGB masks and locate the palette."""
     palette_offset = 14 + dib_size
     masks = None
     if compression in (3, 6):
@@ -160,7 +183,11 @@ def read_bmp(data: bytes, threshold: int = 128) -> Bitmap:
         masks = (0x7C00, 0x03E0, 0x001F)
     elif bpp == 32:
         masks = (0x00FF0000, 0x0000FF00, 0x000000FF)
+    return masks, palette_offset
 
+
+def _bmp_palette(data, bpp, colors_used, palette_offset, palette_entry, threshold):
+    """Build the indexed-color ink lookup, honoring reversed monochrome palettes."""
     ink_lookup = b""
     if bpp <= 8:
         entries = 1 << bpp
@@ -181,45 +208,35 @@ def read_bmp(data: bytes, threshold: int = 128) -> Bitmap:
             ink_lookup = bytes([1 if darker == 0 else 0, 1 if darker == 1 else 0])
         else:
             ink_lookup = bytes(1 if lum < threshold else 0 for lum in lums)
+    return ink_lookup
 
-    stride = ((width * bpp + 31) // 32) * 4
-    if pixel_offset + stride * height > len(data):
-        raise ValueError("BMP pixel data is truncated")
 
-    channel = None
-    if masks is not None:
-        channel = [_mask_info(m) for m in masks]
-
-    ink = bytearray(width * height)
-    for row in range(height):
-        y = row if top_down else height - 1 - row
-        base = pixel_offset + row * stride
-        out = y * width
-        if bpp == 1:
-            for x in range(width):
-                ink[out + x] = ink_lookup[(data[base + (x >> 3)] >> (7 - (x & 7))) & 1]
-        elif bpp == 4:
-            for x in range(width):
-                byte = data[base + (x >> 1)]
-                ink[out + x] = ink_lookup[(byte >> 4) if (x & 1) == 0 else (byte & 0x0F)]
-        elif bpp == 8:
-            for x in range(width):
-                ink[out + x] = ink_lookup[data[base + x]]
-        elif bpp == 24:
-            for x in range(width):
-                o = base + 3 * x
-                ink[out + x] = 1 if _luminance(data[o + 2], data[o + 1], data[o]) < threshold else 0
-        else:
-            nbytes = bpp // 8
-            (rs, rm), (gs, gm), (bs, bm) = channel
-            for x in range(width):
-                o = base + nbytes * x
-                v = int.from_bytes(data[o:o + nbytes], "little")
-                r = ((v >> rs) & rm) * 255 // rm if rm else 0
-                g = ((v >> gs) & gm) * 255 // gm if gm else 0
-                b = ((v >> bs) & bm) * 255 // bm if bm else 0
-                ink[out + x] = 1 if _luminance(r, g, b) < threshold else 0
-    return Bitmap(width, height, ink, max(ppm_x, 0), max(ppm_y, 0))
+def _decode_bmp_row(data, base, ink, out, width, bpp, ink_lookup, channel, threshold):
+    """Decode one packed BMP row into its top-down binary destination."""
+    if bpp == 1:
+        for x in range(width):
+            ink[out + x] = ink_lookup[(data[base + (x >> 3)] >> (7 - (x & 7))) & 1]
+    elif bpp == 4:
+        for x in range(width):
+            byte = data[base + (x >> 1)]
+            ink[out + x] = ink_lookup[(byte >> 4) if (x & 1) == 0 else (byte & 0x0F)]
+    elif bpp == 8:
+        for x in range(width):
+            ink[out + x] = ink_lookup[data[base + x]]
+    elif bpp == 24:
+        for x in range(width):
+            o = base + 3 * x
+            ink[out + x] = 1 if _luminance(data[o + 2], data[o + 1], data[o]) < threshold else 0
+    else:
+        nbytes = bpp // 8
+        (rs, rm), (gs, gm), (bs, bm) = channel
+        for x in range(width):
+            o = base + nbytes * x
+            v = int.from_bytes(data[o:o + nbytes], "little")
+            r = ((v >> rs) & rm) * 255 // rm if rm else 0
+            g = ((v >> gs) & gm) * 255 // gm if gm else 0
+            b = ((v >> bs) & bm) * 255 // bm if bm else 0
+            ink[out + x] = 1 if _luminance(r, g, b) < threshold else 0
 
 
 def write_bmp(bitmap: Bitmap, bpp: int = 1, top_down: bool = False,
@@ -264,6 +281,7 @@ class Grid:
     """Bitmap copy with a 1-pixel paper border so neighbour lookups need no bounds checks."""
 
     def __init__(self, bitmap: Bitmap):
+        """Copy the bitmap into a paper-padded grid and cache neighbor offsets."""
         self.width = bitmap.width + 2
         self.height = bitmap.height + 2
         self.size = self.width * self.height
@@ -481,37 +499,14 @@ def reject_blobs(grid: Grid, dist: List[float], sq_dist: List[float],
     if not any_seed:
         return [], near
     _labels, comps = label_components(seed, grid.size, 1, grid.n8)
-    w, h = grid.width, grid.height
+    w = grid.width
     blob = bytearray(grid.size)
     blobs: List[BlobInfo] = []
     min_seed_area = max(1.0, opts.max_stroke_width)
     for comp in comps:
         if len(comp) < min_seed_area:
             continue  # e.g. the bulge where two wide strokes cross
-        painted = []
-        for p in comp:
-            if not blob[p]:
-                blob[p] = 1
-                painted.append(p)
-            if all(seed[p + o] for o in grid.n8):
-                continue  # interior seeds are covered by the boundary-seed disks
-            r2 = sq_dist[p]
-            ri = int(math.sqrt(r2))
-            px, py = p % w, p // w
-            for dy in range(-ri, ri + 1):
-                yy = py + dy
-                if yy <= 0 or yy >= h - 1:
-                    continue
-                for dx in range(-ri, ri + 1):
-                    if dx * dx + dy * dy >= r2:
-                        continue
-                    xx = px + dx
-                    if xx <= 0 or xx >= w - 1:
-                        continue
-                    q = yy * w + xx
-                    if cells[q] and not blob[q]:
-                        blob[q] = 1
-                        painted.append(q)
+        painted = _paint_blob(grid, comp, seed, sq_dist, blob)
         xs = [p % w - 1 for p in painted]
         ys = [p // w - 1 for p in painted]
         blobs.append(BlobInfo((min(xs), min(ys), max(xs), max(ys)), len(painted)))
@@ -520,6 +515,44 @@ def reject_blobs(grid: Grid, dist: List[float], sq_dist: List[float],
     for p in range(grid.size):
         if blob[p]:
             cells[p] = 0
+    _mark_blob_remnants(grid, blob, near, half)
+    return blobs, near
+
+
+def _paint_blob(grid, comp, seed, sq_dist, blob):
+    """Expand a thick seed component through its boundary's inscribed disks."""
+    w, h = grid.width, grid.height
+    cells = grid.cells
+    painted = []
+    for p in comp:
+        if not blob[p]:
+            blob[p] = 1
+            painted.append(p)
+        if all(seed[p + o] for o in grid.n8):
+            continue  # interior seeds are covered by the boundary-seed disks
+        r2 = sq_dist[p]
+        ri = int(math.sqrt(r2))
+        px, py = p % w, p // w
+        for dy in range(-ri, ri + 1):
+            yy = py + dy
+            if yy <= 0 or yy >= h - 1:
+                continue
+            for dx in range(-ri, ri + 1):
+                if dx * dx + dy * dy >= r2:
+                    continue
+                xx = px + dx
+                if xx <= 0 or xx >= w - 1:
+                    continue
+                q = yy * w + xx
+                if cells[q] and not blob[q]:
+                    blob[q] = 1
+                    painted.append(q)
+    return painted
+
+
+def _mark_blob_remnants(grid, blob, near, half):
+    """Mark truncated ink near removed blobs and erase wholly nearby remnants."""
+    cells = grid.cells
     # Mark ink within ~half a stroke of a removed blob: strokes there were cut short.
     depth = int(math.ceil(half)) + 1
     frontier = [p for p in range(grid.size) if blob[p]]
@@ -541,7 +574,6 @@ def reject_blobs(grid: Grid, dist: List[float], sq_dist: List[float],
         if all(near[p] for p in comp):
             for p in comp:
                 cells[p] = 0
-    return blobs, near
 
 
 # ---------------------------------------------------------------------------
@@ -595,6 +627,7 @@ def thin(grid: Grid) -> bytearray:
 
 
 def _ring(sk, p: int, w: int) -> Tuple[int, ...]:
+    """Return clockwise neighbor values starting east and proceeding northeast."""
     # E, NE, N, NW, W, SW, S, SE
     return (sk[p + 1], sk[p - w + 1], sk[p - w], sk[p - w - 1],
             sk[p - 1], sk[p + w - 1], sk[p + w], sk[p + w + 1])
@@ -629,6 +662,7 @@ def cleanup_skeleton(grid: Grid, sk: bytearray) -> None:
 
 
 def _degree(sk, p: int, n8) -> int:
+    """Count the eight occupied neighbors of a skeleton pixel."""
     return (sk[p + n8[0]] + sk[p + n8[1]] + sk[p + n8[2]] + sk[p + n8[3]]
             + sk[p + n8[4]] + sk[p + n8[5]] + sk[p + n8[6]] + sk[p + n8[7]])
 
@@ -650,26 +684,7 @@ def prune_spurs(grid: Grid, sk: bytearray, dist: List[float], width: float,
         for e in endpoints:
             if not sk[e] or _degree(sk, e, n8) != 1 or near_blob[e]:
                 continue
-            branch = [e]
-            prev, cur = -1, e
-            junction = None
-            while len(branch) <= max_steps:
-                nxt = None
-                for o in n8:
-                    q = cur + o
-                    if sk[q] and q != prev and q not in branch:
-                        nxt = q
-                        break
-                if nxt is None:
-                    break
-                deg = _degree(sk, nxt, n8)
-                if deg >= 3:
-                    junction = nxt
-                    break
-                if deg == 1:
-                    break  # isolated path: not a spur
-                branch.append(nxt)
-                prev, cur = cur, nxt
+            branch, junction = _spur_branch(sk, e, n8, max_steps)
             if junction is None:
                 continue
             local = max(width, 2.0 * dist[junction] - 1.0)
@@ -687,6 +702,31 @@ def prune_spurs(grid: Grid, sk: bytearray, dist: List[float], width: float,
     return pruned
 
 
+def _spur_branch(sk, endpoint, n8, max_steps):
+    """Follow an endpoint branch up to a junction or the search-length limit."""
+    branch = [endpoint]
+    prev, cur = -1, endpoint
+    junction = None
+    while len(branch) <= max_steps:
+        nxt = None
+        for o in n8:
+            q = cur + o
+            if sk[q] and q != prev and q not in branch:
+                nxt = q
+                break
+        if nxt is None:
+            break
+        deg = _degree(sk, nxt, n8)
+        if deg >= 3:
+            junction = nxt
+            break
+        if deg == 1:
+            break  # isolated path: not a spur
+        branch.append(nxt)
+        prev, cur = cur, nxt
+    return branch, junction
+
+
 # ---------------------------------------------------------------------------
 # Stages 11-13: graph, junction consolidation, tangles
 # ---------------------------------------------------------------------------
@@ -696,6 +736,7 @@ class Node:
     __slots__ = ("id", "pixels", "pos", "ends", "truncated", "alive", "junction")
 
     def __init__(self, node_id: int, pixels: List[int], pos: Point, junction: bool):
+        """Initialize a live graph node with its source pixels and position."""
         self.id = node_id
         self.pixels = pixels
         self.pos = pos
@@ -710,6 +751,7 @@ class Edge:
 
     def __init__(self, edge_id: int, a: Optional[int], b: Optional[int], pts: List[Point],
                  widths: List[float], bridge: bool = False):
+        """Store a live pixel-chain edge and its endpoint and width metadata."""
         self.id = edge_id
         self.a = a
         self.b = b
@@ -719,22 +761,26 @@ class Edge:
         self.bridge = bridge
 
     def length(self) -> float:
+        """Return the length of the stored edge polyline."""
         return _polyline_length(self.pts)
 
 
 class Graph:
     def __init__(self, width: float):
+        """Initialize an empty graph at the nominal source stroke width."""
         self.nodes: List[Node] = []
         self.edges: List[Edge] = []
         self.width = width
 
     def add_node(self, pixels: List[int], pos: Point, junction: bool) -> Node:
+        """Append a node with a stable sequential identifier and return it."""
         node = Node(len(self.nodes), pixels, pos, junction)
         self.nodes.append(node)
         return node
 
     def add_edge(self, a: Optional[int], b: Optional[int], pts: List[Point],
                  widths: List[float], bridge: bool = False) -> Edge:
+        """Append an edge and register its ends with the incident nodes."""
         edge = Edge(len(self.edges), a, b, pts, widths, bridge)
         self.edges.append(edge)
         if a is not None:
@@ -744,6 +790,7 @@ class Graph:
         return edge
 
     def kill_edge(self, edge: Edge) -> None:
+        """Mark an edge dead and remove its node-end registrations."""
         edge.alive = False
         for node_id, side in ((edge.a, 0), (edge.b, 1)):
             if node_id is not None:
@@ -752,6 +799,7 @@ class Graph:
 
     @staticmethod
     def node_at(edge: Edge, side: int) -> Optional[int]:
+        """Return the node identifier at the requested edge side."""
         return edge.a if side == 0 else edge.b
 
     def tangent(self, edge_id: int, side: int) -> Tuple[Point, Point]:
@@ -773,6 +821,7 @@ class Graph:
 
 
 def _unit(v: Point) -> Point:
+    """Normalize a vector, returning zero for a near-zero magnitude."""
     n = math.hypot(v[0], v[1])
     if n < 1e-12:
         return (0.0, 0.0)
@@ -788,6 +837,7 @@ def _angle(u: Point, v: Point) -> float:
 
 
 def _polyline_length(pts: List[Point], closed: bool = False) -> float:
+    """Sum consecutive segment lengths and optionally the closing segment."""
     total = 0.0
     for i in range(1, len(pts)):
         total += math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])
@@ -807,11 +857,22 @@ def build_graph(grid: Grid, sk: bytearray, dist: List[float], near_blob: bytearr
     node_of: Dict[int, int] = {}
 
     def centre(p: int) -> Point:
+        """Map a flat grid index to floating-point padded coordinates."""
         return (float(p % w), float(p // w))
 
     def local_width(p: int) -> float:
+        """Estimate the stroke width at a pixel, bounded below by one."""
         return max(1.0, 2.0 * dist[p] - 1.0)
 
+    _graph_nodes(g, pixels, sk, deg, node_of, near_blob, w, n8, centre)
+    visited = set()
+    _graph_edges(g, sk, node_of, visited, n8, centre, local_width)
+    _graph_loops(g, pixels, sk, deg, node_of, visited, n8, centre, local_width)
+    return g
+
+
+def _graph_nodes(g, pixels, sk, deg, node_of, near_blob, w, n8, centre):
+    """Create junction clusters and endpoint nodes in raster pixel order."""
     for p in pixels:
         if p in node_of:
             continue
@@ -836,7 +897,9 @@ def build_graph(grid: Grid, sk: bytearray, dist: List[float], near_blob: bytearr
             node = g.add_node([p], centre(p), False)
             node.truncated = bool(near_blob[p])
 
-    visited = set()
+
+def _graph_edges(g, sk, node_of, visited, n8, centre, local_width):
+    """Connect graph nodes through direct contacts and unvisited pixel chains."""
     direct = set()
     for node in list(g.nodes):
         for p in node.pixels:
@@ -856,31 +919,40 @@ def build_graph(grid: Grid, sk: bytearray, dist: List[float], near_blob: bytearr
                     continue
                 if q in visited:
                     continue
-                path = [p, q]
-                visited.add(q)
-                prev, cur = p, q
-                end = None
-                while True:
-                    nxt = None
-                    for o2 in n8:
-                        r = cur + o2
-                        if sk[r] and r != prev:
-                            nxt = r
-                            break
-                    if nxt is None:
-                        break
-                    path.append(nxt)
-                    if nxt in node_of:
-                        end = node_of[nxt]
-                        break
-                    if nxt in visited:
-                        break
-                    visited.add(nxt)
-                    prev, cur = cur, nxt
+                path, end = _graph_chain(p, q, sk, node_of, visited, n8)
                 if end is None:
                     continue
                 g.add_edge(node.id, end, [centre(r) for r in path], [local_width(r) for r in path])
 
+
+def _graph_chain(p, q, sk, node_of, visited, n8):
+    """Follow and mark a pixel chain until it reaches a node or dead end."""
+    path = [p, q]
+    visited.add(q)
+    prev, cur = p, q
+    end = None
+    while True:
+        nxt = None
+        for o2 in n8:
+            r = cur + o2
+            if sk[r] and r != prev:
+                nxt = r
+                break
+        if nxt is None:
+            break
+        path.append(nxt)
+        if nxt in node_of:
+            end = node_of[nxt]
+            break
+        if nxt in visited:
+            break
+        visited.add(nxt)
+        prev, cur = cur, nxt
+    return path, end
+
+
+def _graph_loops(g, pixels, sk, deg, node_of, visited, n8, centre, local_width):
+    """Add closed skeleton loops that contain no endpoint or junction node."""
     # Closed loops without any node (e.g. an "O").
     for p in pixels:
         if p in node_of or p in visited or deg[p] != 2:
@@ -902,7 +974,6 @@ def build_graph(grid: Grid, sk: bytearray, dist: List[float], near_blob: bytearr
             prev, cur = cur, nxt
         if len(loop) >= 3:
             g.add_edge(None, None, [centre(r) for r in loop], [local_width(r) for r in loop])
-    return g
 
 
 def consolidate_junctions(g: Graph, factor: float) -> int:
@@ -910,6 +981,7 @@ def consolidate_junctions(g: Graph, factor: float) -> int:
     parent = list(range(len(g.nodes)))
 
     def find(i: int) -> int:
+        """Find a merged node's representative, compressing its parent chain."""
         while parent[i] != i:
             parent[i] = parent[parent[i]]
             i = parent[i]
@@ -1000,6 +1072,7 @@ def _pair_score(g: Graph, end1: Tuple[int, int], end2: Tuple[int, int]) -> float
 
 
 def _greedy_pairs(g: Graph, ends: List[Tuple[int, int]], max_angle: float) -> List[Tuple[int, int]]:
+    """Select nonoverlapping end pairs by increasing continuation deviation."""
     candidates = []
     for i in range(len(ends)):
         for j in range(i + 1, len(ends)):
@@ -1032,13 +1105,23 @@ def analyse_tangles(g: Graph, grid: Grid, width: float, opts: Options) -> List[T
     junctions = [n for n in g.nodes if n.alive and len(n.ends) >= 3]
     if len(junctions) < opts.tangle_junction_count:
         return []
+    regions = _tangle_regions(junctions, radius, opts.tangle_junction_count)
+    infos = []
+    for region in regions:
+        infos.append(_analyse_tangle(g, grid, width, region, opts))
+    return infos
+
+
+def _tangle_regions(junctions, radius, junction_count):
+    """Group sufficiently dense junction seeds into connected tangle regions."""
     r2 = radius * radius
 
     def close(a: Node, b: Node) -> bool:
+        """Test whether two junction positions lie within the region radius."""
         return (a.pos[0] - b.pos[0]) ** 2 + (a.pos[1] - b.pos[1]) ** 2 <= r2
 
     seeds = [j for j in junctions
-             if sum(1 for k in junctions if close(j, k)) >= opts.tangle_junction_count]
+             if sum(1 for k in junctions if close(j, k)) >= junction_count]
     regions: List[List[Node]] = []
     assigned = set()
     for s in seeds:
@@ -1055,65 +1138,73 @@ def analyse_tangles(g: Graph, grid: Grid, width: float, opts: Options) -> List[T
                     assigned.add(t.id)
                     stack.append(t)
         regions.append(region)
+    return regions
 
-    infos = []
+
+def _analyse_tangle(g, grid, width, region, opts):
+    """Score one region, apply its chosen policy, and describe the outcome."""
+    gw = grid.width
+    xs = [n.pos[0] for n in region]
+    ys = [n.pos[1] for n in region]
+    x0 = max(1, int(min(xs) - width))
+    x1 = min(gw - 2, int(max(xs) + width))
+    y0 = max(1, int(min(ys) - width))
+    y1 = min(grid.height - 2, int(max(ys) + width))
+    # Include stray endpoints and junctions too sparse to seed the region.
+    ids = {n.id for n in g.nodes
+           if n.alive and n.ends and x0 <= n.pos[0] <= x1 and y0 <= n.pos[1] <= y1}
+    ids.update(n.id for n in region)
+    inner = [e for e in g.edges if e.alive and e.a in ids and e.b in ids]
+    external = [(e.id, 0 if e.a in ids else 1) for e in g.edges
+                if e.alive and ((e.a in ids) != (e.b in ids))]
+    score = _tangle_score(g, grid, width, region, (x0, y0, x1, y1), inner, external, opts)
+    action = "keep" if score >= opts.tangle_keep_score else opts.tangle_policy
+    info = TangleInfo((x0 - 1.0, y0 - 1.0, x1 - 1.0, y1 - 1.0), len(region), score, action)
+    if action != "keep":
+        _rewire_tangle(g, ids, inner, external, action, opts)
+    return info
+
+
+def _tangle_score(g, grid, width, region, bounds, inner, external, opts):
+    """Average stroke length, uniformity, smoothness, density, and spacing evidence."""
     cells = grid.cells
     gw = grid.width
     unit = max(width, 3.0)  # noise often drags the nominal width down to the minimum
-    for region in regions:
-        xs = [n.pos[0] for n in region]
-        ys = [n.pos[1] for n in region]
-        x0 = max(1, int(min(xs) - width))
-        x1 = min(gw - 2, int(max(xs) + width))
-        y0 = max(1, int(min(ys) - width))
-        y1 = min(grid.height - 2, int(max(ys) + width))
-        # Every live node inside the region box belongs to the tangle, including
-        # stray endpoints and junctions that were not dense enough to seed it.
-        ids = {n.id for n in g.nodes
-               if n.alive and n.ends and x0 <= n.pos[0] <= x1 and y0 <= n.pos[1] <= y1}
-        ids.update(n.id for n in region)
-        inner = [e for e in g.edges if e.alive and e.a in ids and e.b in ids]
-        external = [(e.id, 0 if e.a in ids else 1) for e in g.edges
-                    if e.alive and ((e.a in ids) != (e.b in ids))]
-        # Indicator 1: inner edges long relative to the stroke width.
-        if inner:
-            long_frac = sum(1 for e in inner if e.length() >= 3.0 * unit) / len(inner)
-        else:
-            long_frac = 0.5
-        # Indicator 2: uniform width along inner edges.
-        ws = [v for e in inner for v in e.widths]
-        if len(ws) >= 2:
-            mean = sum(ws) / len(ws)
-            sd = math.sqrt(sum((v - mean) ** 2 for v in ws) / len(ws))
-            uniform = 1.0 - min(1.0, sd / mean if mean > 0 else 1.0)
-        else:
-            uniform = 0.5
-        # Indicator 3: smooth (not jagged) inner edges.
-        ratios = []
-        for e in inner:
-            if len(e.pts) >= 3:
-                length = e.length()
-                chord = math.hypot(e.pts[-1][0] - e.pts[0][0], e.pts[-1][1] - e.pts[0][1])
-                ratios.append(chord / length if length > 0 else 1.0)
-        smooth = sum(ratios) / len(ratios) if ratios else 0.5
-        # Indicator 4: ink density in the region (near solid -> noise).
-        area = max(1, (x1 - x0 + 1) * (y1 - y0 + 1))
-        ink = sum(cells[y * gw + x] for y in range(y0, y1 + 1) for x in range(x0, x1 + 1))
-        sparse = min(1.0, max(0.0, (0.8 - ink / area) / 0.5))
-        # Indicator 5: external edges continue in line through the region.
-        if len(external) >= 2:
-            continuation = 2.0 * len(_greedy_pairs(g, external, opts.continuation_angle)) / len(external)
-        else:
-            continuation = 0.5
-        # Indicator 6: junction spacing (enclosed faces much larger than W^2).
-        spacing = math.sqrt(area / len(region)) / unit
-        spaced = min(1.0, max(0.0, (spacing - 2.5) / 2.5))
-        score = (long_frac + uniform + smooth + sparse + continuation + spaced) / 6.0
-        action = "keep" if score >= opts.tangle_keep_score else opts.tangle_policy
-        infos.append(TangleInfo((x0 - 1.0, y0 - 1.0, x1 - 1.0, y1 - 1.0), len(region), score, action))
-        if action != "keep":
-            _rewire_tangle(g, ids, inner, external, action, opts)
-    return infos
+    x0, y0, x1, y1 = bounds
+    # Indicator 1: inner edges long relative to the stroke width.
+    if inner:
+        long_frac = sum(1 for e in inner if e.length() >= 3.0 * unit) / len(inner)
+    else:
+        long_frac = 0.5
+    # Indicator 2: uniform width along inner edges.
+    ws = [v for e in inner for v in e.widths]
+    if len(ws) >= 2:
+        mean = sum(ws) / len(ws)
+        sd = math.sqrt(sum((v - mean) ** 2 for v in ws) / len(ws))
+        uniform = 1.0 - min(1.0, sd / mean if mean > 0 else 1.0)
+    else:
+        uniform = 0.5
+    # Indicator 3: smooth (not jagged) inner edges.
+    ratios = []
+    for e in inner:
+        if len(e.pts) >= 3:
+            length = e.length()
+            chord = math.hypot(e.pts[-1][0] - e.pts[0][0], e.pts[-1][1] - e.pts[0][1])
+            ratios.append(chord / length if length > 0 else 1.0)
+    smooth = sum(ratios) / len(ratios) if ratios else 0.5
+    # Indicator 4: ink density in the region (near solid -> noise).
+    area = max(1, (x1 - x0 + 1) * (y1 - y0 + 1))
+    ink = sum(cells[y * gw + x] for y in range(y0, y1 + 1) for x in range(x0, x1 + 1))
+    sparse = min(1.0, max(0.0, (0.8 - ink / area) / 0.5))
+    # Indicator 5: external edges continue in line through the region.
+    if len(external) >= 2:
+        continuation = 2.0 * len(_greedy_pairs(g, external, opts.continuation_angle)) / len(external)
+    else:
+        continuation = 0.5
+    # Indicator 6: junction spacing (enclosed faces much larger than W^2).
+    spacing = math.sqrt(area / len(region)) / unit
+    spaced = min(1.0, max(0.0, (spacing - 2.5) / 2.5))
+    return (long_frac + uniform + smooth + sparse + continuation + spaced) / 6.0
 
 
 def _rewire_tangle(g: Graph, ids, inner: List[Edge], external: List[Tuple[int, int]],
@@ -1218,6 +1309,7 @@ class Stroke:
     edges: List[int] = field(default_factory=list)
 
     def length(self) -> float:
+        """Return the stroke length, including its closing segment when closed."""
         return _polyline_length(self.points, self.closed)
 
 
@@ -1252,64 +1344,15 @@ def trace_strokes(g: Graph, pairs: Dict[Tuple[int, int], Tuple[int, int]]) -> Li
     used = set()
     strokes: List[Stroke] = []
 
-    def build(start: int) -> Tuple[List[Tuple[int, bool]], bool]:
-        used.add(start)
-        forward = [(start, True)]
-        closed = False
-        cur = (start, 1)
-        while True:
-            p = pairs.get(cur)
-            if p is None:
-                break
-            if p == (start, 0):
-                closed = True
-                break
-            if p[0] in used:
-                break
-            used.add(p[0])
-            forward.append((p[0], p[1] == 0))
-            cur = (p[0], 1 - p[1])
-        backward = []
-        if not closed:
-            cur = (start, 0)
-            while True:
-                p = pairs.get(cur)
-                if p is None or p[0] in used:
-                    break
-                used.add(p[0])
-                backward.append((p[0], p[1] == 1))
-                cur = (p[0], 1 - p[1])
-        return backward[::-1] + forward, closed
-
-    def assemble(seq: List[Tuple[int, bool]], closed: bool) -> Stroke:
-        pts: List[Point] = []
-        anchors: List[int] = []
-        for edge_id, fwd in seq:
-            poly = _edge_polyline(g, g.edges[edge_id])
-            if not fwd:
-                poly.reverse()
-            if pts:
-                poly = poly[1:]  # shared node position
-            anchors.append(len(pts) - 1 if pts else 0)
-            pts.extend(poly)
-        anchors.append(len(pts) - 1)
-        if closed and len(pts) > 1 and pts[0] == pts[-1]:
-            pts.pop()
-            anchors = [a for a in anchors if a < len(pts)]
-        return Stroke(pts, closed, sorted(set(anchors)), [e for e, _ in seq])
-
-    def raster_key(node: Node):
-        return (round(node.pos[1], 3), round(node.pos[0], 3), node.id)
-
     alive_nodes = [n for n in g.nodes if n.alive and n.ends]
-    endpoints = sorted((n for n in alive_nodes if len(n.ends) == 1), key=raster_key)
-    others = sorted((n for n in alive_nodes if len(n.ends) != 1), key=raster_key)
+    endpoints = sorted((n for n in alive_nodes if len(n.ends) == 1), key=_node_raster_key)
+    others = sorted((n for n in alive_nodes if len(n.ends) != 1), key=_node_raster_key)
     for node in endpoints:
         edge_id, _side = node.ends[0]
         if edge_id in used or not g.edges[edge_id].alive:
             continue
-        seq, closed = build(edge_id)
-        stroke = assemble(seq, closed)
+        seq, closed = _trace_sequence(edge_id, pairs, used)
+        stroke = _assemble_stroke(g, seq, closed)
         if stroke.points and stroke.points[0] != node.pos:
             stroke.points.reverse()
             last = len(stroke.points) - 1
@@ -1319,8 +1362,8 @@ def trace_strokes(g: Graph, pairs: Dict[Tuple[int, int], Tuple[int, int]]) -> Li
         for edge_id, _side in node.ends:
             if edge_id in used or not g.edges[edge_id].alive:
                 continue
-            seq, closed = build(edge_id)
-            strokes.append(assemble(seq, closed))
+            seq, closed = _trace_sequence(edge_id, pairs, used)
+            strokes.append(_assemble_stroke(g, seq, closed))
     loops = [e for e in g.edges if e.alive and e.a is None and e.b is None and e.id not in used]
     loops.sort(key=lambda e: (e.pts[0][1], e.pts[0][0]))
     for edge in loops:
@@ -1329,12 +1372,68 @@ def trace_strokes(g: Graph, pairs: Dict[Tuple[int, int], Tuple[int, int]]) -> Li
     return strokes
 
 
+def _trace_sequence(start, pairs, used) -> Tuple[List[Tuple[int, bool]], bool]:
+    """Trace paired edges in both directions while marking each edge used."""
+    used.add(start)
+    forward = [(start, True)]
+    closed = False
+    cur = (start, 1)
+    while True:
+        p = pairs.get(cur)
+        if p is None:
+            break
+        if p == (start, 0):
+            closed = True
+            break
+        if p[0] in used:
+            break
+        used.add(p[0])
+        forward.append((p[0], p[1] == 0))
+        cur = (p[0], 1 - p[1])
+    backward = []
+    if not closed:
+        cur = (start, 0)
+        while True:
+            p = pairs.get(cur)
+            if p is None or p[0] in used:
+                break
+            used.add(p[0])
+            backward.append((p[0], p[1] == 1))
+            cur = (p[0], 1 - p[1])
+    return backward[::-1] + forward, closed
+
+
+def _assemble_stroke(g, seq: List[Tuple[int, bool]], closed: bool) -> Stroke:
+    """Join oriented edge polylines and preserve their junction anchors."""
+    pts: List[Point] = []
+    anchors: List[int] = []
+    for edge_id, fwd in seq:
+        poly = _edge_polyline(g, g.edges[edge_id])
+        if not fwd:
+            poly.reverse()
+        if pts:
+            poly = poly[1:]  # shared node position
+        anchors.append(len(pts) - 1 if pts else 0)
+        pts.extend(poly)
+    anchors.append(len(pts) - 1)
+    if closed and len(pts) > 1 and pts[0] == pts[-1]:
+        pts.pop()
+        anchors = [a for a in anchors if a < len(pts)]
+    return Stroke(pts, closed, sorted(set(anchors)), [e for e, _ in seq])
+
+
+def _node_raster_key(node: Node):
+    """Order graph nodes by rounded raster position, breaking ties by ID."""
+    return (round(node.pos[1], 3), round(node.pos[0], 3), node.id)
+
+
 # ---------------------------------------------------------------------------
 # Stages 16-17: length filter, smoothing and simplification
 # ---------------------------------------------------------------------------
 
 
 def _shoelace(pts: List[Point]) -> float:
+    """Compute the absolute enclosed area of a polygon."""
     s = 0.0
     for i in range(len(pts)):
         x1, y1 = pts[i]
@@ -1385,6 +1484,7 @@ def gaussian_smooth(pts: List[Point], anchors: List[int], sigma: float) -> List[
 
 
 def _seg_dist2(p: Point, a: Point, b: Point) -> float:
+    """Return squared distance to the nearest point on a closed line segment."""
     dx, dy = b[0] - a[0], b[1] - a[1]
     l2 = dx * dx + dy * dy
     if l2 == 0:
@@ -1421,6 +1521,7 @@ def rdp_indices(pts: List[Point], anchors: List[int], tolerance: float) -> List[
 
 
 def _bez_point(bez, t: float) -> Point:
+    """Evaluate a cubic Bezier at parameter t."""
     mt = 1 - t
     a, b, c, d = mt * mt * mt, 3 * mt * mt * t, 3 * mt * t * t, t * t * t
     return (a * bez[0][0] + b * bez[1][0] + c * bez[2][0] + d * bez[3][0],
@@ -1428,6 +1529,7 @@ def _bez_point(bez, t: float) -> Point:
 
 
 def _chord_params(pts: List[Point]) -> List[float]:
+    """Parameterize points by normalized cumulative chord length."""
     u = [0.0]
     for i in range(1, len(pts)):
         u.append(u[-1] + math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]))
@@ -1436,6 +1538,7 @@ def _chord_params(pts: List[Point]) -> List[float]:
 
 
 def _generate_bezier(pts, u, t1, t2):
+    """Fit cubic control distances along fixed endpoint tangents by least squares."""
     p0, p3 = pts[0], pts[-1]
     c00 = c01 = c11 = x0 = x1 = 0.0
     for p, t in zip(pts, u):
@@ -1464,6 +1567,7 @@ def _generate_bezier(pts, u, t1, t2):
 
 
 def _max_error(pts, bez, u) -> Tuple[float, int]:
+    """Return the largest squared fitting error and its split index."""
     best, split = 0.0, len(pts) // 2
     for i in range(1, len(pts) - 1):
         q = _bez_point(bez, u[i])
@@ -1474,6 +1578,7 @@ def _max_error(pts, bez, u) -> Tuple[float, int]:
 
 
 def _reparameterize(pts, bez, u) -> List[float]:
+    """Refine Bezier parameters with clamped Newton-Raphson updates."""
     q1 = [((bez[i + 1][0] - bez[i][0]) * 3, (bez[i + 1][1] - bez[i][1]) * 3) for i in range(3)]
     q2 = [((q1[i + 1][0] - q1[i][0]) * 2, (q1[i + 1][1] - q1[i][1]) * 2) for i in range(2)]
     out = []
@@ -1529,6 +1634,7 @@ def fit_cubic(pts: List[Point], tolerance: float) -> List[Tuple[Point, Point, Po
 
 
 def _turn_angle(a: Point, b: Point, c: Point) -> float:
+    """Measure the direction change in degrees at the middle point."""
     return _angle(_unit((b[0] - a[0], b[1] - a[1])), _unit((c[0] - b[0], c[1] - b[1])))
 
 
@@ -1542,6 +1648,7 @@ def simplify_stroke(stroke: Stroke, width: float, opts: Options):
         pts = gaussian_smooth(pts, anchors, max(1.0, width / 4.0))
 
     def run(tol: float):
+        """Simplify at one tolerance, optionally fitting cubics between corners."""
         keep = rdp_indices(pts, anchors, tol)
         if not opts.curve_fitting:
             return [pts[i] for i in keep], None, len(keep)
@@ -1587,14 +1694,17 @@ class OutputPath:
     beziers: Optional[List[Tuple[Point, Point, Point, Point]]] = None
 
     def start(self) -> Point:
+        """Return the first polyline point or cubic endpoint."""
         return self.beziers[0][0] if self.beziers else self.points[0]
 
     def end(self) -> Point:
+        """Return the travel endpoint, using the start for closed paths."""
         if self.closed:
             return self.start()
         return self.beziers[-1][3] if self.beziers else self.points[-1]
 
     def reverse(self) -> None:
+        """Reverse traversal in place, including cubic control-point directions."""
         if self.beziers:
             self.beziers = [(d, c, b, a) for a, b, c, d in reversed(self.beziers)]
         else:
@@ -1620,6 +1730,7 @@ class Result:
 
 
 def _to_image(p: Point) -> Point:
+    """Convert padded grid coordinates to image pixel-center coordinates."""
     # Padded pixel index -> image coordinates of the pixel centre.
     return (p[0] - 0.5, p[1] - 0.5)
 
@@ -1631,7 +1742,38 @@ def vectorize(bitmap: Bitmap, opts: Optional[Options] = None) -> Result:
         raise ValueError(f"unknown tangle policy '{opts.tangle_policy}'")
     grid = Grid(bitmap)
     stats: Dict[str, float] = {}
+    width, dist, near_blob, blobs, cleaned = _prepare_grid(bitmap, grid, opts, stats)
+    sk = _prepare_skeleton(grid, dist, near_blob, width, opts, stats)
+    skeleton_pixels = sum(sk)
+    # Stages 11-12
+    g = build_graph(grid, sk, dist, near_blob, width)
+    stats["junctions_merged"] = consolidate_junctions(g, opts.junction_merge_factor)
+    place_nodes(g, grid)
+    # Stage 13
+    tangles = analyse_tangles(g, grid, width, opts)
+    if opts.verbose:
+        for t in tangles:
+            print(f"tangle bbox={t.bbox} junctions={t.junctions} score={t.score:.2f} -> {t.action}",
+                  file=sys.stderr)
+    # Stage 15 gap closing, then junction pairing and tracing (stages 14-15).
+    gap = opts.gap_close_distance if opts.gap_close_distance is not None else 1.5 * width
+    stats["gaps_bridged"] = close_gaps(g, gap, opts.gap_close_angle)
+    pairs = pair_edge_ends(g, opts.continuation_angle)
+    strokes = trace_strokes(g, pairs)
+    edge_use: Dict[int, int] = {}
+    for s in strokes:
+        for e in s.edges:
+            edge_use[e] = edge_use.get(e, 0) + 1
+    alive = [e.id for e in g.edges if e.alive]
+    paths, kept = _output_paths(strokes, width, opts, stats)
+    stats["blobs"] = len(blobs)
+    stats["tangles"] = len(tangles)
+    return Result(bitmap.width, bitmap.height, bitmap.ppm_x, bitmap.ppm_y, width, paths, kept,
+                  edge_use, alive, blobs, tangles, stats, cleaned, skeleton_pixels)
 
+
+def _prepare_grid(bitmap, grid, opts, stats):
+    """Clean raster noise, estimate width, and reject solid blobs (stages 3-8)."""
     # Stage 3: a preliminary width resolves the relative noise thresholds.
     w0 = estimate_width(grid, ink_distance(grid), opts)
     min_blob = opts.min_blob_area if opts.min_blob_area is not None else max(4.0, 0.5 * w0 * w0)
@@ -1657,6 +1799,11 @@ def vectorize(bitmap: Bitmap, opts: Optional[Options] = None) -> Result:
     for y in range(bitmap.height):
         s = (y + 1) * grid.width + 1
         cleaned.ink[y * bitmap.width:(y + 1) * bitmap.width] = grid.cells[s:s + bitmap.width]
+    return width, dist, near_blob, blobs, cleaned
+
+
+def _prepare_skeleton(grid, dist, near_blob, width, opts, stats):
+    """Thin cleaned ink and prune spurs and optional dense remnants (stages 9-10)."""
     # Stage 9
     sk = thin(grid)
     cleanup_skeleton(grid, sk)
@@ -1671,27 +1818,11 @@ def vectorize(bitmap: Bitmap, opts: Optional[Options] = None) -> Result:
             if skel_len and len(comp) / (skel_len * width) > opts.max_stroke_likeness:
                 for p in comp:
                     sk[p] = 0
-    skeleton_pixels = sum(sk)
-    # Stages 11-12
-    g = build_graph(grid, sk, dist, near_blob, width)
-    stats["junctions_merged"] = consolidate_junctions(g, opts.junction_merge_factor)
-    place_nodes(g, grid)
-    # Stage 13
-    tangles = analyse_tangles(g, grid, width, opts)
-    if opts.verbose:
-        for t in tangles:
-            print(f"tangle bbox={t.bbox} junctions={t.junctions} score={t.score:.2f} -> {t.action}",
-                  file=sys.stderr)
-    # Stage 15 gap closing, then junction pairing and tracing (stages 14-15).
-    gap = opts.gap_close_distance if opts.gap_close_distance is not None else 1.5 * width
-    stats["gaps_bridged"] = close_gaps(g, gap, opts.gap_close_angle)
-    pairs = pair_edge_ends(g, opts.continuation_angle)
-    strokes = trace_strokes(g, pairs)
-    edge_use: Dict[int, int] = {}
-    for s in strokes:
-        for e in s.edges:
-            edge_use[e] = edge_use.get(e, 0) + 1
-    alive = [e.id for e in g.edges if e.alive]
+    return sk
+
+
+def _output_paths(strokes, width, opts, stats):
+    """Filter short strokes and simplify retained paths into image coordinates."""
     # Stage 16
     min_len = opts.min_path_length if opts.min_path_length is not None else 2.0 * width
     kept = []
@@ -1714,10 +1845,7 @@ def vectorize(bitmap: Bitmap, opts: Optional[Options] = None) -> Result:
     stats["strokes"] = len(paths)
     stats["nodes"] = total_nodes
     stats["avg_nodes"] = total_nodes / len(paths) if paths else 0.0
-    stats["blobs"] = len(blobs)
-    stats["tangles"] = len(tangles)
-    return Result(bitmap.width, bitmap.height, bitmap.ppm_x, bitmap.ppm_y, width, paths, kept,
-                  edge_use, alive, blobs, tangles, stats, cleaned, skeleton_pixels)
+    return paths, kept
 
 
 # ---------------------------------------------------------------------------
@@ -1726,6 +1854,7 @@ def vectorize(bitmap: Bitmap, opts: Optional[Options] = None) -> Result:
 
 
 def _fmt(v: float, precision: int) -> str:
+    """Format a coordinate without trailing fractional zeros or negative zero."""
     s = f"{v:.{precision}f}"
     if "." in s:
         s = s.rstrip("0").rstrip(".")
@@ -1794,6 +1923,7 @@ def _stroke_width_user_units(opts: Options, dpi_x: Optional[float]) -> float:
 
 
 def to_svg(result: Result, opts: Optional[Options] = None) -> str:
+    """Serialize ordered paths and optional debug layers with configured sizing."""
     opts = opts or Options()
     prec = opts.coordinate_precision
     if opts.size_units not in ("auto", "px", "mm", "in"):
@@ -1812,6 +1942,7 @@ def to_svg(result: Result, opts: Optional[Options] = None) -> str:
     sw = _stroke_width_user_units(opts, dpi[0] if physical else None)
 
     def f(v: float) -> str:
+        """Format an SVG coordinate at the configured precision."""
         return _fmt(v, prec)
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
@@ -1824,33 +1955,43 @@ def to_svg(result: Result, opts: Optional[Options] = None) -> str:
         style += ' vector-effect="non-scaling-stroke"'
     lines.append(f'<g id="strokes" {style}>')
     for path in order_paths(result.paths, opts.path_ordering):
-        if path.beziers:
-            b0 = path.beziers[0][0]
-            parts = [f"M{f(b0[0])},{f(b0[1])}"]
-            for _p0, c1, c2, p in path.beziers:
-                parts.append(f"C{f(c1[0])},{f(c1[1])} {f(c2[0])},{f(c2[1])} {f(p[0])},{f(p[1])}")
-        else:
-            pts = path.points
-            parts = [f"M{f(pts[0][0])},{f(pts[0][1])}"]
-            parts += [f"L{f(x)},{f(y)}" for x, y in pts[1:]]
-        if path.closed:
-            parts.append("Z")
-        lines.append(f'<path d="{" ".join(parts)}"/>')
+        lines.append(_svg_path(path, f))
     lines.append("</g>")
     if opts.debug_layers:
-        lines.append('<g id="debug-blobs" display="none" fill="red" fill-opacity="0.3" stroke="none">')
-        for b in result.blobs:
-            x0, y0, x1, y1 = b.bbox
-            lines.append(f'<rect x="{x0}" y="{y0}" width="{x1 - x0 + 1}" height="{y1 - y0 + 1}"/>')
-        lines.append("</g>")
-        lines.append('<g id="debug-tangles" display="none" fill="none" stroke="blue">')
-        for t in result.tangles:
-            x0, y0, x1, y1 = t.bbox
-            lines.append(f'<rect x="{f(x0)}" y="{f(y0)}" width="{f(x1 - x0 + 1)}" '
-                         f'height="{f(y1 - y0 + 1)}"><title>score {t.score:.2f}: {t.action}</title></rect>')
-        lines.append("</g>")
+        _svg_debug_layers(lines, result, f)
     lines.append("</svg>")
     return "\n".join(lines) + "\n"
+
+
+def _svg_path(path, f):
+    """Serialize one polyline or cubic path using the supplied coordinate formatter."""
+    if path.beziers:
+        b0 = path.beziers[0][0]
+        parts = [f"M{f(b0[0])},{f(b0[1])}"]
+        for _p0, c1, c2, p in path.beziers:
+            parts.append(f"C{f(c1[0])},{f(c1[1])} {f(c2[0])},{f(c2[1])} {f(p[0])},{f(p[1])}")
+    else:
+        pts = path.points
+        parts = [f"M{f(pts[0][0])},{f(pts[0][1])}"]
+        parts += [f"L{f(x)},{f(y)}" for x, y in pts[1:]]
+    if path.closed:
+        parts.append("Z")
+    return f'<path d="{" ".join(parts)}"/>'
+
+
+def _svg_debug_layers(lines, result, f):
+    """Append hidden blob and tangle rectangles to an SVG line list."""
+    lines.append('<g id="debug-blobs" display="none" fill="red" fill-opacity="0.3" stroke="none">')
+    for b in result.blobs:
+        x0, y0, x1, y1 = b.bbox
+        lines.append(f'<rect x="{x0}" y="{y0}" width="{x1 - x0 + 1}" height="{y1 - y0 + 1}"/>')
+    lines.append("</g>")
+    lines.append('<g id="debug-tangles" display="none" fill="none" stroke="blue">')
+    for t in result.tangles:
+        x0, y0, x1, y1 = t.bbox
+        lines.append(f'<rect x="{f(x0)}" y="{f(y0)}" width="{f(x1 - x0 + 1)}" '
+                     f'height="{f(y1 - y0 + 1)}"><title>score {t.score:.2f}: {t.action}</title></rect>')
+    lines.append("</g>")
 
 
 def convert(data: bytes, opts: Optional[Options] = None) -> Tuple[str, Result]:
@@ -1867,10 +2008,35 @@ def convert(data: bytes, opts: Optional[Options] = None) -> Tuple[str, Result]:
 
 
 def _parse_args(argv) -> Tuple[argparse.Namespace, Options]:
+    """Parse CLI arguments and map their values to vectorization options."""
     p = argparse.ArgumentParser(description="Convert a monochrome BMP line drawing to an SVG.")
     p.add_argument("input", help="input .bmp file")
     p.add_argument("output", nargs="?", help="output .svg file (default: input with .svg)")
     d = Options()
+    _add_vectorization_args(p, d)
+    _add_output_args(p, d)
+    a = p.parse_args(argv)
+    opts = Options(
+        threshold=a.threshold, min_stroke_width=a.min_stroke_width,
+        max_stroke_width=a.max_stroke_width, min_blob_area=a.min_blob_area,
+        max_hole_area=a.max_hole_area, smooth=a.smooth, smooth_iterations=a.smooth_iterations,
+        spur_length_factor=a.spur_length_factor, junction_merge_factor=a.junction_merge_factor,
+        continuation_angle=a.continuation_angle, gap_close_distance=a.gap_close_distance,
+        gap_close_angle=a.gap_close_angle, min_path_length=a.min_path_length,
+        tangle_radius=a.tangle_radius, tangle_junction_count=a.tangle_junction_count,
+        tangle_policy=a.tangle_policy, tangle_keep_score=a.tangle_keep_score,
+        max_stroke_likeness=a.max_stroke_likeness, simplify_tolerance=a.simplify_tolerance,
+        max_nodes_per_path=a.max_nodes_per_path, curve_fitting=a.curves,
+        corner_angle=a.corner_angle, output_stroke_width=a.stroke_width,
+        output_stroke_units=a.stroke_units, output_stroke_color=a.stroke_color,
+        line_cap=a.line_cap, line_join=a.line_join, non_scaling_stroke=a.non_scaling_stroke,
+        coordinate_precision=a.precision, path_ordering=a.path_ordering,
+        size_units=a.size_units, dpi=a.dpi, debug_layers=a.debug_layers, verbose=a.verbose)
+    return a, opts
+
+
+def _add_vectorization_args(p, d):
+    """Register raster cleanup, graph analysis, and path simplification switches."""
     p.add_argument("--threshold", type=int, default=d.threshold,
                    help="luminance threshold for non-1bpp images (default %(default)s)")
     p.add_argument("--min-stroke-width", type=float, default=d.min_stroke_width)
@@ -1897,6 +2063,10 @@ def _parse_args(argv) -> Tuple[argparse.Namespace, Options]:
     p.add_argument("--max-nodes-per-path", type=int, default=d.max_nodes_per_path)
     p.add_argument("--curves", action="store_true", help="fit cubic Beziers")
     p.add_argument("--corner-angle", type=float, default=d.corner_angle)
+
+
+def _add_output_args(p, d):
+    """Register SVG styling, source sizing, and diagnostic switches."""
     p.add_argument("--stroke-width", type=float, default=d.output_stroke_width,
                    help="uniform SVG stroke width (default %(default)s)")
     p.add_argument("--stroke-units", choices=("px", "mm", "pt"), default=d.output_stroke_units)
@@ -1913,27 +2083,10 @@ def _parse_args(argv) -> Tuple[argparse.Namespace, Options]:
                    help="SVG width/height units; auto = mm (default %(default)s)")
     p.add_argument("--debug-layers", action="store_true")
     p.add_argument("-v", "--verbose", action="store_true")
-    a = p.parse_args(argv)
-    opts = Options(
-        threshold=a.threshold, min_stroke_width=a.min_stroke_width,
-        max_stroke_width=a.max_stroke_width, min_blob_area=a.min_blob_area,
-        max_hole_area=a.max_hole_area, smooth=a.smooth, smooth_iterations=a.smooth_iterations,
-        spur_length_factor=a.spur_length_factor, junction_merge_factor=a.junction_merge_factor,
-        continuation_angle=a.continuation_angle, gap_close_distance=a.gap_close_distance,
-        gap_close_angle=a.gap_close_angle, min_path_length=a.min_path_length,
-        tangle_radius=a.tangle_radius, tangle_junction_count=a.tangle_junction_count,
-        tangle_policy=a.tangle_policy, tangle_keep_score=a.tangle_keep_score,
-        max_stroke_likeness=a.max_stroke_likeness, simplify_tolerance=a.simplify_tolerance,
-        max_nodes_per_path=a.max_nodes_per_path, curve_fitting=a.curves,
-        corner_angle=a.corner_angle, output_stroke_width=a.stroke_width,
-        output_stroke_units=a.stroke_units, output_stroke_color=a.stroke_color,
-        line_cap=a.line_cap, line_join=a.line_join, non_scaling_stroke=a.non_scaling_stroke,
-        coordinate_precision=a.precision, path_ordering=a.path_ordering,
-        size_units=a.size_units, dpi=a.dpi, debug_layers=a.debug_layers, verbose=a.verbose)
-    return a, opts
 
 
 def main(argv=None) -> int:
+    """Read a BMP, write its SVG, and report conversion statistics or errors."""
     args, opts = _parse_args(sys.argv[1:] if argv is None else argv)
     output = args.output or os.path.splitext(args.input)[0] + ".svg"
     with open(args.input, "rb") as fh:

@@ -57,24 +57,29 @@ g_szStem = "equilateral-chamfered-cube"
 
 
 def Require(fCondition, szMessage):
+    """Reject a failed geometry invariant with its diagnostic."""
     if not fCondition:
         raise ValueError(szMessage)
 
 
 def Subtract(Left, Right):
+    """Subtract corresponding vector coordinates."""
     return tuple(dLeft - dRight for dLeft, dRight in zip(Left, Right))
 
 
 def Dot(Left, Right):
+    """Compute a vector dot product in coordinate order."""
     return sum(dLeft * dRight for dLeft, dRight in zip(Left, Right))
 
 
 def Unit(Vector):
+    """Normalize a nonzero vector to unit length."""
     dLength = math.sqrt(Dot(Vector, Vector))
     return tuple(dValue / dLength for dValue in Vector)
 
 
 def Cross(Left, Right):
+    """Compute the three-dimensional cross product."""
     return (
         Left[1] * Right[2] - Left[2] * Right[1],
         Left[2] * Right[0] - Left[0] * Right[2],
@@ -83,23 +88,28 @@ def Cross(Left, Right):
 
 
 def Center(Points):
+    """Average the coordinates of a collection of points."""
     return tuple(sum(Axis) / len(Points) for Axis in zip(*Points))
 
 
 def Boundary(Items):
+    """Iterate consecutive boundary pairs, including the closing edge."""
     return zip(Items, Items[1:] + Items[:1])
 
 
 def EdgeKey(szFirst, szSecond):
+    """Return an order-independent pair of endpoint identifiers."""
     return tuple(sorted((szFirst, szSecond)))
 
 
 def Angle(Previous, Vertex, Following):
+    """Measure an interior angle in degrees, clamping rounding error."""
     dCosine = Dot(Unit(Subtract(Previous, Vertex)), Unit(Subtract(Following, Vertex)))
     return math.degrees(math.acos(max(-1.0, min(1.0, dCosine))))
 
 
-def BuildSolid():
+def BuildSolidVertices():
+    """Construct the radical-coordinate vertices in stable identifier order."""
     dSmall = 0.5
     dCorner = dSmall + 1.0 / math.sqrt(3.0)
     dLarge = dSmall + 2.0 / math.sqrt(3.0)
@@ -114,6 +124,12 @@ def BuildSolid():
                 for nCoordinate, nSign in enumerate(Signs)
             ))
     Vertices = {f"V{nIndex + 1:02}": Point for nIndex, Point in enumerate(Points)}
+    return Vertices, dLarge, dCorner
+
+
+def BuildSolid():
+    """Build ordered solid faces and their shared edges from exact vertices."""
+    Vertices, dLarge, dCorner = BuildSolidVertices()
     Faces = {}
     for nCount, szPrefix, dOffset in ((1, "S", dLarge), (2, "H", 2.0 * dCorner)):
         for Axes in combinations(range(3), nCount):
@@ -152,13 +168,8 @@ def BuildSolid():
     return Vertices, Faces, Edges
 
 
-def BuildNet(Vertices, Faces, Edges):
-    Strip = ["Hxy++", "Hyz+-", "Hxz--", "Hxy--", "Hyz-+", "Hxz++"]
-    Attachments = [
-        ("Hxy++", ["Sx+", "Hxz+-"], ["Hyz++", "Sy+"]),
-        ("Hxz--", ["Sz-", "Hyz--"], ["Hxy-+", "Sx-"]),
-        ("Hyz-+", ["Sy-", "Hxy+-"], ["Hxz-+", "Sz+"]),
-    ]
+def InitializeNet(Vertices, Faces, Strip):
+    """Place the first strip face and establish its solid-to-net mapping."""
     dRootThree = math.sqrt(3.0)
     dSmall, dCorner, dLarge = 0.5, 0.5 + 1.0 / dRootThree, 0.5 + 2.0 / dRootThree
     dA, dB, dC = math.sqrt(2.0 / 3.0), 1.0 / dRootThree, 2.0 * math.sqrt(2.0) / 3.0
@@ -174,13 +185,8 @@ def BuildNet(Vertices, Faces, Edges):
     PointIds = {Point: szId for szId, Point in Vertices.items()}
     NetVertices, NetFaces, FaceMaps = {}, {}, {}
 
-    def AddVertex(szSolidId, Point):
-        szId = f"N{len(NetVertices) + 1:02}"
-        NetVertices[szId] = {"id": szId, "position": Point, "solid_vertex": szSolidId}
-        return szId
-
     RootMap = {
-        PointIds[SolidPoint]: AddVertex(PointIds[SolidPoint], FlatPoint)
+        PointIds[SolidPoint]: AddNetVertex(NetVertices, PointIds[SolidPoint], FlatPoint)
         for SolidPoint, FlatPoint in zip(RootSolid, RootFlat)
     }
     FaceMaps[Strip[0]] = RootMap
@@ -190,54 +196,61 @@ def BuildNet(Vertices, Faces, Edges):
         "parent": None, "hinge": None,
     }
 
-    def Attach(szParent, szChild, szPlacement):
-        Require(szChild not in NetFaces, f"Repeated face: {szChild}")
-        Shared = sorted(set(Faces[szParent]["vertices"]) & set(Faces[szChild]["vertices"]))
-        Require(len(Shared) == 2, f"Faces do not share an edge: {szParent}, {szChild}")
-        szFirst, szSecond = Shared
-        SolidStart, SolidEnd = Vertices[szFirst], Vertices[szSecond]
-        FlatStart = NetVertices[FaceMaps[szParent][szFirst]]["position"]
-        FlatEnd = NetVertices[FaceMaps[szParent][szSecond]]["position"]
-        Axis3D = Unit(Subtract(SolidEnd, SolidStart))
-        ChildCenter = Center([Vertices[szId] for szId in Faces[szChild]["vertices"]])
-        TowardCenter = Subtract(ChildCenter, SolidStart)
-        Inward3D = Unit(tuple(
-            dValue - Dot(TowardCenter, Axis3D) * dAxis
-            for dValue, dAxis in zip(TowardCenter, Axis3D)
-        ))
-        Axis2D = Unit(Subtract(FlatEnd, FlatStart))
-        Perpendicular = (-Axis2D[1], Axis2D[0])
-        ParentCenter = Center([
-            NetVertices[szId]["position"] for szId in NetFaces[szParent]["vertices"]
-        ])
-        dSign = -math.copysign(1.0, Dot(Subtract(ParentCenter, FlatStart), Perpendicular))
-        ChildMap = {}
-        for szSolidId in Faces[szChild]["vertices"]:
-            if szSolidId in Shared:
-                ChildMap[szSolidId] = FaceMaps[szParent][szSolidId]
-            else:
-                Relative = Subtract(Vertices[szSolidId], SolidStart)
-                dAlong, dAcross = Dot(Relative, Axis3D), Dot(Relative, Inward3D)
-                Point = tuple(
-                    dStart + dAlong * dAxis + dSign * dAcross * dPerpendicular
-                    for dStart, dAxis, dPerpendicular in zip(FlatStart, Axis2D, Perpendicular)
-                )
-                ChildMap[szSolidId] = AddVertex(szSolidId, Point)
-        FaceMaps[szChild] = ChildMap
-        NetFaces[szChild] = {
-            "id": szChild, "kind": Faces[szChild]["kind"], "placement": szPlacement,
-            "vertices": [ChildMap[szId] for szId in Faces[szChild]["vertices"]],
-            "parent": szParent, "hinge": Edges[EdgeKey(*Shared)]["id"],
-        }
+    return NetVertices, NetFaces, FaceMaps
 
-    for nIndex in range(1, len(Strip)):
-        Attach(Strip[nIndex - 1], Strip[nIndex], "strip")
-    for szParent, Top, Bottom in Attachments:
-        for szChild in Top:
-            Attach(szParent, szChild, "top")
-        for szChild in Bottom:
-            Attach(szParent, szChild, "bottom")
 
+def AddNetVertex(NetVertices, szSolidId, Point):
+    """Append a net vertex with its stable identifier and solid correspondence."""
+    szId = f"N{len(NetVertices) + 1:02}"
+    NetVertices[szId] = {"id": szId, "position": Point, "solid_vertex": szSolidId}
+    return szId
+
+
+def AttachNetFace(Vertices, Faces, Edges, NetVertices, NetFaces, FaceMaps,
+                  szParent, szChild, szPlacement):
+    """Unfold one child across its parent's shared edge, reusing hinge vertices."""
+    Require(szChild not in NetFaces, f"Repeated face: {szChild}")
+    Shared = sorted(set(Faces[szParent]["vertices"]) & set(Faces[szChild]["vertices"]))
+    Require(len(Shared) == 2, f"Faces do not share an edge: {szParent}, {szChild}")
+    szFirst, szSecond = Shared
+    SolidStart, SolidEnd = Vertices[szFirst], Vertices[szSecond]
+    FlatStart = NetVertices[FaceMaps[szParent][szFirst]]["position"]
+    FlatEnd = NetVertices[FaceMaps[szParent][szSecond]]["position"]
+    Axis3D = Unit(Subtract(SolidEnd, SolidStart))
+    ChildCenter = Center([Vertices[szId] for szId in Faces[szChild]["vertices"]])
+    TowardCenter = Subtract(ChildCenter, SolidStart)
+    Inward3D = Unit(tuple(
+        dValue - Dot(TowardCenter, Axis3D) * dAxis
+        for dValue, dAxis in zip(TowardCenter, Axis3D)
+    ))
+    Axis2D = Unit(Subtract(FlatEnd, FlatStart))
+    Perpendicular = (-Axis2D[1], Axis2D[0])
+    ParentCenter = Center([
+        NetVertices[szId]["position"] for szId in NetFaces[szParent]["vertices"]
+    ])
+    dSign = -math.copysign(1.0, Dot(Subtract(ParentCenter, FlatStart), Perpendicular))
+    ChildMap = {}
+    for szSolidId in Faces[szChild]["vertices"]:
+        if szSolidId in Shared:
+            ChildMap[szSolidId] = FaceMaps[szParent][szSolidId]
+        else:
+            Relative = Subtract(Vertices[szSolidId], SolidStart)
+            dAlong, dAcross = Dot(Relative, Axis3D), Dot(Relative, Inward3D)
+            Point = tuple(
+                dStart + dAlong * dAxis + dSign * dAcross * dPerpendicular
+                for dStart, dAxis, dPerpendicular in zip(FlatStart, Axis2D, Perpendicular)
+            )
+            ChildMap[szSolidId] = AddNetVertex(NetVertices, szSolidId, Point)
+    FaceMaps[szChild] = ChildMap
+    NetFaces[szChild] = {
+        "id": szChild, "kind": Faces[szChild]["kind"], "placement": szPlacement,
+        "vertices": [ChildMap[szId] for szId in Faces[szChild]["vertices"]],
+        "parent": szParent, "hinge": Edges[EdgeKey(*Shared)]["id"],
+    }
+
+
+def BuildNetEdges(NetVertices, NetFaces, Edges):
+    """Collect net edge incidences and pair copies of cut solid edges."""
     NetEdges = {}
     for szId, Face in NetFaces.items():
         for szFirst, szSecond in Boundary(Face["vertices"]):
@@ -260,10 +273,34 @@ def BuildNet(Vertices, Faces, Edges):
             Edge["mate"] = next(
                 (Other["id"] for Other in Pair if Other is not Edge), None
             )
+    return NetEdges
+
+
+def BuildNet(Vertices, Faces, Edges):
+    """Unfold the fixed strip and attachments, then identify folds and cut seams."""
+    Strip = ["Hxy++", "Hyz+-", "Hxz--", "Hxy--", "Hyz-+", "Hxz++"]
+    Attachments = [
+        ("Hxy++", ["Sx+", "Hxz+-"], ["Hyz++", "Sy+"]),
+        ("Hxz--", ["Sz-", "Hyz--"], ["Hxy-+", "Sx-"]),
+        ("Hyz-+", ["Sy-", "Hxy+-"], ["Hxz-+", "Sz+"]),
+    ]
+    NetVertices, NetFaces, FaceMaps = InitializeNet(Vertices, Faces, Strip)
+    for nIndex in range(1, len(Strip)):
+        AttachNetFace(Vertices, Faces, Edges, NetVertices, NetFaces, FaceMaps,
+                      Strip[nIndex - 1], Strip[nIndex], "strip")
+    for szParent, Top, Bottom in Attachments:
+        for szChild in Top:
+            AttachNetFace(Vertices, Faces, Edges, NetVertices, NetFaces, FaceMaps,
+                          szParent, szChild, "top")
+        for szChild in Bottom:
+            AttachNetFace(Vertices, Faces, Edges, NetVertices, NetFaces, FaceMaps,
+                          szParent, szChild, "bottom")
+    NetEdges = BuildNetEdges(NetVertices, NetFaces, Edges)
     return NetVertices, NetFaces, NetEdges, Strip
 
 
 def InteriorsOverlap(First, Second):
+    """Test convex polygon interior overlap while allowing touching boundaries."""
     # Separating-axis theorem for the convex faces; touching edges are allowed.
     for Polygon in (First, Second):
         for Start, End in Boundary(Polygon):
@@ -276,15 +313,46 @@ def InteriorsOverlap(First, Second):
     return True
 
 
-def Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip):
-    Require((len(Vertices), len(Edges), len(Faces)) == (32, 48, 18), "Solid counts")
-    Require(Counter(Face["kind"] for Face in Faces.values()) == {
-        "hexagon": 12, "square": 6,
-    }, "Face types")
-    Require(set(Faces) == set(NetFaces), "Every solid face must appear exactly once")
-    Require((len(NetVertices), len(NetEdges)) == (62, 79), "Net counts")
-    Require(len(Vertices) - len(Edges) + len(Faces) == 2, "Solid Euler characteristic")
-    Require(len(NetVertices) - len(NetEdges) + len(NetFaces) == 1, "Net Euler characteristic")
+def ValidateFaceAngles(szId, Face, SolidPolygon, FlatPolygon, Incidences,
+                       nExpected, dMaxLengthError, dMaxAngleError):
+    """Check face angles, side lengths, planarity, and acute-vertex positions."""
+    AcuteIndices = []
+    for nIndex, szVertex in enumerate(Face["vertices"]):
+        Incidences[szVertex].append(szId)
+        dExpected = 90.0
+        if nExpected == 6:
+            fCorner = int(szVertex[1:]) <= 8
+            dExpected = g_dAcuteAngle if fCorner else g_dObtuseAngle
+            if fCorner:
+                AcuteIndices.append(nIndex)
+        for Polygon in (SolidPolygon, FlatPolygon):
+            dAngle = Angle(Polygon[nIndex - 1], Polygon[nIndex], Polygon[(nIndex + 1) % nExpected])
+            dMaxAngleError = max(dMaxAngleError, abs(dAngle - dExpected))
+            dMaxLengthError = max(
+                dMaxLengthError, abs(math.dist(Polygon[nIndex - 1], Polygon[nIndex]) - 1.0)
+            )
+        Require(abs(Dot(Subtract(SolidPolygon[nIndex], SolidPolygon[0]), Face["normal"])) < g_dTolerance,
+                f"Nonplanar face: {szId}")
+    return AcuteIndices, dMaxLengthError, dMaxAngleError
+
+
+def ValidateHexagonEdges(szId, Face, Faces, Edges, AcuteIndices):
+    """Require opposite acute corners and opposite square-adjacent hexagon edges."""
+    Require(len(AcuteIndices) == 2 and AcuteIndices[1] - AcuteIndices[0] == 3,
+            f"Acute vertices must be opposite: {szId}")
+    SquareEdges = []
+    for nIndex, (szFirst, szSecond) in enumerate(Boundary(Face["vertices"])):
+        Adjacent = Edges[EdgeKey(szFirst, szSecond)]["faces"]
+        if any(Faces[szOther]["kind"] == "square" for szOther in Adjacent):
+            SquareEdges.append(nIndex)
+            Require(nIndex not in AcuteIndices and (nIndex + 1) % 6 not in AcuteIndices,
+                    f"Square at an acute vertex: {szId}")
+    Require(len(SquareEdges) == 2 and SquareEdges[1] - SquareEdges[0] == 3,
+            f"Square edges must be opposite: {szId}")
+
+
+def ValidateFaces(Vertices, Faces, Edges, NetVertices, NetFaces):
+    """Validate each unfolded face and accumulate geometry errors and incidences."""
     dMaxLengthError, dMaxAngleError, dMaxDistanceError = 0.0, 0.0, 0.0
     Incidences = {szId: [] for szId in Vertices}
     Polygons = {}
@@ -298,53 +366,31 @@ def Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip):
         ] == Face["vertices"], f"Vertex correspondence: {szId}")
         nExpected = 6 if Face["kind"] == "hexagon" else 4
         Require(len(SolidPolygon) == nExpected, f"Polygon size: {szId}")
-        AcuteIndices = []
-        for nIndex, szVertex in enumerate(Face["vertices"]):
-            Incidences[szVertex].append(szId)
-            dExpected = 90.0
-            if nExpected == 6:
-                fCorner = int(szVertex[1:]) <= 8
-                dExpected = g_dAcuteAngle if fCorner else g_dObtuseAngle
-                if fCorner:
-                    AcuteIndices.append(nIndex)
-            for Polygon in (SolidPolygon, FlatPolygon):
-                dAngle = Angle(Polygon[nIndex - 1], Polygon[nIndex], Polygon[(nIndex + 1) % nExpected])
-                dMaxAngleError = max(dMaxAngleError, abs(dAngle - dExpected))
-                dMaxLengthError = max(
-                    dMaxLengthError, abs(math.dist(Polygon[nIndex - 1], Polygon[nIndex]) - 1.0)
-                )
-            Require(abs(Dot(Subtract(SolidPolygon[nIndex], SolidPolygon[0]), Face["normal"])) < g_dTolerance,
-                    f"Nonplanar face: {szId}")
+        AcuteIndices, dMaxLengthError, dMaxAngleError = ValidateFaceAngles(
+            szId, Face, SolidPolygon, FlatPolygon, Incidences,
+            nExpected, dMaxLengthError, dMaxAngleError
+        )
         if nExpected == 6:
-            Require(len(AcuteIndices) == 2 and AcuteIndices[1] - AcuteIndices[0] == 3,
-                    f"Acute vertices must be opposite: {szId}")
-            SquareEdges = []
-            for nIndex, (szFirst, szSecond) in enumerate(Boundary(Face["vertices"])):
-                Adjacent = Edges[EdgeKey(szFirst, szSecond)]["faces"]
-                if any(Faces[szOther]["kind"] == "square" for szOther in Adjacent):
-                    SquareEdges.append(nIndex)
-                    Require(nIndex not in AcuteIndices and (nIndex + 1) % 6 not in AcuteIndices,
-                            f"Square at an acute vertex: {szId}")
-            Require(len(SquareEdges) == 2 and SquareEdges[1] - SquareEdges[0] == 3,
-                    f"Square edges must be opposite: {szId}")
+            ValidateHexagonEdges(szId, Face, Faces, Edges, AcuteIndices)
         for nFirst, nSecond in combinations(range(nExpected), 2):
             dMaxDistanceError = max(dMaxDistanceError, abs(
                 math.dist(SolidPolygon[nFirst], SolidPolygon[nSecond])
                 - math.dist(FlatPolygon[nFirst], FlatPolygon[nSecond])
             ))
+    return Incidences, Polygons, dMaxLengthError, dMaxAngleError, dMaxDistanceError
+
+
+def ValidateSolidIncidences(Faces, Edges, Incidences):
+    """Check the solid's vertex face types and manifold edge incidences."""
     for szVertex, IncidentFaces in Incidences.items():
         Expected = {"hexagon": 3} if int(szVertex[1:]) <= 8 else {"hexagon": 2, "square": 1}
         Require(Counter(Faces[szId]["kind"] for szId in IncidentFaces) == Expected,
                 f"Vertex incidence: {szVertex}")
     for Edge in Edges.values():
         Require(len(Edge["faces"]) == 2, f"Nonmanifold edge: {Edge['id']}")
-    Require(dMaxLengthError < g_dTolerance, "Unequal side lengths")
-    Require(dMaxAngleError < g_dTolerance, "Incorrect interior angles")
-    Require(dMaxDistanceError < g_dTolerance, "Unfolding changed a face's geometry")
-    for szFirst, szSecond in combinations(Polygons, 2):
-        Require(not InteriorsOverlap(Polygons[szFirst], Polygons[szSecond]),
-                f"Overlapping faces: {szFirst}, {szSecond}")
 
+def ValidateSeams(Edges, NetVertices, NetEdges):
+    """Check fold counts and paired cut endpoints against the closed solid."""
     Copies = {}
     NetEdgeIds = {Edge["id"]: Edge for Edge in NetEdges.values()}
     nFolds = 0
@@ -367,6 +413,10 @@ def Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip):
         for Copy in Pair:
             Require(EdgeKey(*(NetVertices[szId]["solid_vertex"] for szId in Copy["vertices"]))
                     == Edge["vertices"], "Folded endpoints do not close")
+
+
+def ValidateHingeTree(NetFaces, NetEdges):
+    """Ensure face insertion order describes a connected, acyclic hinge tree."""
     Visited = set()
     for szId, Face in NetFaces.items():
         Require(Face["parent"] in Visited or (not Visited and Face["parent"] is None),
@@ -378,6 +428,10 @@ def Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip):
                 for Edge in NetEdges.values()
             ), "Parent hinge missing")
         Visited.add(szId)
+
+
+def ValidateStrip(Faces, NetVertices, NetEdges, Strip, Polygons):
+    """Check strip alignment and the prescribed alternating attachment pattern."""
     Centers = [Center(Polygons[szId]) for szId in Strip]
     Require(max(Point[1] for Point in Centers) - min(Point[1] for Point in Centers) < g_dTolerance,
             "Strip centers are not horizontal")
@@ -403,6 +457,31 @@ def Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip):
             Expected = ["square", "hexagon"] if szSide == "top" else ["hexagon", "square"]
             Require(Pattern == (Expected if nIndex % 2 == 0 else ["-", "-"]),
                     f"Incorrect {szSide} attachment pattern: {szId}")
+
+
+def Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip):
+    """Validate solid topology, unfolded geometry, seams, and strip placement."""
+    Require((len(Vertices), len(Edges), len(Faces)) == (32, 48, 18), "Solid counts")
+    Require(Counter(Face["kind"] for Face in Faces.values()) == {
+        "hexagon": 12, "square": 6,
+    }, "Face types")
+    Require(set(Faces) == set(NetFaces), "Every solid face must appear exactly once")
+    Require((len(NetVertices), len(NetEdges)) == (62, 79), "Net counts")
+    Require(len(Vertices) - len(Edges) + len(Faces) == 2, "Solid Euler characteristic")
+    Require(len(NetVertices) - len(NetEdges) + len(NetFaces) == 1, "Net Euler characteristic")
+    Incidences, Polygons, dMaxLengthError, dMaxAngleError, dMaxDistanceError = ValidateFaces(
+        Vertices, Faces, Edges, NetVertices, NetFaces
+    )
+    ValidateSolidIncidences(Faces, Edges, Incidences)
+    Require(dMaxLengthError < g_dTolerance, "Unequal side lengths")
+    Require(dMaxAngleError < g_dTolerance, "Incorrect interior angles")
+    Require(dMaxDistanceError < g_dTolerance, "Unfolding changed a face's geometry")
+    for szFirst, szSecond in combinations(Polygons, 2):
+        Require(not InteriorsOverlap(Polygons[szFirst], Polygons[szSecond]),
+                f"Overlapping faces: {szFirst}, {szSecond}")
+    ValidateSeams(Edges, NetVertices, NetEdges)
+    ValidateHingeTree(NetFaces, NetEdges)
+    ValidateStrip(Faces, NetVertices, NetEdges, Strip, Polygons)
     return {
         "solid_counts": {"vertices": 32, "edges": 48, "faces": 18},
         "net_counts": {"vertices": 62, "edges": 79, "faces": 18, "hinges": 17, "cut_pairs": 31},
@@ -415,7 +494,9 @@ def Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip):
 
 
 def SerializeJson(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip, Validation):
+    """Serialize the solid, net, and validation with reproducible rounded coordinates."""
     def Canonicalize(Value):
+        """Recursively round floats and normalize signed zero for JSON."""
         if isinstance(Value, float):
             dRounded = round(Value, 12)
             return dRounded if dRounded != 0.0 else 0.0
@@ -458,6 +539,7 @@ def SerializeJson(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip
 
 
 def ValidateSvg(szSvg, Polygons):
+    """Verify the SVG contains precisely the ordered, unfilled face polygons."""
     Root = ET.fromstring(szSvg)
     szNamespace = "{http://www.w3.org/2000/svg}"
     Require(Root.tag == szNamespace + "svg" and len(Root) == 1, "SVG must contain only a faces group")
@@ -478,6 +560,7 @@ def ValidateSvg(szSvg, Polygons):
 
 
 def SerializeSvg(NetVertices, NetFaces):
+    """Render the net as scaled black polygon outlines with a fixed margin."""
     dScale, dMargin = 80.0, 55.0
     Points = [Vertex["position"] for Vertex in NetVertices.values()]
     dMinX, dMaxX = min(Point[0] for Point in Points), max(Point[0] for Point in Points)
@@ -486,6 +569,7 @@ def SerializeSvg(NetVertices, NetFaces):
     dHeight = (dMaxY - dMinY) * dScale + 2 * dMargin
 
     def Screen(Point):
+        """Map a net point to scaled SVG coordinates with downward-positive y."""
         return ((Point[0] - dMinX) * dScale + dMargin, (dMaxY - Point[1]) * dScale + dMargin)
 
     Polygons = {
@@ -508,6 +592,7 @@ def SerializeSvg(NetVertices, NetFaces):
 
 
 def Main():
+    """Generate validated exports, or verify their exact existing bytes."""
     Parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     Parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parents[1] / "doc")
     Parser.add_argument("--check", action="store_true", help="Validate and compare existing exports without writing.")

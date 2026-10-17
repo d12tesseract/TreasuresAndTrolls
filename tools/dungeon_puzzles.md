@@ -9,8 +9,20 @@ The [dungeon generator](generate_dungeon_map.md#random-puzzles-and-progression-g
 can place these puzzles automatically, create gated passages, relocate the
 best loot, and key required items to reachable encounter areas. Its generated
 TM key overrides the illustrative locations and exit destinations below.
-Multiple passage puzzles guard independent reward branches, never a nested
-sequence; selected multiple exits can lead down from separate branches.
+Same-level passage puzzles use edge chambers and short passages to separate
+guarded treasure chambers, with no stairs in those reward chambers. Stair
+puzzles instead unlock circular 3x3 spiral stairs inside a chamber at least
+5x5 squares, with a complete one-square ring of clear floor around the stairwell
+so it neither touches walls nor blocks doorways. A stair puzzle on the final
+generated level leads to an explicitly unmapped lower level.
+Required items go first into a solvable earlier puzzle's reward;
+otherwise they are physical loot in another accessible encounter. Both
+encounters' generated descriptions give the level and area cross-references.
+Required items never go in a prize that can be permanently sealed by failure.
+Every puzzle also has a guaranteed rolled prize: 40% jewelry (1d3 pieces),
+40% gems (1d6 pieces), or 20% one magic item. Values and magic powers use the
+wandering-monster treasure tables at the puzzle's dungeon level. The generated
+key lists exact pieces and values instead of the illustrative rewards below.
 Keep this catalog beside `dungeon_puzzles.py`, which loads its descriptions.
 
 These puzzles use classic dungeon and escape-room ideas, with solutions
