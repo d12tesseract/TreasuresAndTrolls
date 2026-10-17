@@ -50,7 +50,7 @@ RULINGS = (
     "the rules do not specify one). Healing power above +4 uses the +4 Raise dead "
     "effect because the healing tables end there.",
     "Random chamber traps occur on basic roll >= 23, independently of monsters "
-    "and treasure, unless the chamber already has an explicit T/P trap. Random "
+    "and treasure, unless the chamber already has an explicit T trap. Random "
     "traps are keyed by chamber number, not added to ASCII feature counts. Trap "
     "designs, triggers and DCs are improvised using the rules' saves and wound system.",
     "Secret doors require DC 20 (WIS, Medium); concealed doors require DC 17 "
@@ -60,10 +60,12 @@ RULINGS = (
 
 
 def basic_roll(rng: random.Random) -> int:
+    """Sum three independent zero-through-eleven rolls without symbol rerolls."""
     return sum(rng.randint(0, 11) for _ in range(3))
 
 
 def dice(rng: random.Random, expression: str) -> int:
+    """Evaluate a supported NdM dice expression with an optional fixed bonus."""
     match = re.fullmatch(r"(\d*)d\s*(\d+)(?:\s*\+\s*(\d+))?", expression.strip())
     if not match:
         raise ValueError("unsupported dice expression: {!r}".format(expression))
@@ -72,6 +74,7 @@ def dice(rng: random.Random, expression: str) -> int:
 
 
 def _basic(rng: random.Random, debug: Optional[List[str]], purpose: str) -> int:
+    """Make a basic roll and append its purpose and result to an optional log."""
     result = basic_roll(rng)
     if debug is not None:
         debug.append("{}: basic roll = {}".format(purpose, result))
@@ -79,6 +82,7 @@ def _basic(rng: random.Random, debug: Optional[List[str]], purpose: str) -> int:
 
 
 def _dice(rng: random.Random, expression: str, debug: Optional[List[str]], purpose: str) -> int:
+    """Roll a dice expression and optionally record its purpose and result."""
     result = dice(rng, expression)
     if debug is not None:
         debug.append("{}: {} = {}".format(purpose, expression, result))
@@ -86,6 +90,7 @@ def _dice(rng: random.Random, expression: str, debug: Optional[List[str]], purpo
 
 
 def _section(text: str, start: str, end: str) -> str:
+    """Extract a rules section, rejecting missing opening or closing markers."""
     _, separator, remaining = text.partition(start)
     if not separator:
         raise ValueError("rules are missing section {!r}".format(start))
@@ -96,6 +101,7 @@ def _section(text: str, start: str, end: str) -> str:
 
 
 def _table(text: str, header: Tuple[str, ...]) -> List[List[str]]:
+    """Read numeric rows from a Markdown table with the requested header."""
     found = False
     rows = []
     for line in text.splitlines():
@@ -116,6 +122,7 @@ def _table(text: str, header: Tuple[str, ...]) -> List[List[str]]:
 
 
 def _expand(rows: List[List[str]], first: int, last: int) -> Dict[int, List[str]]:
+    """Expand roll ranges while rejecting duplicates and incomplete coverage."""
     result = {}
     for key, *values in rows:
         bounds = [int(value) for value in key.split("-")]
@@ -130,6 +137,7 @@ def _expand(rows: List[List[str]], first: int, last: int) -> Dict[int, List[str]
 
 class EncounterRules:
     def __init__(self, path: Path = RULES_PATH) -> None:
+        """Load encounter and treasure tables, applying the documented errata."""
         text = path.read_text(encoding="utf-8")
         indoor = _section(text, "## Indoor Adventuring", "## Outdoor Adventuring")
         encounters = _table(indoor, ("Roll", "Level 1-3", "Level 4-6", "Level 7-9"))
@@ -167,6 +175,7 @@ class EncounterRules:
         }
 
     def creature_level(self, name: str, depth: int) -> Tuple[int, bool]:
+        """Resolve a creature's level or flag a fallback to the dungeon depth."""
         name = _CREATURE_ALIASES.get(name, name)
         if name not in self.creature_levels and name.endswith("s"):
             name = name[:-1]
@@ -184,6 +193,7 @@ class MonsterEncounter:
 
 def monster_encounter(rules: EncounterRules, rng: random.Random, depth: int,
                       roll: int, debug: Optional[List[str]] = None) -> MonsterEncounter:
+    """Resolve an indoor encounter roll into a monster group or adventurer party."""
     entry = rules.encounters[roll][min((depth - 1) // 3, 2)]
     if entry == "Adventuring party":
         count = _dice(rng, "d6", debug, "Adventurer count")
@@ -216,11 +226,13 @@ def monster_encounter(rules: EncounterRules, rng: random.Random, depth: int,
 
 
 def _table_level(level: int) -> int:
+    """Clamp a creature or dungeon level to the available treasure-table range."""
     return max(1, min(level, 10))
 
 
 def magic_item(rules: EncounterRules, rng: random.Random, level: int,
                debug: Optional[List[str]] = None) -> str:
+    """Roll a magic item's category, subtype, power, and applicable charges."""
     category = rules.categories[_basic(rng, debug, "Magic item category")][0]
     columns = {"Magic weapon": 0, "Magic Armor": 1, "Magic Ring": 2,
                "Magic Wand": 3, "Magic Staff": 3, "Magic Scroll": 4,
@@ -232,6 +244,22 @@ def magic_item(rules: EncounterRules, rng: random.Random, level: int,
         if threshold and roll >= int(threshold):
             power = bonus
     name = "{}{}".format(category, ": " + subtype if subtype else "")
+    effect = _magic_effect(category, subtype, power)
+    if category in ("Magic Wand", "Magic Staff"):
+        effect += ("; " if effect else "") + "{} charges (maximum 24)".format(
+            _dice(rng, "2d12", debug, "Magic item charges"))
+        if category == "Magic Staff":
+            effect += "; +{} to hit and AP as a quarterstaff".format(power)
+    if category == "Magic Scroll":
+        effect = "single use; caster level +2 for requirements and spell effects"
+    description = name + ("; " + effect if effect else "") + " (power +{})".format(power)
+    if debug is not None:
+        debug.append("Magic item result: " + description)
+    return description
+
+
+def _magic_effect(category: str, subtype: str, power: int) -> str:
+    """Describe the rolled power's effect before charges or scroll-use rules."""
     effect = ""
     if category == "Magic weapon":
         effect = "+{} to hit and attack power".format(power)
@@ -254,21 +282,12 @@ def magic_item(rules: EncounterRules, rng: random.Random, level: int,
             effect += "; cleric only, minimum level {}".format((1, 2, 4, 5)[min(power, 4) - 1])
     elif subtype == "Magic Missile":
         effect = "{} missiles per charge; minimum user level {}".format(power, max(1, 2 * (power - 1)))
-    if category in ("Magic Wand", "Magic Staff"):
-        effect += ("; " if effect else "") + "{} charges (maximum 24)".format(
-            _dice(rng, "2d12", debug, "Magic item charges"))
-        if category == "Magic Staff":
-            effect += "; +{} to hit and AP as a quarterstaff".format(power)
-    if category == "Magic Scroll":
-        effect = "single use; caster level +2 for requirements and spell effects"
-    description = name + ("; " + effect if effect else "") + " (power +{})".format(power)
-    if debug is not None:
-        debug.append("Magic item result: " + description)
-    return description
+    return effect
 
 
 def treasure(rules: EncounterRules, rng: random.Random, depth: int,
              encounter: Optional[MonsterEncounter], debug: Optional[List[str]] = None) -> Tuple[str, ...]:
+    """Roll lair or abandoned treasure, applying dragon and creature-level rules."""
     dragon = encounter is not None and encounter.dragon
     presence = _basic(rng, debug, "Treasure presence (DC 21{})".format(
         "; guaranteed for dragon" if dragon else ""))
@@ -278,18 +297,7 @@ def treasure(rules: EncounterRules, rng: random.Random, depth: int,
     if dragon:
         levels = tuple(level + 2 for level in levels)
     level = max(levels)
-    coins = Counter()
-    for index, individual in enumerate(levels, 1):
-        table_level = _table_level(individual)
-        expression, currency = rules.money[table_level][0].rsplit(" ", 1)
-        coins[currency] += _dice(rng, expression, debug, "Creature {} coins ({}, table level {})".format(
-            index, currency, table_level))
-    if dragon:
-        copper = sum(amount * _COIN_VALUES[unit]
-                     for unit, amount in coins.items())
-        money = "{:g} gp".format(copper / 10)
-    else:
-        money = ", ".join("{} {}".format(amount, unit) for unit, amount in coins.items())
+    money = _treasure_money(rules, rng, levels, dragon, debug)
     lines = [
         ("Dragon hoard." if dragon else
          "Lair cache in this chamber." if encounter else "Abandoned chamber cache."),
@@ -319,8 +327,51 @@ def treasure(rules: EncounterRules, rng: random.Random, depth: int,
     return tuple(lines)
 
 
+def _treasure_money(rules, rng, levels, dragon, debug):
+    """Roll each creature's coins and apply the dragon gold conversion."""
+    coins = Counter()
+    for index, individual in enumerate(levels, 1):
+        table_level = _table_level(individual)
+        expression, currency = rules.money[table_level][0].rsplit(" ", 1)
+        coins[currency] += _dice(rng, expression, debug, "Creature {} coins ({}, table level {})".format(
+            index, currency, table_level))
+    if dragon:
+        copper = sum(amount * _COIN_VALUES[unit]
+                     for unit, amount in coins.items())
+        money = "{:g} gp".format(copper / 10)
+    else:
+        money = ", ".join("{} {}".format(amount, unit) for unit, amount in coins.items())
+    return money
+
+
+def puzzle_treasure(rules: EncounterRules, rng: random.Random, depth: int,
+                    debug: Optional[List[str]] = None) -> Tuple[str, ...]:
+    """Roll a guaranteed puzzle prize using the wandering-monster value tables."""
+    choice = rng.random()
+    if choice >= 0.8:
+        return (magic_item(rules, rng, depth, debug),)
+    jewelry = choice < 0.4
+    count = _dice(rng, "d3" if jewelry else "d6", debug, "Puzzle prize count")
+    kinds = (
+        ("gold signet ring", "silver necklace", "jeweled bracelet", "gold brooch",
+         "silver circlet", "gold pendant") if jewelry else
+        ("ruby", "sapphire", "emerald", "diamond", "amethyst", "garnet",
+         "pearl", "opal", "topaz", "moonstone")
+    )
+    table_level = _table_level(depth)
+    expression, currency = rules.gems[table_level][0].rsplit(" ", 1)
+    return tuple(
+        "{}: {} worth {} {}.".format(
+            "Jewelry" if jewelry else "Gem", rng.choice(kinds),
+            _dice(rng, expression, debug, "Puzzle prize {} value (table level {})".format(
+                index, table_level)), currency,
+        ) for index in range(1, count + 1)
+    )
+
+
 def trap_description(rng: random.Random, pit: bool = False, chest: bool = False,
                      debug: Optional[List[str]] = None) -> str:
+    """Roll a trap's trigger, avoidance save, and damage or poison consequences."""
     kind = rng.choice((3, 4)) if chest else 0 if pit else rng.randrange(5)
     detection = "Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. "
     if kind == 0:
@@ -340,6 +391,11 @@ def trap_description(rng: random.Random, pit: bool = False, chest: bool = False,
             "Falling stone: a pressure plate drops masonry on the entrant. "
             "ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll."
         )
+    return detection + _poison_trap(rng, kind, chest, debug)
+
+
+def _poison_trap(rng, kind, chest, debug):
+    """Describe needle or gas delivery and its rolled poison onset and duration."""
     effect = rng.choice(("sleep", "paralysis", "deadly"))
     if debug is not None:
         debug.append("Poison trap: {}; effect {}".format("needle" if kind == 3 else "gas", effect))
@@ -357,7 +413,7 @@ def trap_description(rng: random.Random, pit: bool = False, chest: bool = False,
         "Poison gas: opening the chest vents gas around the opener; " if chest else
         "Poison gas: a pressure plate vents gas into the entrant's square; "
     )
-    return detection + delivery + (
+    return delivery + (
         "ST 23 (CON / PSN-{}) prevents poisoning; failure causes {}. "
         "No separate wound damage. Sleeping victims cannot be roused; paralyzed "
         "victims remain aware but cannot act."
@@ -378,6 +434,8 @@ class EncounterArea:
     chest_trap: Optional[str] = None
     chest_locked: Optional[bool] = None
     notes: Tuple[str, ...] = ()
+    puzzle_items: Tuple[str, ...] = ()
+    puzzle_reward: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -390,6 +448,7 @@ class EncounterLevel:
 
     @property
     def labels(self) -> Dict[Cell, str]:
+        """Map each stocked chamber's label cell to its printed encounter number."""
         return {area.cell: str(area.number) for area in self.areas}
 
 
@@ -419,10 +478,39 @@ def treasure_value(area: EncounterArea) -> Tuple[int, int, Decimal]:
     return permanent, consumable, money
 
 
+def _chamber_cell(level, cells, number):
+    """Choose labelable floor nearest the chamber centroid, preferring no trap."""
+    cx = sum(x for x, y in cells) / len(cells)
+    cy = sum(y for x, y in cells) / len(cells)
+    floor = [cell for cell in cells if level.grid.tile(*cell) in " .T"]
+    if not floor:
+        raise ValueError("chamber {} has no labelable floor".format(number))
+    return min(floor, key=lambda p: (
+        level.grid.tile(*p) not in " .", (p[0] - cx) ** 2 + (p[1] - cy) ** 2, p,
+    ))
+
+
+def _stock_container(loot, container_rng, lock_rng, chest_dc, trap_dc, lock_dc, debug):
+    """Choose a cache container and independently roll chest traps and locks."""
+    container, chest_trap, chest_locked = None, None, None
+    if loot and loot != ("None.",):
+        chest_roll = _basic(container_rng, debug, "Treasure chest (DC {})".format(chest_dc))
+        if chest_roll >= chest_dc:
+            container = "chest"
+            trap_roll = _basic(container_rng, debug, "Chest trap (DC {})".format(trap_dc))
+            if trap_roll >= trap_dc:
+                chest_trap = trap_description(container_rng, chest=True, debug=debug)
+            chest_locked = _basic(lock_rng, debug, "Chest lock (DC {})".format(lock_dc)) >= lock_dc
+        else:
+            container = container_rng.choice(("bag", "pack"))
+    return container, chest_trap, chest_locked
+
+
 def generate_encounters(dungeon: "GeneratedDungeon", encounter_chance: int = 11,
                         rules: Optional[EncounterRules] = None, *,
                         treasure_chest_dc: int = 17, chest_trap_dc: int = 19,
                         chest_lock_dc: int = 17, start_level: int = 1) -> Tuple[EncounterLevel, ...]:
+    """Stock each retained chamber and key explicit traps and hidden doors."""
     if isinstance(start_level, bool) or not isinstance(start_level, int) or start_level < 1:
         raise ValueError("start_level must be a positive integer")
     for name, value, maximum in (("encounter_chance", encounter_chance, 33),
@@ -442,50 +530,73 @@ def generate_encounters(dungeon: "GeneratedDungeon", encounter_chance: int = 11,
             raise ValueError("encounter generation requires retained chamber footprints")
         areas = []
         for number, cells in enumerate(level.room_cells, 1):
-            cx = sum(x for x, y in cells) / len(cells)
-            cy = sum(y for x, y in cells) / len(cells)
-            floor = [cell for cell in cells if level.grid.tile(*cell) in " .TP"]
-            if not floor:
-                raise ValueError("chamber {} has no labelable floor".format(number))
-            cell = min(floor, key=lambda p: (
-                level.grid.tile(*p) not in " .", (p[0] - cx) ** 2 + (p[1] - cy) ** 2, p,
-            ))
+            cell = _chamber_cell(level, cells, number)
             presence = basic_roll(rng)
             roll = basic_roll(rng) if presence >= encounter_chance else None
             debug = []
             monster = monster_encounter(rules, rng, depth, roll, debug) if roll is not None else None
             loot = treasure(rules, rng, depth, monster, debug)
-            explicit = any(level.grid.tile(*p) in "TP" for p in cells)
-            trap = "See the explicit T/P trap key below." if explicit else (
+            explicit = any(level.grid.tile(*p) == "T" for p in cells)
+            trap = "See the explicit T trap key below." if explicit else (
                 trap_description(rng) if basic_roll(rng) >= 23 else "None."
             )
-            container, chest_trap, chest_locked = None, None, None
-            if loot and loot != ("None.",):
-                chest_roll = _basic(container_rng, debug, "Treasure chest (DC {})".format(treasure_chest_dc))
-                if chest_roll >= treasure_chest_dc:
-                    container = "chest"
-                    trap_roll = _basic(container_rng, debug, "Chest trap (DC {})".format(chest_trap_dc))
-                    if trap_roll >= chest_trap_dc:
-                        chest_trap = trap_description(container_rng, chest=True, debug=debug)
-                    chest_locked = _basic(lock_rng, debug, "Chest lock (DC {})".format(chest_lock_dc)) >= chest_lock_dc
-                else:
-                    container = container_rng.choice(("bag", "pack"))
+            container, chest_trap, chest_locked = _stock_container(
+                loot, container_rng, lock_rng, treasure_chest_dc, chest_trap_dc, chest_lock_dc, debug,
+            )
             areas.append(EncounterArea(number, cell, presence, roll, monster, loot, trap,
                                        tuple(debug), container, chest_trap, chest_locked))
         traps, doors = [], []
         for y, row in enumerate(level.grid.rows):
             for x, tile in enumerate(row):
-                if tile in "TP":
-                    traps.append(((x, y), trap_description(rng, pit=tile == "P")))
-                elif tile in "SC":
-                    doors.append(((x, y), "Secret" if tile == "S" else "Concealed",
-                                  20 if tile == "S" else 17))
+                if tile == "T":
+                    traps.append(((x, y), trap_description(rng)))
+                elif tile in "XC":
+                    doors.append(((x, y), "Secret" if tile == "X" else "Concealed",
+                                  20 if tile == "X" else 17))
         levels.append(EncounterLevel(number_areas(areas), tuple(traps), tuple(doors)))
     return tuple(levels)
 
 
+def _area_document(area: EncounterArea) -> List[str]:
+    """Format a chamber's occupants, physical loot, traps, puzzle prize, and notes."""
+    loot = [item for item in area.treasure
+            if item not in ("None.", "Gems/jewelry: none.", "Magic: none.",
+                            "Lair cache in this chamber.", "Abandoned chamber cache.",
+                            "Dragon hoard.")]
+    loot.extend(area.puzzle_items)
+    has_trap = bool(area.trap) and area.trap != "None."
+    lines = ["", "### {}".format(area.number), ""]
+    if (not area.monster and not loot and not has_trap and not area.chest_trap
+            and not area.notes and not area.puzzle_reward):
+        lines.append("Empty")
+        return lines
+    if area.monster:
+        lines.append("**Encounter:** {}.".format(area.monster.description))
+    if loot:
+        lines.extend(["", "**Treasure:**"])
+        if area.container:
+            container = area.container
+            if container == "chest" and area.chest_locked is not None:
+                container = "locked chest" if area.chest_locked else "unlocked chest"
+            lines.append("- {}.".format(container.capitalize()))
+        lines.extend("- " + item for item in loot)
+    elif area.monster:
+        lines.extend(["", "**Treasure:** None."])
+    if has_trap:
+        lines.extend(["", "**Trap:** " + area.trap])
+    if area.chest_trap:
+        lines.extend(["", "**Chest trap:** " + area.chest_trap])
+    if area.puzzle_reward:
+        lines.extend(["", "**Puzzle reward (released only when solved):**"])
+        lines.extend("- " + item for item in area.puzzle_reward)
+    for note in area.notes:
+        lines.extend(["", note])
+    return lines
+
+
 def encounter_document(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel, ...],
                        encounter_chance: int) -> str:
+    """Render the complete Markdown encounter key using map-matched area numbers."""
     if len(levels) != len(dungeon.levels):
         raise ValueError("encounter key must include every dungeon level")
     lines = [
@@ -500,35 +611,9 @@ def encounter_document(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel
             lines.extend(["", "### Puzzle-linked stairways", ""])
             lines.extend(contents.stair_notes)
         for area in contents.areas:
-            loot = [item for item in area.treasure
-                    if item not in ("None.", "Gems/jewelry: none.", "Magic: none.",
-                                    "Lair cache in this chamber.", "Abandoned chamber cache.",
-                                    "Dragon hoard.")]
-            has_trap = bool(area.trap) and area.trap != "None."
-            lines.extend(["", "### {}".format(area.number), ""])
-            if not area.monster and not loot and not has_trap and not area.chest_trap and not area.notes:
-                lines.append("Empty")
-                continue
-            if area.monster:
-                lines.append("**Encounter:** {}.".format(area.monster.description))
-            if loot:
-                lines.extend(["", "**Treasure:**"])
-                if area.container:
-                    container = area.container
-                    if container == "chest" and area.chest_locked is not None:
-                        container = "locked chest" if area.chest_locked else "unlocked chest"
-                    lines.append("- {}.".format(container.capitalize()))
-                lines.extend("- " + item for item in loot)
-            elif area.monster:
-                lines.extend(["", "**Treasure:** None."])
-            if has_trap:
-                lines.extend(["", "**Trap:** " + area.trap])
-            if area.chest_trap:
-                lines.extend(["", "**Chest trap:** " + area.chest_trap])
-            for note in area.notes:
-                lines.extend(["", note])
+            lines.extend(_area_document(area))
         if contents.traps:
-            lines.extend(["", "### Explicit map traps (T/P)", ""])
+            lines.extend(["", "### Explicit map traps (T)", ""])
             lines.extend("- Column {}, row {}: {}".format(cell[0] + 1, cell[1] + 1, description)
                          for cell, description in contents.traps)
         if contents.doors:
@@ -540,6 +625,7 @@ def encounter_document(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel
 
 def encounter_log(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel, ...],
                   encounter_chance: int) -> str:
+    """Render the TM-only generation rolls, rulings, and final encounter results."""
     if len(levels) != len(dungeon.levels):
         raise ValueError("encounter log must include every dungeon level")
     lines = [
@@ -566,6 +652,8 @@ def encounter_log(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel, ...
             lines.extend(area.notes)
             lines.append("Encounter result: " + (area.monster.description if area.monster else "No monster"))
             lines.extend("Treasure result: " + item for item in area.treasure)
+            lines.extend("Puzzle item: " + item for item in area.puzzle_items)
+            lines.extend("Puzzle reward: " + item for item in area.puzzle_reward)
             if area.container:
                 lines.append("Treasure container: " + area.container)
             if area.container == "chest":

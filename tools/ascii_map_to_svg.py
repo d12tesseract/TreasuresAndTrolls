@@ -10,6 +10,7 @@ from dungeon_render import svg_document
 
 
 def main() -> None:
+    """Read an ASCII map and write SVG without overwriting the source."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path, help="ASCII map text file (spaces are floor)")
     parser.add_argument("--output", type=Path, help="SVG destination (default: input stem.svg)")

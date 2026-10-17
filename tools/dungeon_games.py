@@ -6,6 +6,7 @@ from typing import Iterable, Optional, Tuple
 
 
 def field(body: str, name: str) -> str:
+    """Read a required single-line Markdown field from a strategy puzzle."""
     match = re.search(r"(?m)^\*\*" + re.escape(name) + r":\*\* (.+)$", body)
     if match is None:
         raise ValueError("strategy puzzle is missing {}".format(name))
@@ -13,6 +14,7 @@ def field(body: str, name: str) -> str:
 
 
 def block(body: str, name: str) -> Tuple[str, ...]:
+    """Read the lines of a required fenced Markdown field."""
     match = re.search(
         r"(?ms)^\*\*" + re.escape(name) + r":\*\*\s*\n```[^\n]*\n(.*?)\n```", body,
     )
@@ -22,6 +24,7 @@ def block(body: str, name: str) -> Tuple[str, ...]:
 
 
 def starting_piles(body: str, name: str = "Starting piles") -> Tuple[int, ...]:
+    """Parse a puzzle's comma-separated nonnegative pile sizes."""
     text = field(body, name)
     if not re.fullmatch(r"\d+(?:, \d+)+", text):
         raise ValueError("starting piles must be comma-separated nonnegative integers")
@@ -29,6 +32,7 @@ def starting_piles(body: str, name: str = "Starting piles") -> Tuple[int, ...]:
 
 
 def nim_sum(piles: Iterable[int]) -> int:
+    """Validate pile sizes and compute their bitwise exclusive-or."""
     total = 0
     for pile in piles:
         if isinstance(pile, bool) or not isinstance(pile, int) or pile < 0:
@@ -38,6 +42,7 @@ def nim_sum(piles: Iterable[int]) -> int:
 
 
 def nim_winning_move(piles: Tuple[int, ...]) -> Optional[Tuple[int, int]]:
+    """Return the first pile reduction that leaves a zero Nim sum, if any."""
     total = nim_sum(piles)
     for index, pile in enumerate(piles):
         reduced = pile ^ total
@@ -47,6 +52,7 @@ def nim_winning_move(piles: Tuple[int, ...]) -> Optional[Tuple[int, int]]:
 
 
 def wythoff_moves(piles: Tuple[int, int]) -> Tuple[Tuple[int, int], ...]:
+    """Enumerate removals from one pile or equal removals from both piles."""
     first, second = piles
     return tuple(
         [(value, second) for value in range(first)]
@@ -57,10 +63,12 @@ def wythoff_moves(piles: Tuple[int, int]) -> Tuple[Tuple[int, int], ...]:
 
 @lru_cache(maxsize=None)
 def wythoff_winning(piles: Tuple[int, int]) -> bool:
+    """Determine whether a Wythoff position has a move to a losing position."""
     return any(not wythoff_winning(after) for after in wythoff_moves(piles))
 
 
 def chomp_moves(rows: Tuple[int, ...]) -> Tuple[Tuple[int, ...], ...]:
+    """Enumerate Chomp bites that avoid the poisoned lower-left square."""
     return tuple(
         tuple(length if index < row else min(length, column)
               for index, length in enumerate(rows))
@@ -71,6 +79,7 @@ def chomp_moves(rows: Tuple[int, ...]) -> Tuple[Tuple[int, ...], ...]:
 
 @lru_cache(maxsize=None)
 def chomp_winning(rows: Tuple[int, ...]) -> bool:
+    """Determine whether a safe Chomp bite leaves a losing position."""
     # Biting the marked lower-left square loses immediately; only safe moves
     # are searched. With that square alone, the player to move has lost.
     return any(not chomp_winning(after) for after in chomp_moves(rows))
@@ -80,12 +89,14 @@ GoBoard = Tuple[str, ...]
 
 
 def _validate_go_board(board: GoBoard, color: str) -> None:
+    """Reject unsupported Go board sizes, cell symbols, or player colors."""
     if (color not in ("B", "W") or not 2 <= len(board) <= 26
             or any(len(row) != len(board) or set(row) - set(".BW") for row in board)):
         raise ValueError("Go requires a square .BW board and a B/W player")
 
 
 def go_cell(board: GoBoard, coordinate: str) -> Tuple[int, int]:
+    """Convert a validated Go coordinate to a zero-based board cell."""
     size = len(board)
     if (not re.fullmatch(r"[A-Z][1-9]\d*", coordinate)
             or not 0 <= ord(coordinate[0]) - ord("A") < size
@@ -95,11 +106,13 @@ def go_cell(board: GoBoard, coordinate: str) -> Tuple[int, int]:
 
 
 def _neighbors(size, x, y):
+    """Return the orthogonal neighbors that remain inside a square board."""
     return tuple((nx, ny) for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1))
                  if 0 <= nx < size and 0 <= ny < size)
 
 
 def go_group(board: GoBoard, cell: Tuple[int, int]):
+    """Flood a Go stone's connected group and collect its adjacent liberties."""
     x, y = cell
     color = board[y][x]
     if color not in "BW":
@@ -120,6 +133,7 @@ def go_group(board: GoBoard, cell: Tuple[int, int]):
 def go_play(
     board: GoBoard, coordinate: str, color: str, history: Tuple[GoBoard, ...] = (),
 ) -> GoBoard:
+    """Play a Go move, applying captures and rejecting suicide or superko."""
     _validate_go_board(board, color)
     if coordinate == "pass":
         return board
@@ -145,6 +159,7 @@ def go_play(
 
 
 def go_legal_moves(board: GoBoard, color: str, history: Tuple[GoBoard, ...] = ()):
+    """Yield legal coordinate/result pairs followed by the always-legal pass."""
     _validate_go_board(board, color)
     for y, row in enumerate(board):
         for x, tile in enumerate(row):
@@ -161,6 +176,7 @@ def go_legal_moves(board: GoBoard, color: str, history: Tuple[GoBoard, ...] = ()
 
 
 def validate_go_ladder(board: GoBoard, target: str, line: Tuple[str, ...], budget: int) -> None:
+    """Verify a forced Go capture and all off-line defenses within its budget."""
     _validate_go_board(board, "B")
     cell = go_cell(board, target)
     tx, ty = cell
@@ -198,6 +214,7 @@ def validate_go_ladder(board: GoBoard, target: str, line: Tuple[str, ...], budge
 
 
 def validate_strategy_game(body: str) -> None:
+    """Check each supported game's starting position and claimed solution."""
     game = field(body, "Game")
     if game == "Normal-play Nim":
         piles = starting_piles(body)

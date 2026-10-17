@@ -21,17 +21,8 @@ RED = (255, 0, 0)
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 
 
-def svg_document(
-    image: Image.Image,
-    feet_per_pixel: float = 10,
-    feet_per_inch: float = 50,
-    line_width: float = 0.01,
-) -> str:
-    """Outline white pixels, excluding shared white/red and white/white edges.
-
-    Other colors are non-empty space. Image borders are outlined. Coordinates
-    are in pixel units, with a half-stroke margin to prevent border clipping.
-    """
+def _svg_dimensions(image, feet_per_pixel, feet_per_inch, line_width):
+    """Validate physical scaling and return stroke and canvas dimensions."""
     for name, value in (
         ("feet_per_pixel", feet_per_pixel),
         ("feet_per_inch", feet_per_inch),
@@ -52,7 +43,11 @@ def svg_document(
         for value in (stroke, physical_width, physical_height)
     ):
         raise ValueError("SVG dimensions are outside the supported numeric range")
+    return stroke, width, height, physical_width, physical_height
 
+
+def _svg_root(stroke, width, height, physical_width, physical_height):
+    """Create a scaled SVG canvas with a half-stroke border margin."""
     root = ET.Element(
         "svg",
         {
@@ -65,6 +60,11 @@ def svg_document(
             ),
         },
     )
+    return root
+
+
+def _outline_pixels(root, image, width, height, stroke):
+    """Append white-pixel boundaries in row, column, and edge order."""
     rgb = image.convert("RGB")
     pixels = rgb.load()
     for y in range(height):
@@ -98,6 +98,22 @@ def svg_document(
                     },
                 )
 
+
+def svg_document(
+    image: Image.Image,
+    feet_per_pixel: float = 10,
+    feet_per_inch: float = 50,
+    line_width: float = 0.01,
+) -> str:
+    """Outline white pixels, excluding shared white/red and white/white edges.
+
+    Other colors are non-empty space. Image borders are outlined. Coordinates
+    are in pixel units, with a half-stroke margin to prevent border clipping.
+    """
+    dimensions = _svg_dimensions(image, feet_per_pixel, feet_per_inch, line_width)
+    stroke, width, height, physical_width, physical_height = dimensions
+    root = _svg_root(stroke, width, height, physical_width, physical_height)
+    _outline_pixels(root, image, width, height, stroke)
     root.text = "\n  " if len(root) else "\n"
     for line in root:
         line.tail = "\n  "
