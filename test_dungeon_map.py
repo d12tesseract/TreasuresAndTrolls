@@ -1,0 +1,2314 @@
+import math
+import random
+import re
+import subprocess
+import sys
+import tempfile
+import unittest
+import xml.etree.ElementTree as ET
+from collections import Counter
+from dataclasses import replace
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+from dungeon_geometry import clear_invalid_diagonals, reachable_cells
+from dungeon_passages import HEADINGS, _cavern_path, _passage_cells, _segment_steps
+from dungeon_encounters import (
+    EncounterRules,
+    MonsterEncounter,
+    basic_roll,
+    encounter_document,
+    encounter_log,
+    generate_encounters,
+    magic_item,
+    monster_encounter,
+    trap_description,
+    treasure,
+)
+
+from dungeon_map import (
+    DungeonMap,
+    GeneratedDungeon,
+    GenerationOptions,
+    Stairway,
+    generate_dungeon,
+    is_connected,
+    parse_ascii,
+    render_rows,
+    svg_document,
+    validate_map,
+    _meander_path,
+    _path,
+    _place_stairways,
+    _Corridor,
+    _Room,
+    _prune_unreachable,
+    _rebuild_layout,
+    _reroute_corridors,
+    _terrain,
+    _attachment_route,
+    _connect_rooms,
+    _place_rooms,
+    _room_branch,
+    _room_passage,
+    _validate_network,
+    _buffer,
+)
+
+
+NS = {"s": "http://www.w3.org/2000/svg"}
+HERE = Path(__file__).resolve().parent
+
+
+def xml(grid, **options):
+    """Parse rendered map SVG into an element tree for geometry assertions."""
+    return ET.fromstring(svg_document(grid, **options))
+
+
+def walls(root):
+    """Return the SVG wall segments in document order."""
+    return root.findall("s:g[@id='walls']/s:line", NS)
+
+
+def endpoints(line):
+    """Read a wall segment's start and end as floating-point coordinate pairs."""
+    return (
+        (float(line.attrib["x1"]), float(line.attrib["y1"])),
+        (float(line.attrib["x2"]), float(line.attrib["y2"])),
+    )
+
+
+def door_map(symbol="D", horizontal=False):
+    """Build a valid mixed-terrain doorway fixture, optionally transposing its axis."""
+    rows = ["#####", "## ##", "##{}##".format(symbol), "##.##", "#####"]
+    if horizontal:
+        rows = ["".join(row) for row in zip(*rows)]
+    return DungeonMap(tuple(rows))
+
+
+class InputTests(unittest.TestCase):
+    def test_reachable_cells_respect_closed_gates_and_invalid_starts(self):
+        """Closed gates stop traversal and blocked or out-of-bounds starts reach nothing."""
+        grid = parse_ascii("#######\n#  D  #\n#######\n")
+        self.assertEqual(reachable_cells(grid, (1, 1)), {(x, 1) for x in range(1, 6)})
+        self.assertEqual(reachable_cells(grid, (1, 1), {(3, 1)}), {(1, 1), (2, 1)})
+        for start in ((0, 0), (-1, 1), (7, 1), (3, 1)):
+            with self.subTest(start=start):
+                self.assertEqual(reachable_cells(grid, start, {(3, 1)}), set())
+
+    def test_reachable_cells_respect_partition_and_diagonal_geometry(self):
+        """Reachability follows partition and diagonal openings without crossing walls."""
+        partition = DungeonMap((" L", "  "))
+        validate_map(partition)
+        self.assertEqual(reachable_cells(partition, (0, 0)), {(0, 0), (0, 1), (1, 1)})
+        self.assertEqual(reachable_cells(partition, (1, 0)), {(1, 0)})
+        diagonal = DungeonMap(("# #", "#\\ ", "###"))
+        validate_map(diagonal)
+        self.assertEqual(reachable_cells(diagonal, (1, 0)), {(1, 0), (1, 1), (2, 1)})
+        self.assertEqual(reachable_cells(diagonal, (1, 0), {(1, 1)}), {(1, 0)})
+
+    def test_spaces_padding_and_newline_roundtrip(self):
+        """ASCII parsing preserves floor spaces and normalizes padding and newlines."""
+        grid = parse_ascii("  # \r\n.\r\n\r\n###\r\n")
+        self.assertEqual(grid.rows, ("  # ", ".###", "####", "####"))
+        self.assertEqual(parse_ascii(grid.to_ascii()), grid)
+        self.assertEqual(parse_ascii(" "), DungeonMap((" ",)))
+        self.assertEqual(parse_ascii(" \n\n").rows, (" ", "#"))
+
+    def test_invalid_characters_and_empty_input(self):
+        """Reject empty maps and unsupported characters with accurate source locations."""
+        for text in ("", "\n", "\t", "#\r#", "#P#", "#U#", "#I#", "\u00e9"):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                parse_ascii(text)
+        with self.assertRaisesRegex(ValueError, "row 2, column 2"):
+            parse_ascii("###\n#?")
+
+    def test_all_diagonal_orientations(self):
+        """Every valid diagonal orientation connects floor and renders its expected wall."""
+        examples = (
+            ("\\", (" ", " ", "#", "#")),
+            ("\\", ("#", "#", " ", " ")),
+            ("/", (" ", "#", "#", " ")),
+            ("/", ("#", " ", " ", "#")),
+        )
+        for symbol, (north, east, south, west) in examples:
+            with self.subTest(symbol=symbol, north=north, west=west):
+                grid = DungeonMap((
+                    "#" + north + "#", west + symbol + east, "#" + south + "#",
+                ))
+                validate_map(grid)
+                self.assertTrue(is_connected(grid))
+                expected = (
+                    ((1, 1), (2, 2)) if symbol == "\\"
+                    else ((1, 2), (2, 1))
+                )
+                self.assertIn(expected, [endpoints(line) for line in walls(xml(grid))])
+                self.assertEqual(len(walls(xml(grid))), 7)
+
+    def test_reject_invalid_diagonals(self):
+        """Reject diagonal tiles without the required opposing floor and stone sides."""
+        for rows in (
+            ("#.#", "#\\T", "###"),
+            ("###", "#\\ ", "###"),
+            ("###", "#\\#", "###"),
+        ):
+            with self.subTest(rows=rows), self.assertRaisesRegex(ValueError, "diagonal"):
+                validate_map(DungeonMap(rows))
+
+    def test_natural_and_mixed_diagonal_terrain_is_walkable(self):
+        """Natural and mixed diagonals stay connected and inherit the correct texture."""
+        for rows, rough in (
+            (("#.#", "#\\.", "###"), True),
+            (("# #", "#\\.", "###"), False),
+        ):
+            with self.subTest(rows=rows):
+                grid = DungeonMap(rows)
+                validate_map(grid)
+                self.assertTrue(is_connected(grid))
+                root = xml(grid, roughness=0, corner_radius=0)
+                diagonal = [line for line in walls(root)
+                            if endpoints(line) == ((1, 1), (2, 2))]
+                self.assertEqual(len(diagonal), 1)
+                self.assertEqual(diagonal[0].get("data-texture"), "rough" if rough else "smooth")
+
+    def test_generated_connections_clear_only_invalid_diagonals(self):
+        """Connecting passages clear invalid diagonals while preserving valid neighbors."""
+        rows = [list(row) for row in ("#######", "#.##.##", "#\\.#\\.#", "#######")]
+        rows[2][0] = "."
+        clear_invalid_diagonals(rows)
+        self.assertEqual(rows[2][1], " ")
+        self.assertEqual(rows[2][4], "\\")
+        grid = DungeonMap(tuple("".join(row) for row in rows))
+        validate_map(grid)
+        self.assertEqual(reachable_cells(grid, (0, 2)), {(0, 2), (1, 2), (1, 1), (2, 2)})
+
+    def test_doors_accept_both_axes_and_mixed_terrain(self):
+        """All door types validate on either axis between mixed floor terrains."""
+        for symbol in "DXC":
+            for horizontal in (False, True):
+                with self.subTest(symbol=symbol, horizontal=horizontal):
+                    validate_map(door_map(symbol, horizontal))
+
+    def test_reject_door_junctions_rough_sides_and_feature_neighbors(self):
+        """Reject doors at junctions, against rough sides, or beside incompatible features."""
+        for rows in (
+            ("# #", " D ", "# #"),
+            ("# #", ".D#", "# #"),
+            ("#T#", "#D#", "# #"),
+            ("###", "#D#", "###"),
+            ("###", "#X#", "# #"),
+            ("# #", "#C#", "###"),
+        ):
+            with self.subTest(rows=rows), self.assertRaisesRegex(ValueError, "door"):
+                validate_map(DungeonMap(rows))
+
+    def test_partition_adjacency(self):
+        """Partitions require their supported adjacent floor arrangement."""
+        for rows in ((" |",), ("_", " "), (" L", "# ")):
+            validate_map(DungeonMap(rows))
+        for rows in (("#|",), ("_", "."), (" L", "##"), ("#L", "# ")):
+            with self.subTest(rows=rows), self.assertRaisesRegex(ValueError, "partition"):
+                validate_map(DungeonMap(rows))
+
+    def test_two_open_diagonal_sides_do_not_connect_across_wall(self):
+        """Diagonal walls separate opposite openings unless another route connects them."""
+        for tile, first, second in (("\\", (1, 0), (0, 1)), ("/", (1, 0), (2, 1))):
+            grid = DungeonMap(("# #", " " + tile + " ", "# #"))
+            validate_map(grid)
+            reached = reachable_cells(grid, first)
+            self.assertIn((1, 1), reached)
+            self.assertNotIn(second, reached)
+            self.assertNotIn(second, reachable_cells(grid, (1, 1)))
+            self.assertFalse(is_connected(grid))
+        around = DungeonMap(("   ", " \\ ", "   "))
+        self.assertTrue(is_connected(around))
+
+    def test_void_is_not_floor_or_stone_and_does_not_block_connections(self):
+        """Void permits traversal between floors but alone does not form a connected map."""
+        grid = DungeonMap(("#####", "# ~ #", "#####"))
+        self.assertTrue(is_connected(grid))
+        self.assertIn((3, 1), reachable_cells(grid, (1, 1)))
+        self.assertFalse(is_connected(DungeonMap(("~~~",))))
+
+    def test_shared_edge_doors_and_partition_doors_validate(self):
+        """Shared-edge and partition doors validate only with complete floor support."""
+        for rows in (("dd",), ("d", "d"), (" l",), ("m", " "), (" n", "  ")):
+            grid = DungeonMap(rows)
+            validate_map(grid)
+            self.assertTrue(is_connected(grid))
+        for rows in (("d",), ("ddd",), ("dd", "d "), ("#l",), ("m", "#"),
+                     (" n", " #")):
+            with self.subTest(rows=rows), self.assertRaisesRegex(ValueError, "door"):
+                validate_map(DungeonMap(rows))
+
+    def test_spiral_footprints_and_literal_corner_landings(self):
+        """Spiral footprints validate with supported sizes and literal corner landings."""
+        for size in (2, 3, 4):
+            for tile in "SsZ":
+                for corner in ("NW", "NE", "SW", "SE"):
+                    with self.subTest(size=size, tile=tile, corner=corner):
+                        run = Stairway.spiral_at(1, 1, size, tile, corner)
+                        rows = [["#"] * (size + 2) for _ in range(size + 2)]
+                        run.paint(rows)
+                        grid = DungeonMap(tuple("".join(row) for row in rows))
+                        validate_map(grid)
+                        self.assertTrue(is_connected(grid))
+                        self.assertEqual(len(run.clearance), size * size)
+                        self.assertEqual(grid.tile(*run.entrance), " ")
+                        self.assertTrue(run.spiral)
+                        if size == 3:
+                            rows[2][2] = " "
+                            validate_map(DungeonMap(tuple("".join(row) for row in rows)))
+                        rows[run.entrance[1]][run.entrance[0]] = "."
+                        with self.assertRaisesRegex(ValueError, "spiral"):
+                            validate_map(DungeonMap(tuple("".join(row) for row in rows)))
+        with self.assertRaisesRegex(ValueError, "spiral"):
+            validate_map(DungeonMap(("S",)))
+
+
+class RenderingTests(unittest.TestCase):
+    def test_void_has_no_perimeter_walls(self):
+        """Void cells render without artificial perimeter walls."""
+        self.assertEqual(walls(xml(DungeonMap(("~~~", "~ ~", "~~~")))), [])
+        grid = DungeonMap(("#####", "# ~ #", "#####"))
+        lines = [endpoints(line) for line in walls(xml(grid))]
+        self.assertNotIn(((2, 1), (2, 2)), lines)
+        self.assertNotIn(((3, 1), (3, 2)), lines)
+
+    def test_void_clips_wall_strokes_and_symbols_without_clipping_outer_margin(self):
+        """Void clips wall strokes and symbols without clipping the map's outer margin."""
+        grid = DungeonMap(("..~", "#T.", "###"))
+        root = xml(grid, roughness=0.2, corner_radius=0.5)
+        clip = root.find("s:defs/s:clipPath[@id='non-void']/s:path", NS)
+        self.assertIsNotNone(clip)
+        self.assertEqual(clip.get("clip-rule"), "evenodd")
+        outer, hole = clip.get("d").split(" Z")[:2]
+        self.assertEqual(outer, "M -0.05 -0.05 H 3.05 V 3.05 H -0.05")
+        self.assertEqual(hole.strip(), "M 2 0 h 1 v 1 h -1")
+        for group in ("walls", "features"):
+            self.assertEqual(root.find("s:g[@id='{}']".format(group), NS).get("clip-path"),
+                             "url(#non-void)")
+        self.assertIsNone(xml(DungeonMap((" ",))).find("s:defs", NS))
+
+    def test_doors_are_centered_on_shared_edges(self):
+        """Door symbols are centered on their shared grid edges."""
+        for rows, transform in ((("dd",), "translate(1 0) rotate(90)"),
+                                (("d", "d"), "translate(0 1)")):
+            root = xml(DungeonMap(rows))
+            groups = root.findall(".//s:g[@data-tile='d']", NS)
+            self.assertEqual(len(groups), 1)
+            self.assertEqual(groups[0].find("s:g", NS).get("transform"), transform)
+            rectangle = groups[0].find(".//s:rect", NS)
+            self.assertEqual((rectangle.get("x"), rectangle.get("y"),
+                              rectangle.get("width"), rectangle.get("height")),
+                             ("0.15", "-0.12", "0.7", "0.24"))
+        root = xml(DungeonMap((" n", "  ")))
+        self.assertEqual(len(root.findall(".//s:g[@data-tile='n']//s:rect", NS)), 2)
+        self.assertEqual(len(walls(root)), 8)
+
+    def test_spiral_circle_diameter_and_arrow_directions(self):
+        """Spiral circles fit their footprints and arrows distinguish ascent from descent."""
+        for size in (2, 3, 4):
+            for tile, expected in (("S", ["up"]), ("s", ["down"]), ("Z", ["up", "down"])):
+                for corner in ("NW", "NE", "SW", "SE"):
+                    with self.subTest(size=size, tile=tile, corner=corner):
+                        run = Stairway.spiral_at(1, 1, size, tile, corner)
+                        rows = [["#"] * (size + 2) for _ in range(size + 2)]
+                        run.paint(rows)
+                        root = xml(DungeonMap(tuple("".join(row) for row in rows)), player_view=True)
+                        groups = root.findall(".//s:g[@data-spiral='true']", NS)
+                        self.assertEqual(len(groups), 1)
+                        self.assertEqual(groups[0].get("transform"), "translate(1 1)")
+                        circle = groups[0].find(".//s:circle", NS)
+                        self.assertEqual(float(circle.get("r")) * 2, size)
+                        arrows = groups[0].findall(".//s:path[@data-direction]", NS)
+                        self.assertEqual([p.get("data-direction") for p in arrows], expected)
+                        for arrow in arrows:
+                            data = arrow.get("d").split()
+                            upward = arrow.get("data-direction") == "up"
+                            self.assertEqual(data[8], "0" if upward else "1")
+                            start = float(data[1]) - size / 2, float(data[2]) - size / 2
+                            end = float(data[9]) - size / 2, float(data[10]) - size / 2
+                            cross = start[0] * end[1] - start[1] * end[0]
+                            self.assertGreater(-cross if upward else cross, 0)
+                        drawing = groups[0].find("s:g", NS)
+                        arrowheads = drawing.findall("s:line", NS)[-2 * len(expected):]
+                        for line in arrowheads:
+                            for px, py in endpoints(line):
+                                cell = (math.floor(px) + 1, math.floor(py) + 1)
+                                self.assertIn(cell, run.cells)
+
+    def test_stone_spiral_center_is_a_complete_circle_without_square_walls(self):
+        """Outline a three-square spiral's stone center as a circle, not a square."""
+        square = {((2, 2), (3, 2)), ((3, 2), (3, 3)),
+                  ((2, 3), (3, 3)), ((2, 2), (2, 3))}
+        for tile in "SsZ":
+            for corner in ("NW", "NE", "SW", "SE"):
+                with self.subTest(tile=tile, corner=corner):
+                    run = Stairway.spiral_at(1, 1, 3, tile, corner)
+                    rows = [["#"] * 5 for _ in range(5)]
+                    run.paint(rows)
+                    root = xml(DungeonMap(tuple("".join(row) for row in rows)))
+                    center = root.find(".//s:circle[@data-spiral-center='stone']", NS)
+                    self.assertIsNotNone(center)
+                    self.assertEqual((center.get("cx"), center.get("cy"), center.get("r")),
+                                     ("1.5", "1.5", "0.5"))
+                    for wall in walls(root):
+                        self.assertNotIn(tuple(sorted(endpoints(wall))), square)
+
+    def test_open_spiral_center_circle_opens_toward_each_landing(self):
+        """Leave the circular center open toward the landing for every spiral direction."""
+        for tile in "SsZ":
+            for corner in ("NW", "NE", "SW", "SE"):
+                with self.subTest(tile=tile, corner=corner):
+                    run = Stairway.spiral_at(1, 1, 3, tile, corner)
+                    rows = [["#"] * 5 for _ in range(5)]
+                    run.paint(rows)
+                    rows[2][2] = " "
+                    root = xml(DungeonMap(tuple("".join(row) for row in rows)))
+                    group = root.find(".//s:g[@data-spiral='true']", NS)
+                    arc = group.find("s:path[@data-spiral-center='open']", NS)
+                    self.assertIsNotNone(arc)
+                    data = arc.get("d").split()
+                    self.assertNotIn("Z", data)
+                    self.assertEqual(data[4:9], ["0.5", "0.5", "0", "1", "1"])
+                    start = (float(data[1]) - 1.5, float(data[2]) - 1.5)
+                    end = (float(data[9]) - 1.5, float(data[10]) - 1.5)
+                    opening = (start[0] + end[0], start[1] + end[1])
+                    landing = (run.entrance[0] - 2, run.entrance[1] - 2)
+                    self.assertGreater(sum(a * b for a, b in zip(opening, landing)), 0)
+                    self.assertAlmostEqual(opening[0] * landing[1] - opening[1] * landing[0], 0)
+                    for point in (start, end):
+                        self.assertAlmostEqual(math.hypot(*point), 0.5)
+                    for line in group.find("s:g", NS).findall("s:line", NS):
+                        for x, y in endpoints(line):
+                            self.assertGreaterEqual(math.hypot(x - 1.5, y - 1.5), 0.5 - 1e-9)
+
+    def test_smooth_edges_scale_and_array_api(self):
+        """Smooth wall geometry, physical scaling, and array inputs produce valid SVG."""
+        root = ET.fromstring(render_rows(["  "]))
+        lines = walls(root)
+        self.assertEqual(len(lines), 6)
+        self.assertEqual(root.attrib["width"], "0.41in")
+        self.assertEqual(root.attrib["height"], "0.21in")
+        self.assertEqual(root.attrib["viewBox"], "-0.025 -0.025 2.05 1.05")
+        self.assertTrue(all(float(line.attrib["stroke-width"]) == 0.05 for line in lines))
+        self.assertNotIn(((1, 0), (1, 1)), [endpoints(line) for line in lines])
+        scaled = xml(DungeonMap((" ",)), feet_per_pixel=5, feet_per_inch=100, line_width=0.02)
+        self.assertEqual(scaled.attrib["width"], "0.07in")
+        self.assertEqual(float(walls(scaled)[0].attrib["stroke-width"]), 0.4)
+
+    def test_rough_walls_meander_reproducibly_and_stay_bounded(self):
+        """Seeded rough walls meander reproducibly within their allowed bounds."""
+        grid = DungeonMap(("..", ".."))
+        first = svg_document(grid, seed=4)
+        self.assertEqual(first, svg_document(grid, seed=4))
+        self.assertNotEqual(first, svg_document(grid, seed=5))
+        lines = walls(ET.fromstring(first))
+        self.assertGreater(len(lines), 8 * 6)
+        points = [point for line in lines for point in endpoints(line)]
+        self.assertTrue(all(0 <= x <= 2 and 0 <= y <= 2 for x, y in points))
+        self.assertTrue(any(0 < x < 0.12 or 0 < y < 0.12 for x, y in points))
+        self.assertTrue(all(count == 2 for count in Counter(points).values()))
+        self.assertEqual(len(walls(xml(grid, roughness=0))), 8)
+
+    def test_rough_convex_and_concave_corners_are_rounded_not_chamfered(self):
+        """Rough convex and concave corners use rounded curves rather than chamfers."""
+        grid = DungeonMap(("#####", "#..##", "#.###", "#####"))
+        lines = walls(xml(grid, roughness=0, corner_radius=0.35))
+        neighbors = {}
+        for line in lines:
+            first, last = endpoints(line)
+            neighbors.setdefault(first, []).append(last)
+            neighbors.setdefault(last, []).append(first)
+        self.assertTrue(all(len(adjacent) == 2 for adjacent in neighbors.values()))
+        for corner in ((1, 1), (3, 1), (3, 2), (2, 2), (2, 3), (1, 3)):
+            self.assertNotIn(corner, neighbors)
+        for cx, cy in ((1, 1), (2, 2)):
+            arc_points = [
+                point for point in neighbors
+                if cx < point[0] < cx + 0.35 and cy < point[1] < cy + 0.35
+            ]
+            self.assertGreaterEqual(len(arc_points), 4)
+            for point in arc_points:
+                first, last = neighbors[point]
+                incoming = (point[0] - first[0], point[1] - first[1])
+                outgoing = (last[0] - point[0], last[1] - point[1])
+                cosine = sum(a * b for a, b in zip(incoming, outgoing)) / (
+                    math.hypot(*incoming) * math.hypot(*outgoing)
+                )
+                self.assertLess(math.degrees(math.acos(max(-1, min(1, cosine)))), 30)
+        straight = [point for line in walls(xml(grid, roughness=0)) for point in endpoints(line)]
+        self.assertIn((1, 1), straight)
+        self.assertIn((2, 2), straight)
+
+    def test_rounding_preserves_stone_islands_and_corner_contacts(self):
+        """Rounded walls preserve isolated stone and diagonal corner contacts."""
+        for grid in (
+            DungeonMap((".....", ".....", "..#..", ".....", ".....")),
+            DungeonMap((".#", "#.")),
+        ):
+            lines = walls(xml(grid, roughness=0.2))
+            counts = Counter(point for line in lines for point in endpoints(line))
+            self.assertTrue(all(count in (2, 4) for count in counts.values()))
+            self.assertNotIn((2.5, 2.5), counts)
+            self.assertTrue(all(
+                0 <= x <= grid.width and 0 <= y <= grid.height for x, y in counts
+            ))
+        contacts = Counter(
+            point for line in walls(xml(DungeonMap((".#", "#.")))) for point in endpoints(line)
+        )
+        self.assertEqual(contacts[(1, 1)], 4)
+
+    def test_maximum_radius_makes_an_isolated_square_circular(self):
+        """Maximum corner radius turns an isolated square into a circle."""
+        for roughness in (0, 0.12, 0.2):
+            for segments in (2, 6, 16):
+                with self.subTest(roughness=roughness, segments=segments):
+                    root = xml(DungeonMap((".",)), corner_radius=0.5,
+                               roughness=roughness, rough_segments=segments)
+                    lines = walls(root)
+                    points = Counter(point for line in lines for point in endpoints(line))
+                    self.assertTrue(all(count == 2 for count in points.values()))
+                    self.assertTrue({(0, 0.5), (1, 0.5), (0.5, 0), (0.5, 1)} <= set(points))
+                    self.assertEqual(root.attrib["width"], "0.21in")
+                    distances = [math.hypot(x - 0.5, y - 0.5) for x, y in points]
+                    self.assertTrue(all(0 <= x <= 1 and 0 <= y <= 1 for x, y in points))
+                    if roughness:
+                        self.assertTrue(any(abs(distance - 0.5) > 0.01 for distance in distances))
+                        self.assertTrue(all(0.325 - 1e-10 <= distance <= 0.71 for distance in distances))
+                        self.assertNotEqual(
+                            svg_document(DungeonMap((".",)), corner_radius=0.5, seed=1),
+                            svg_document(DungeonMap((".",)), corner_radius=0.5, seed=2),
+                        )
+                    else:
+                        for distance in distances:
+                            self.assertAlmostEqual(distance, 0.5, places=10)
+                    for line in lines:
+                        first, last = endpoints(line)
+                        self.assertNotEqual(first, last)
+                        midpoint = ((first[0] + last[0]) / 2, (first[1] + last[1]) / 2)
+                        if not roughness:
+                            self.assertGreater(math.hypot(midpoint[0] - 0.5, midpoint[1] - 0.5), 0.495)
+
+    def test_maximum_radius_preserves_openings_and_rounds_stone_islands(self):
+        """Maximum-radius rounding preserves passage openings and rounds stone islands."""
+        root = xml(DungeonMap(("..",)), corner_radius=0.5, roughness=0)
+        lines = walls(root)
+        points = Counter(point for line in lines for point in endpoints(line))
+        self.assertTrue(all(count == 2 for count in points.values()))
+        for line in lines:
+            first, last = endpoints(line)
+            self.assertNotEqual(first, last)
+            self.assertFalse(first[0] == last[0] == 1 and first[1] != last[1])
+            for x, y in (first, last):
+                if x < 0.5 or x > 1.5:
+                    cx = 0.5 if x < 0.5 else 1.5
+                    self.assertAlmostEqual(math.hypot(x - cx, y - 0.5), 0.5, places=10)
+                else:
+                    self.assertIn(y, (0, 1))
+        island = xml(DungeonMap((".....", ".....", "..#..", ".....", ".....")),
+                     corner_radius=0.5, roughness=0)
+        inner = [
+            point for line in walls(island) for point in endpoints(line)
+            if 2 <= point[0] <= 3 and 2 <= point[1] <= 3
+        ]
+        self.assertTrue(inner)
+        for x, y in inner:
+            self.assertAlmostEqual(math.hypot(x - 2.5, y - 2.5), 0.5, places=10)
+
+    def test_radius_controls_rounding_independently_of_jitter(self):
+        """Corner radius changes rounding independently of rough-wall jitter."""
+        grid = DungeonMap((".",))
+        automatic = [point for line in walls(xml(grid, roughness=0)) for point in endpoints(line)]
+        unrounded = [
+            point for line in walls(xml(grid, roughness=0.12, corner_radius=0))
+            for point in endpoints(line)
+        ]
+        rounded = [
+            point for line in walls(xml(grid, roughness=0, corner_radius=0.25))
+            for point in endpoints(line)
+        ]
+        self.assertIn((0, 0), automatic)
+        self.assertIn((0, 0), unrounded)
+        self.assertNotIn((0, 0), rounded)
+        self.assertIn((0.25, 0), rounded)
+        self.assertIn((0, 0.25), rounded)
+        self.assertEqual(svg_document(grid), svg_document(grid, corner_radius=0.35))
+        smooth = DungeonMap(("# #", "#\\ ", "###"))
+        self.assertEqual(svg_document(smooth), svg_document(smooth, corner_radius=0.5))
+        near_maximum = walls(xml(grid, roughness=0.2, corner_radius=0.499, seed=4))
+        for line in near_maximum:
+            self.assertNotEqual(*endpoints(line))
+            for x, y in endpoints(line):
+                if 0.499 <= x <= 0.501 or 0.499 <= y <= 0.501:
+                    self.assertLess(abs(math.hypot(x - 0.5, y - 0.5) - 0.5), 0.005)
+
+    def test_rough_internal_wall_offsets_both_sides_of_grid_line(self):
+        """Rough internal walls offset to both sides of their original grid line."""
+        grid = DungeonMap(("#####", "#...#", "#...#", "#####"))
+        points = [
+            point for line in walls(xml(grid, seed=8)) for point in endpoints(line)
+            if 1 < point[0] < 4 and 0.8 <= point[1] <= 1.2
+        ]
+        self.assertTrue(any(y < 1 for x, y in points))
+        self.assertTrue(any(y > 1 for x, y in points))
+
+    def test_rough_smooth_joins_are_connected_and_perpendicular(self):
+        """Rough walls meet smooth walls continuously and at right angles."""
+        for rows in (("#####", "# .##", "#####"),
+                     ("#####", "#  ##", "##.##", "#####")):
+            with self.subTest(rows=rows):
+                lines = walls(xml(DungeonMap(rows), corner_radius=0.5))
+                counts = Counter(point for line in lines for point in endpoints(line))
+                self.assertTrue(all(count == 2 for count in counts.values()), counts)
+                joins = [line for line in lines if line.attrib["data-texture"] == "transition"]
+                self.assertEqual(len(joins), 2)
+                for join in joins:
+                    a, b = endpoints(join)
+                    self.assertAlmostEqual(math.hypot(b[0] - a[0], b[1] - a[1]), 0.12)
+                    smooth = next(
+                        line for line in lines
+                        if line.attrib["data-texture"] == "smooth" and a in endpoints(line)
+                    )
+                    c, d = endpoints(smooth)
+                    dot = (b[0] - a[0]) * (d[0] - c[0]) + (b[1] - a[1]) * (d[1] - c[1])
+                    self.assertAlmostEqual(dot, 0)
+
+    def test_partition_is_drawn_once_and_blocks_connectivity(self):
+        """A partition renders once and blocks traversal across its wall."""
+        grid = DungeonMap((" |",))
+        self.assertEqual(len(walls(xml(grid))), 7)
+        segments = [endpoints(line) for line in walls(xml(grid))]
+        self.assertEqual(segments.count(((1, 0), (1, 1))), 1)
+        self.assertFalse(is_connected(grid))
+        grid = DungeonMap((" L", "# "))
+        self.assertEqual(len(walls(xml(grid))), 10)
+        self.assertFalse(is_connected(grid))
+
+    def test_feature_cluster_inherits_rough_terrain(self):
+        """Feature clusters inherit rough terrain from surrounding natural floor."""
+        rough = xml(DungeonMap(("#####", "#.TT#", "#####")))
+        self.assertTrue(all(line.attrib["data-texture"] == "rough" for line in walls(rough)))
+        mixed = xml(DungeonMap(("######", "#.TT #", "######")))
+        self.assertTrue(any(line.attrib["data-texture"] == "smooth" for line in walls(mixed)))
+        isolated = xml(DungeonMap(("###", "#T#", "###")))
+        self.assertTrue(all(line.attrib["data-texture"] == "smooth" for line in walls(isolated)))
+
+    def test_secret_and_concealed_doors_hidden_as_walls(self):
+        """Player views disguise secret and concealed doors as walls."""
+        for symbol in "XC":
+            for horizontal in (False, True):
+                with self.subTest(symbol=symbol, horizontal=horizontal):
+                    grid = door_map(symbol, horizontal)
+                    gm = xml(grid)
+                    player = xml(grid, player_view=True)
+                    self.assertEqual(len(gm.findall(".//s:g[@data-tile='{}']".format(symbol), NS)), 1)
+                    self.assertEqual(len(player.findall(".//s:text", NS)), 0)
+                    self.assertEqual(len(walls(player)), len(walls(gm)) + 1)
+                    expected = (
+                        ((2.5, 2), (2.5, 3)) if horizontal else ((2, 2.5), (3, 2.5))
+                    )
+                    self.assertIn(expected, [endpoints(line) for line in walls(player)])
+                    self.assertNotIn("data-tile", svg_document(grid, player_view=True))
+        self.assertEqual(
+            len(xml(door_map("D"), player_view=True).findall(".//s:g[@data-tile='D']", NS)), 1
+        )
+
+    def test_traps_hidden_but_stairs_and_ramps_remain(self):
+        """Player views hide traps while retaining stair and ramp symbols."""
+        grid = DungeonMap(("#######", "#TEeRr#", "#######"))
+        gm = xml(grid)
+        player = xml(grid, player_view=True)
+        self.assertEqual(
+            {group.attrib["data-tile"] for group in gm.findall(".//s:g[@data-tile]", NS)},
+            set("TEeRr"),
+        )
+        self.assertEqual(
+            {group.attrib["data-tile"] for group in player.findall(".//s:g[@data-tile]", NS)},
+            set("EeRr"),
+        )
+        self.assertEqual(
+            [endpoints(line) for line in walls(gm)],
+            [endpoints(line) for line in walls(player)],
+        )
+
+    def test_stair_and_ramp_passage_orientation(self):
+        """Stair and ramp symbols follow the axis of their passage."""
+        for symbol in "EeRr":
+            for rows, expected in (
+                (("#####", "# {} #".format(symbol), "#####"), "rotate(90 .5 .5)"),
+                (("###", "# #", "#{}#".format(symbol), "# #", "###"), "rotate(0)"),
+                (("#####", "# {}##".format(symbol), "#####"), "rotate(90 .5 .5)"),
+                (("#####", "##{} #".format(symbol), "#####"), "rotate(90 .5 .5)"),
+                (("###", "# #", "#{}#".format(symbol), "###"), "rotate(0)"),
+                (("###", "#{}#".format(symbol), "# #", "###"), "rotate(0)"),
+            ):
+                root = xml(DungeonMap(rows))
+                drawing = root.find(".//s:g[@data-tile='{}']/s:g".format(symbol), NS)
+                self.assertEqual(drawing.attrib["transform"], expected)
+
+    def test_multi_square_stairs_and_ramps_render_as_one_full_length_symbol(self):
+        """Multi-cell stairs and ramps render as one symbol spanning their full length."""
+        for symbol in "EeRr":
+            for horizontal in (False, True):
+                rows = ("#####", "#   #", "#" + symbol * 3 + "#", "#   #", "#####")
+                if not horizontal:
+                    rows = tuple("".join(row) for row in zip(*rows))
+                grid = parse_ascii("\n".join(rows))
+                root = xml(grid, player_view=True)
+                groups = root.findall(".//s:g[@data-tile='{}']".format(symbol), NS)
+                self.assertEqual(len(groups), 1)
+                self.assertEqual(groups[0].attrib["data-length"], "3")
+                drawing = groups[0].find("s:g", NS)
+                self.assertEqual(drawing.attrib["transform"],
+                                 "translate(3 0) rotate(90)" if horizontal else "rotate(0)")
+                lines = drawing.findall("s:line", NS)
+                self.assertEqual(len(lines), 18 if symbol in "Ee" else 5)
+                arrow = endpoints(lines[-3])
+                self.assertEqual(arrow, ((0.42, 2.82), (0.42, 0.18)) if symbol in "er"
+                                 else ((0.42, 0.18), (0.42, 2.82)))
+                self.assertTrue(all(
+                    0 <= x <= 1 and 0 <= y <= 3
+                    for line in lines for x, y in endpoints(line)
+                ))
+
+    def test_invalid_render_options(self):
+        """Reject invalid dimensions, scaling, roughness, and corner-radius options."""
+        for options in (
+            {"feet_per_pixel": 0}, {"feet_per_inch": float("inf")},
+            {"line_width": -1}, {"roughness": float("nan")}, {"roughness": 0.21},
+            {"rough_segments": 1}, {"rough_segments": 33}, {"rough_segments": 3.5},
+            {"feet_per_pixel": 1e-300, "feet_per_inch": 1e300},
+            {"feet_per_pixel": 1e300, "feet_per_inch": 1e-300},
+            {"corner_radius": -0.1}, {"corner_radius": 0.501},
+            {"corner_radius": float("nan")}, {"corner_radius": float("inf")},
+        ):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                svg_document(DungeonMap((" ",)), **options)
+
+
+class MeanderingTests(unittest.TestCase):
+    def test_winding_routes_reach_all_octants_without_crossing(self):
+        """Winding routes reach targets in every octant without crossing themselves."""
+        for end in ((30, 3), (45, 3), (57, 30), (57, 45),
+                    (30, 57), (15, 57), (3, 30), (3, 15)):
+            start = (30, 30)
+            for seed in range(5):
+                with self.subTest(start=start, end=end, seed=seed):
+                    direct = _path(start, end, True)
+                    path = _meander_path(direct, set(), 61, 61, 1, random.Random(seed))
+                    self.assertEqual((path[0], path[-1]), (start, end))
+                    self.assertEqual(len(path), len(set(path)))
+                    raster = [start]
+                    for first, last in zip(path, path[1:]):
+                        heading = (last[0] - first[0], last[1] - first[1])
+                        self.assertIn(heading, HEADINGS)
+                        raster.extend(_segment_steps(first, last))
+                    self.assertEqual(len(raster), len(set(raster)))
+                    crossings = [(first[0] + last[0], first[1] + last[1])
+                                 for first, last in zip(raster, raster[1:])
+                                 if first[0] != last[0] and first[1] != last[1]]
+                    self.assertEqual(len(crossings), len(set(crossings)))
+                    for x, y in _passage_cells(path):
+                        self.assertTrue(1 <= x < 60 and 1 <= y < 60)
+                    self.assertEqual(
+                        path, _meander_path(direct, set(), 61, 61, 1, random.Random(seed))
+                    )
+
+    def test_meandering_produces_wide_bends_and_moves_away_from_the_target(self):
+        """Meandering permits wide bends and temporary movement away from the target."""
+        start, end = (3, 15), (57, 15)
+        for amount in (0.6, 1):
+            spans, retreats, reversals = [], [], []
+            for seed in range(8):
+                path = _cavern_path(start, end, set(), 61, 31, amount, random.Random(seed))
+                self.assertIsNotNone(path)
+                spans.append(max(y for x, y in path) - min(y for x, y in path))
+                retreats.append(any(
+                    math.hypot(end[0] - b[0], end[1] - b[1])
+                    > math.hypot(end[0] - a[0], end[1] - a[1])
+                    for a, b in zip(path, path[1:])
+                ))
+                lateral = [b[1] - a[1] for a, b in zip(path, path[1:]) if b[1] != a[1]]
+                reversals.append(sum(a * b < 0 for a, b in zip(lateral, lateral[1:])))
+            with self.subTest(amount=amount):
+                self.assertGreaterEqual(max(spans), 8)
+                self.assertTrue(any(retreats))
+                self.assertGreaterEqual(max(reversals), 2)
+
+    def test_nearby_target_can_require_retreat_and_a_turn_over_ninety_degrees(self):
+        """Nearby targets can require retreat and turns exceeding ninety degrees."""
+        start, end = (8, 10), (10, 10)
+        occupied = {(9, y) for y in range(3, 13)}
+        heading = (0, -1)
+        for amount in (0, 1):
+            path = _cavern_path(start, end, occupied, 20, 20, amount, random.Random(4), heading)
+            self.assertIsNotNone(path)
+            self.assertEqual((path[0], path[-1]), (start, end))
+            first = (path[1][0] - start[0], path[1][1] - start[1])
+            self.assertLess(first[0] * heading[0] + first[1] * heading[1], 0)
+            self.assertGreater(math.hypot(end[0] - path[1][0], end[1] - path[1][1]), 2)
+            self.assertTrue(occupied.isdisjoint(_passage_cells(path)))
+
+    def test_zero_meandering_is_direct_and_random_meandering_changes_shape(self):
+        """Zero meandering preserves direct routes while random meandering alters shape."""
+        direct = _path((3, 15), (57, 15), True)
+        rng = random.Random(9)
+        before = rng.getstate()
+        self.assertEqual(_meander_path(direct, set(), 61, 31, 0, rng), direct)
+        self.assertEqual(rng.getstate(), before)
+        diagonal = _path((3, 3), (25, 25), True)
+        straight = _meander_path(diagonal, set(), 31, 31, 0, rng)
+        self.assertEqual(straight, [(value, value) for value in range(3, 26)])
+        varied = {tuple(_meander_path(direct, set(), 61, 31, 1, random.Random(seed)))
+                  for seed in range(10)}
+        self.assertGreater(len(varied), 1)
+        self.assertNotIn(tuple(direct), varied)
+
+    def test_bounds_and_occupied_rooms_can_limit_detours(self):
+        """Map boundaries and occupied rooms constrain or prevent cavern detours."""
+        direct = _path((1, 2), (1, 18), True)
+        self.assertEqual(
+            _meander_path(direct, set(), 3, 21, 1, random.Random(4)), direct
+        )
+        direct = _path((3, 5), (25, 5), True)
+        occupied = {(x, y) for x in range(1, 29) for y in range(1, 12)} - set(direct)
+        self.assertEqual(_meander_path(direct, occupied, 30, 13, 1, random.Random(4)), direct)
+        self.assertIsNone(_cavern_path((3, 5), (25, 5), occupied | {(15, 5)},
+                                       30, 13, 1, random.Random(4)))
+        self.assertEqual(
+            _meander_path([(2, 2)], set(), 5, 5, 1, random.Random(4)), [(2, 2)]
+        )
+
+
+class PassageNetworkTests(unittest.TestCase):
+    @staticmethod
+    def room(x, y, rough=False):
+        return _Room((x, y), {(a, b) for a in range(x - 1, x + 2)
+                              for b in range(y - 1, y + 2)}, rough)
+
+    def test_all_rooms_are_placed_before_the_first_passage(self):
+        events = []
+        from dungeon_map import _position_room
+
+        def position(*args):
+            events.append("room")
+            return _position_room(*args)
+
+        def passage(*args):
+            events.append("passage")
+            return _room_passage(*args)
+
+        with patch("dungeon_map._position_room", side_effect=position), \
+                patch("dungeon_map._room_passage", side_effect=passage):
+            _terrain(GenerationOptions(width=40, height=30, density=0.2,
+                                       rough_probability=0), random.Random(4))
+        self.assertIn("passage", events)
+        self.assertNotIn("room", events[events.index("passage"):])
+
+    def test_room_budget_does_not_include_passages_or_routing_options(self):
+        options = GenerationOptions(width=50, height=40, density=0.2)
+        rooms = _place_rooms(options, random.Random(2), set())
+        different_routing = replace(options, corridor_length=30, meandering=1)
+        self.assertEqual(rooms, _place_rooms(different_routing, random.Random(2), set()))
+        area = sum(len(room.cells) for room in rooms)
+        target = (options.width - 4) * (options.height - 4) * options.density
+        self.assertGreaterEqual(area, target)
+        self.assertLess(area - target,
+                        max(len(room.cells) for room in rooms))
+
+    def test_rooms_keep_two_edge_squares_and_three_squares_between_footprints(self):
+        for seed in range(8):
+            rooms = _place_rooms(GenerationOptions(width=40, height=30, density=0.4),
+                                 random.Random(seed), set())
+            for index, room in enumerate(rooms):
+                self.assertTrue(all(2 <= x < 38 and 2 <= y < 28 for x, y in room.cells))
+                for previous in rooms[:index]:
+                    self.assertFalse(_buffer(room.cells, 3) & previous.cells)
+
+    def test_unplaceable_rooms_are_discarded_without_filling_the_budget(self):
+        room = self.room(4, 4)
+        with patch("dungeon_map._position_room", side_effect=[room] + [None] * 80):
+            rooms = _place_rooms(GenerationOptions(), random.Random(1), set())
+        self.assertEqual(rooms, [room])
+
+    def test_direct_links_are_unique_and_cannot_transit_a_third_room(self):
+        options = GenerationOptions(width=25, height=17)
+        rooms = [self.room(x, 8) for x in (3, 12, 21)]
+        corridor = _room_passage((0, 2), rooms, [], options, random.Random(1), set())
+        self.assertIsNotNone(corridor)
+        self.assertFalse(set(corridor.cells) & rooms[1].cells)
+        self.assertFalse(_buffer(set(corridor.cells) - rooms[0].cells - rooms[2].cells)
+                         & rooms[1].cells)
+        self.assertIsNone(_room_passage(
+            (2, 0), rooms, [corridor], options, random.Random(1), set(),
+        ))
+        _validate_network(rooms, [corridor])
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            _validate_network(rooms, [corridor, corridor])
+
+    def test_one_square_gap_can_be_the_shared_opening_of_two_rooms(self):
+        rooms = [self.room(3, 7), self.room(7, 7)]
+        corridor = _room_passage(
+            (0, 1), rooms, [], GenerationOptions(width=13, height=13),
+            random.Random(2), set(),
+        )
+        self.assertIsNotNone(corridor)
+        self.assertEqual(len(set(corridor.cells) - rooms[0].cells - rooms[1].cells), 1)
+        _validate_network(rooms, [corridor])
+
+    def test_impassable_corridor_is_not_crossed_and_failure_does_not_mutate(self):
+        rooms = [self.room(x, 8) for x in (3, 17)]
+        barrier = _Corridor(tuple((10, y) for y in range(1, 16)), " ")
+        corridors = [barrier]
+        result = _room_passage(
+            (0, 1), rooms, corridors, GenerationOptions(width=21, height=17),
+            random.Random(1), set(),
+        )
+        self.assertIsNone(result)
+        self.assertEqual(corridors, [barrier])
+
+    def test_planned_junctions_allow_three_and_four_branches_but_not_five(self):
+        options = GenerationOptions(width=21, height=17)
+        floor = {(x, 8) for x in range(2, 19)}
+        target = (10, 8)
+        result = _attachment_route((10, 13), floor, options, set(), {target})
+        self.assertIsNotNone(result)
+        lower, junction = result
+        self.assertEqual(junction, target)
+        floor.update(lower)
+        result = _attachment_route((10, 3), floor, options, set(), {target})
+        self.assertIsNotNone(result)
+        upper, _ = result
+        floor.update(upper)
+        self.assertIsNone(_attachment_route((3, 3), floor, options, set(), {target}))
+        _validate_network([], [
+            _Corridor(tuple((x, 8) for x in range(2, 19)), " "),
+            _Corridor(lower, " ", centerline=lower, junctions=(target,)),
+            _Corridor(upper, " ", centerline=upper, junctions=(target,)),
+        ])
+
+    def test_a_room_can_join_a_shared_corridor_at_one_explicit_junction(self):
+        options = GenerationOptions(width=25, height=20)
+        rooms = [self.room(3, 7), self.room(21, 7), self.room(12, 15)]
+        corridor = _room_passage((0, 1), rooms, [], options, random.Random(1), set())
+        branch = _room_branch(2, 0, rooms, [corridor], options, random.Random(2), set())
+        self.assertIsNotNone(branch)
+        self.assertEqual(len(branch.junctions), 1)
+        _validate_network(rooms, [corridor, branch])
+        self.assertEqual(set(branch.cells) & set(corridor.cells), set(branch.junctions))
+        self.assertIsNone(_room_passage(
+            (1, 2), rooms, [corridor, branch], options, random.Random(3), set(),
+        ))
+
+    def test_fixed_start_cannot_graze_floor_outside_its_planned_junction(self):
+        floor = {(7, 8), (6, 8), (9, 8), (10, 8)}
+        self.assertIsNone(_attachment_route(
+            (8, 7), floor, GenerationOptions(width=16, height=14), set(),
+        ))
+
+    def test_unregistered_contacts_and_room_entrances_are_rejected(self):
+        original = _Corridor(tuple((x, 5) for x in range(2, 12)), " ")
+        crossing = tuple((7, y) for y in range(2, 9))
+        with self.assertRaisesRegex(ValueError, "unplanned corridor contact"):
+            _validate_network([], [
+                original, _Corridor(crossing, " ", centerline=crossing),
+            ])
+        alongside = tuple((x, 4) for x in range(3, 10))
+        with self.assertRaisesRegex(ValueError, "unplanned corridor contact"):
+            _validate_network([], [
+                original, _Corridor(alongside, " ", centerline=alongside),
+            ])
+        room = self.room(6, 6)
+        grazing = tuple((x, 4) for x in range(3, 10))
+        with self.assertRaisesRegex(ValueError, "unplanned room entrance"):
+            _validate_network([room], [_Corridor(grazing, " ", centerline=grazing)])
+        diagonal = _passage_cells([(6, 3), (7, 4), (8, 5)])
+        with self.assertRaisesRegex(ValueError, "unplanned corridor contact"):
+            _validate_network([], [
+                original, _Corridor(diagonal, ".", centerline=((6, 3), (7, 4), (8, 5))),
+            ])
+        corner_touch = ((12, 6), (12, 7))
+        with self.assertRaisesRegex(ValueError, "unplanned corridor contact"):
+            _validate_network([], [
+                original, _Corridor(corner_touch, " ", centerline=corner_touch),
+            ])
+        room_corner = ((8, 8), (9, 8))
+        with self.assertRaisesRegex(ValueError, "unplanned room entrance"):
+            _validate_network([room], [_Corridor(room_corner, " ", centerline=room_corner)])
+
+    def test_initial_connection_counts_follow_the_one_or_two_room_quota(self):
+        rooms = [self.room(x, y) for x, y in
+                 ((4, 4), (17, 4), (4, 17), (17, 17))]
+        options = GenerationOptions(width=23, height=23, corridor_length=100)
+        for roll, quota in ((0.249, 2), (0.25, 1)):
+            rng = random.Random(3)
+            rng.random = Mock(return_value=roll)
+            rng.shuffle = Mock()
+            with patch("dungeon_map._room_passage", side_effect=lambda pair, *args:
+                       _Corridor(((0, 0),), " ", pair)), \
+                    patch("dungeon_map._validate_network"):
+                corridors = _connect_rooms(rooms, options, rng, set())
+            for index in range(1, len(rooms)):
+                self.assertEqual(sum(max(c.room_pair) == index for c in corridors),
+                                 min(index, quota))
+
+    def test_short_alternative_is_used_before_a_long_component_bridge(self):
+        rooms = [self.room(x, 8) for x in (4, 25, 11)]
+        options = GenerationOptions(width=31, height=17, corridor_length=5)
+        rng = random.Random(1)
+        rng.shuffle = Mock()
+        rng.random = Mock(return_value=0.1)
+        corridors = _connect_rooms(rooms, options, rng, set())
+        self.assertEqual({c.room_pair for c in corridors}, {(0, 2), (1, 2)})
+        self.assertEqual(corridors[0].room_pair, (0, 2))
+        self.assertLessEqual(len(set(corridors[0].cells) -
+                                 set().union(*(room.cells for room in rooms))), 5)
+        _validate_network(rooms, corridors)
+
+    def test_long_passages_are_not_added_to_an_already_connected_network(self):
+        rooms = [self.room(x, 8) for x in (4, 13, 22)]
+        options = GenerationOptions(width=29, height=17, corridor_length=8)
+        rng = random.Random(2)
+        rng.shuffle = Mock()
+        rng.random = Mock(return_value=0.1)
+        corridors = _connect_rooms(rooms, options, rng, set())
+        self.assertEqual({c.room_pair for c in corridors}, {(0, 1), (1, 2)})
+        room_floor = set().union(*(room.cells for room in rooms))
+        self.assertTrue(all(len(set(c.cells) - room_floor) <= 8 for c in corridors))
+
+    def test_long_passage_is_allowed_when_it_is_required_for_connectivity(self):
+        rooms = [self.room(x, 8) for x in (4, 25)]
+        corridors = _connect_rooms(
+            rooms, GenerationOptions(width=31, height=17, corridor_length=3),
+            random.Random(2), set(),
+        )
+        self.assertEqual(len(corridors), 1)
+        self.assertGreater(len(set(corridors[0].cells) - rooms[0].cells - rooms[1].cells), 3)
+
+    def test_unroutable_components_fail_with_a_bounded_candidate_budget(self):
+        rooms = [self.room(3, 8), self.room(17, 8)]
+        with patch("dungeon_map._room_passage", return_value=None) as direct, \
+                patch("dungeon_map._room_branch", return_value=None) as branch:
+            with self.assertRaisesRegex(ValueError, "could not connect room components"):
+                _connect_rooms(rooms, GenerationOptions(width=21, height=17),
+                               random.Random(1), set())
+        self.assertEqual(direct.call_count, 1)
+        self.assertEqual(branch.call_count, 4)
+
+    def test_stair_collision_repair_preserves_room_and_passage_exclusions(self):
+        options = GenerationOptions(width=25, height=19, corridor_length=30)
+        rooms = [self.room(3, 8), self.room(21, 8), self.room(12, 12)]
+        centerline = tuple((x, 8) for x in range(4, 21))
+        original = _Corridor(centerline, " ", (0, 1), centerline)
+        other = _Corridor(tuple((12, y) for y in range(2, 6)), " ")
+        forbidden = {(12, 8), (12, 9)}
+        retained, rerouted, removed = _reroute_corridors(
+            [original, other], forbidden, options.width, options.height,
+            rooms, options, random.Random(2),
+        )
+        self.assertEqual((rerouted, removed), (1, 0))
+        self.assertEqual(retained[0].room_pair, original.room_pair)
+        self.assertFalse(set(retained[0].cells) & (forbidden | rooms[2].cells))
+        self.assertFalse(set(retained[0].cells) & set(other.cells))
+        _validate_network(rooms, retained)
+
+
+class GenerationTests(unittest.TestCase):
+    def test_random_room_positions_do_not_favor_nearby_or_distant_rooms(self):
+        """Random room placement avoids favoring either nearby or distant halves."""
+        shape = (3, 3, {(x, y) for x in range(3) for y in range(3)}, False)
+        same_half = [0, 0]
+        samples = 500
+        options = GenerationOptions(width=60, height=40, density=0.005)
+        with patch("dungeon_map._room_shape", return_value=shape):
+            for seed in range(samples):
+                rooms = _place_rooms(options, random.Random(seed), set())
+                self.assertEqual(len(rooms), 2)
+                for axis, middle in enumerate((30, 20)):
+                    same_half[axis] += (
+                        (rooms[0].center[axis] < middle)
+                        == (rooms[1].center[axis] < middle)
+                    )
+        for count in same_half:
+            self.assertGreater(count, samples * 0.35)
+            self.assertLess(count, samples * 0.65)
+
+    def test_sparse_density_increases_chamber_spacing_and_passage_length(self):
+        """Sparse maps have fewer rooms, wider chamber spacing, and longer passages."""
+        for width, height in ((60, 40), (40, 60)):
+            for rough in (0, 1):
+                measurements = {}
+                for density in (0.1, 0.4):
+                    counts, spacings, lengths = [], [], []
+                    for seed in range(12):
+                        result = generate_dungeon(GenerationOptions(
+                            width=width, height=height, seed=seed, density=density,
+                            rough_probability=rough, doors=0,
+                            secret_doors=0, concealed_doors=0,
+                        ))
+                        centers = [
+                            (sum(x for x, y in room) / len(room),
+                             sum(y for x, y in room) / len(room))
+                            for room in result.room_cells
+                        ]
+                        nearest = [
+                            min(math.hypot(x - a, y - b)
+                                for j, (a, b) in enumerate(centers) if i != j)
+                            for i, (x, y) in enumerate(centers)
+                        ]
+                        counts.append(len(centers))
+                        spacings.append(sum(nearest) / len(nearest))
+                        lengths.append(sum(result.corridor_lengths) / len(result.corridor_lengths))
+                    measurements[density] = tuple(
+                        sum(values) / len(values) for values in (counts, spacings, lengths)
+                    )
+                with self.subTest(width=width, height=height, rough=rough):
+                    sparse, dense = measurements[0.1], measurements[0.4]
+                    self.assertLess(sparse[0], dense[0])
+                    self.assertGreater(sparse[1], dense[1])
+                    self.assertGreater(sparse[2], dense[2])
+
+    def test_cavern_routing_targets_the_exterior_of_the_destination_opening(self):
+        """Cavern routes end outside but adjacent to the destination room."""
+        targets = []
+
+        def observe(path, occupied, width, height, amount, rng):
+            """Record the intended route endpoint before applying meandering."""
+            targets.append(path[-1])
+            return _meander_path(path, occupied, width, height, amount, rng)
+
+        rooms = [PassageNetworkTests.room(4, 4, True),
+                 PassageNetworkTests.room(17, 11, True)]
+        with patch("dungeon_map._meander_path", side_effect=observe):
+            corridor = _room_passage(
+                (0, 1), rooms, [], GenerationOptions(width=23, height=17),
+                random.Random(42), set(),
+            )
+        self.assertIsNotNone(corridor)
+        self.assertEqual(targets[-1], corridor.centerline[-2])
+        self.assertNotIn(targets[-1], rooms[1].cells)
+        self.assertIn(corridor.centerline[-1], rooms[1].cells)
+
+    def test_natural_chamfers_ignore_worked_corner_probability(self):
+        """Natural chamfers are independent of worked-room corner probability."""
+        for amount in (0, 1):
+            options = GenerationOptions(seed=42, rough_probability=1, meandering=amount,
+                                        doors=0, secret_doors=0, concealed_doors=0)
+            plain = generate_dungeon(options)
+            self.assertEqual(plain, generate_dungeon(replace(options, chamfer_probability=1)))
+            self.assertTrue(set("\\/") & set(plain.grid.to_ascii()))
+            validate_map(plain.grid)
+        worked = generate_dungeon(GenerationOptions(seed=42, rough_probability=0))
+        self.assertFalse(set("\\/") & set(worked.grid.to_ascii()))
+
+    def test_repeatable_ascii_and_svg(self):
+        """Repeated seeded generation produces identical ASCII and SVG output."""
+        options = GenerationOptions(width=30, height=24, seed=31, traps=2)
+        first, second = generate_dungeon(options), generate_dungeon(options)
+        self.assertEqual(first, second)
+        self.assertEqual(parse_ascii(first.grid.to_ascii()), first.grid)
+        self.assertEqual(
+            svg_document(first.grid, seed=first.seed), svg_document(second.grid, seed=second.seed)
+        )
+        self.assertNotEqual(first.grid, generate_dungeon(GenerationOptions(
+            width=30, height=24, seed=32, traps=2
+        )).grid)
+
+    def test_generated_seed_can_be_replayed(self):
+        """An automatically generated seed reproduces its original dungeon."""
+        result = generate_dungeon(GenerationOptions(width=20, height=20))
+        self.assertEqual(result, generate_dungeon(GenerationOptions(
+            width=20, height=20, seed=result.seed
+        )))
+
+    def test_exact_features_valid_diagonals_and_connected_layouts(self):
+        """Generated maps retain exact feature counts, valid diagonals, and connectivity."""
+        expected = Counter({"D": 3, "X": 2, "C": 2, "T": 6,
+                            "e": 1, "E": 1, "r": 1, "R": 1})
+        for seed in range(8):
+            with self.subTest(seed=seed):
+                result = generate_dungeon(GenerationOptions(
+                    seed=seed, doors=3, secret_doors=2, concealed_doors=2,
+                    traps=4, pits=2, stairs_down=1, stairs_up=1,
+                    ramps_down=1, ramps_up=1, chamfer_probability=1,
+                    meandering=seed % 2,
+                ))
+                grid = result.grid
+                self.assertEqual((grid.width, grid.height), (60, 40))
+                self.assertTrue(is_connected(grid))
+                actual = Counter("".join(grid.rows))
+                self.assertEqual({tile: actual[tile] for tile in expected}, dict(expected))
+                self.assertGreater(actual["/"] + actual["\\"], 0)
+                self.assertTrue(all(tile == "#" for tile in grid.rows[0] + grid.rows[-1]))
+                self.assertTrue(all(row[0] == row[-1] == "#" for row in grid.rows))
+                xml(grid)
+
+    def test_meandering_changes_only_rough_corridors(self):
+        """Meandering alters only rough corridors and preserves their reported lengths."""
+        for rough in (0, 1):
+            layouts = {}
+
+            def observe(options, *args):
+                """Retain the successful terrain rather than rejected routing attempts."""
+                result = _terrain(options, *args)
+                layouts[options.meandering] = result
+                return result
+
+            with patch("dungeon_map._terrain", side_effect=observe), \
+                    patch("dungeon_map._meander_path", wraps=_meander_path) as meander:
+                results = [
+                    generate_dungeon(GenerationOptions(
+                        seed=7, rough_probability=rough, meandering=amount,
+                        doors=0, secret_doors=0, concealed_doors=0,
+                    )) for amount in (0, 1)
+                ]
+            for result in results:
+                self.assertTrue(is_connected(result.grid))
+            if rough:
+                self.assertNotEqual(results[0].grid, results[1].grid)
+                self.assertGreater(meander.call_count, 0)
+                for amount, result in enumerate(results):
+                    _, rooms, _, corridors = layouts[amount]
+                    occupied = set().union(*(room.cells for room in rooms))
+                    lengths = []
+                    for corridor in corridors:
+                        lengths.append(len(set(corridor.cells) - occupied))
+                        occupied.update(corridor.cells)
+                    self.assertEqual(result.corridor_lengths, tuple(lengths))
+                    self.assertTrue(all(
+                        result.grid.tile(x, y) in ".\\/"
+                        for corridor in corridors for x, y in corridor.cells
+                    ))
+            else:
+                self.assertEqual(results[0], results[1])
+                self.assertEqual(meander.call_count, 0)
+
+    def test_probability_endpoints_and_exact_zero_override(self):
+        """Probability endpoints select terrain and doors while exact zero disables them."""
+        for rough in (0, 1):
+            result = generate_dungeon(GenerationOptions(
+                width=35, height=25, seed=9, rough_probability=rough,
+                doors=0, secret_doors=0, concealed_doors=0,
+            ))
+            self.assertNotIn(" " if rough else ".", result.grid.to_ascii())
+            self.assertFalse(set("DXC") & set(result.grid.to_ascii()))
+        for symbol, probabilities in (
+            ("D", (1, 0, 0)), ("X", (0, 1, 0)), ("C", (0, 0, 1)),
+        ):
+            result = generate_dungeon(GenerationOptions(
+                seed=7, door_probability=probabilities[0],
+                secret_door_probability=probabilities[1],
+                concealed_door_probability=probabilities[2],
+            ))
+            actual = set(result.grid.to_ascii()) & set("DXC")
+            self.assertEqual(actual, {symbol})
+            self.assertTrue(is_connected(result.grid))
+
+    def test_room_density_room_size_and_soft_corridor_length_controls(self):
+        """Room density and size remain targets; passage length cannot break connectivity."""
+        def totals(**values):
+            """Average density, room area, and corridor length across four fixed seeds."""
+            results = [
+                generate_dungeon(GenerationOptions(
+                    seed=seed, width=60, height=40, doors=0,
+                    secret_doors=0, concealed_doors=0, **values
+                )) for seed in range(4)
+            ]
+            return (
+                sum(sum(result.room_areas) / ((result.grid.width - 4) * (result.grid.height - 4))
+                    for result in results) / len(results),
+                sum(sum(result.room_areas) for result in results)
+                / sum(len(result.room_areas) for result in results),
+                sum(sum(result.corridor_lengths) for result in results)
+                / sum(len(result.corridor_lengths) for result in results),
+            )
+        sparse, dense = totals(density=0.15), totals(density=0.4)
+        self.assertGreater(dense[0] - sparse[0], 0.04)
+        self.assertAlmostEqual(sparse[0], 0.15, delta=0.04)
+        self.assertLessEqual(dense[0], 0.44)
+        small, large = totals(room_size=16), totals(room_size=60)
+        self.assertGreater(large[1], small[1] * 2)
+        for target in (2, 15):
+            result = generate_dungeon(GenerationOptions(seed=4, corridor_length=target))
+            self.assertTrue(is_connected(result.grid))
+
+    def test_small_map_and_large_room_request(self):
+        """A huge requested room size still yields a connected minimum-size map."""
+        result = generate_dungeon(GenerationOptions(width=7, height=7, seed=2, room_size=1e308))
+        self.assertTrue(is_connected(result.grid))
+        self.assertEqual(result.grid.width, 7)
+        self.assertLess(result.density, 0.3)
+
+    def test_invalid_generation_parameters(self):
+        """Reject generation options outside their accepted types and ranges."""
+        for values in (
+            {"width": 6}, {"height": 0}, {"room_size": 0},
+            {"room_size": float("inf")}, {"corridor_length": -1},
+            {"density": 0}, {"density": 0.401}, {"density": 1}, {"density": float("nan")},
+            {"rough_probability": 1.1}, {"door_probability": 0.95},
+            {"chamfer_probability": -1}, {"traps": -1}, {"secret_doors": 2.5},
+            {"meandering": -0.1}, {"meandering": 1.1}, {"meandering": float("nan")},
+        ):
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                generate_dungeon(GenerationOptions(**values))
+
+    def test_impossible_counts_fail_explicitly(self):
+        """Impossible feature counts raise errors instead of silently dropping features."""
+        for values in ({"secret_doors": 50}, {"traps": 50}):
+            with self.subTest(values=values), self.assertRaisesRegex(
+                ValueError, "could not satisfy feature counts"
+            ):
+                generate_dungeon(GenerationOptions(width=7, height=7, seed=1, **values))
+
+
+class MultiLevelTests(unittest.TestCase):
+    def test_inherited_stair_approaches_can_share_a_planned_junction(self):
+        room = PassageNetworkTests.room(17, 11)
+        passages = (
+            Stairway(((13, 13), (13, 14), (13, 15)), "E", False),
+            Stairway(((9, 10), (10, 10), (11, 10)), "E", True),
+        )
+        rows = [["#"] * 23 for _ in range(21)]
+        corridors = []
+        _rebuild_layout(rows, [room], corridors)
+        _place_stairways(
+            rows, GenerationOptions(width=23, height=21, levels=2),
+            random.Random(1), passages, 0, [room], corridors,
+        )
+        grid = DungeonMap(tuple("".join(row) for row in rows))
+        self.assertTrue(is_connected(grid))
+        self.assertEqual(corridors[-1].junctions, ((13, 11),))
+        _validate_network([room], corridors)
+
+    def test_fixed_stair_approach_can_join_diagonally_adjacent_passage(self):
+        room = PassageNetworkTests.room(13, 8)
+        passage = Stairway(((4, 7), (5, 7), (6, 7)), "E", True)
+        corridors = [_Corridor(tuple((x, 8) for x in range(9, 14)), " ")]
+        rows = [["#"] * 18 for _ in range(15)]
+        _rebuild_layout(rows, [room], corridors)
+        _place_stairways(
+            rows, GenerationOptions(width=18, height=15, levels=2),
+            random.Random(1), (passage,), 0, [room], corridors,
+        )
+        grid = DungeonMap(tuple("".join(row) for row in rows))
+        self.assertTrue(is_connected(grid))
+        self.assertTrue(all(grid.tile(*cell) in " ." for cell in passage.approach))
+        self.assertEqual(corridors[-1].junctions, ((9, 8),))
+        _validate_network([room], corridors)
+
+    def test_inherited_stair_approach_can_turn_along_the_map_border(self):
+        room = PassageNetworkTests.room(11, 9)
+        passage = Stairway(((3, 5), (4, 5), (5, 5)), "E", True)
+        rows = [["#"] * 18 for _ in range(15)]
+        _rebuild_layout(rows, [room], [])
+        _place_stairways(
+            rows, GenerationOptions(width=18, height=15, levels=2),
+            random.Random(1), (passage,), 0, [room], [],
+        )
+        grid = DungeonMap(tuple("".join(row) for row in rows))
+        self.assertTrue(is_connected(grid))
+        self.assertTrue(all(grid.tile(*cell) in " ." for cell in passage.approach))
+
+    def test_spiral_constructor_and_inherited_footprint(self):
+        """Spiral construction preserves its footprint when inherited by another level."""
+        full = tuple((x, y) for y in range(3, 6) for x in range(3, 6))
+        passage = Stairway(full, "S", True, spiral=True)
+        self.assertEqual(passage, Stairway.spiral_at(3, 3))
+        self.assertEqual(passage.entrance, (3, 3))
+        self.assertEqual(len(passage.cells), 7)
+        self.assertEqual(passage.clearance, set(full))
+        room = _Room((13, 10), {(x, y) for x in range(12, 15)
+                              for y in range(9, 12)}, False)
+        rows = [["#"] * 20 for _ in range(16)]
+        _rebuild_layout(rows, [room], [])
+        passages, reserved, _ = _place_stairways(
+            rows, GenerationOptions(width=20, height=16, levels=2),
+            random.Random(1), (passage,), 0, [room], [],
+        )
+        grid = DungeonMap(tuple("".join(row) for row in rows))
+        self.assertEqual(passages, (passage,))
+        self.assertTrue(passage.clearance <= reserved)
+        self.assertEqual(grid.tile(*passage.entrance), " ")
+        self.assertEqual(grid.tile(4, 4), "#")
+        entry_neighbors = {(passage.entrance[0] + dx, passage.entrance[1] + dy)
+                           for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))}
+        rock = _buffer(passage.clearance) - passage.clearance - entry_neighbors
+        self.assertTrue(all(grid.tile(*cell) == "#" for cell in rock))
+        self.assertTrue(is_connected(grid))
+        self.assertIn(room.center, reachable_cells(grid, passage.entrance))
+        root = xml(grid)
+        self.assertEqual(len(root.findall(".//s:g[@data-spiral='true']", NS)), 1)
+
+    def test_stairs_terminate_existing_corridors_without_isolating_floor(self):
+        """New stairs terminate existing corridors without isolating retained floor."""
+        for symbol in "EeRr":
+            for horizontal in (False, True):
+                with self.subTest(symbol=symbol, horizontal=horizontal):
+                    rows = [["#"] * 13 for _ in range(9)]
+                    rows[4][1:12] = [" "] * 11
+                    cells = ((5, 4), (6, 4), (7, 4))
+                    entrance = (4, 4) if symbol in "er" else (8, 4)
+                    closed_end = (8, 4) if symbol in "er" else (4, 4)
+                    if not horizontal:
+                        rows = [list(row) for row in zip(*rows)]
+                        cells = tuple((y, x) for x, y in cells)
+                        entrance = (4, 8) if symbol in "er" else (4, 4)
+                        closed_end = (4, 4) if symbol in "er" else (4, 8)
+                    options = GenerationOptions(width=len(rows[0]), height=len(rows), levels=2)
+                    route = tuple((x, 4) if horizontal else (4, x) for x in range(1, 12))
+                    passages, reserved, notes = _place_stairways(
+                        rows, options, random.Random(0),
+                        (Stairway(cells, symbol, horizontal),), 0, [],
+                        [_Corridor(route, " ")],
+                    )
+                    grid = DungeonMap(tuple("".join(row) for row in rows))
+                    self.assertTrue(is_connected(grid))
+                    self.assertEqual(grid.tile(*entrance), " ")
+                    self.assertEqual(grid.tile(*closed_end), "#")
+                    self.assertEqual(passages[0].entrance, entrance)
+                    self.assertEqual(passages[0].closed_end, closed_end)
+                    for x, y in cells:
+                        self.assertEqual(grid.tile(x, y), symbol)
+                        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
+                            neighbor = (x + dx, y + dy)
+                            if neighbor not in cells and neighbor != entrance:
+                                self.assertEqual(grid.tile(*neighbor), "#")
+                                self.assertIn(neighbor, reserved)
+                    for cell in (route[0], route[-1]):
+                        self.assertEqual(grid.tile(*cell), " ")
+                    self.assertEqual(notes, ("Rerouted 1 corridors around stairways.",))
+
+    def test_new_stairs_relocate_into_rock_instead_of_cutting_rooms_or_corridors(self):
+        """New stairs relocate into stone rather than cutting rooms or corridors."""
+        rows = [["#"] * 30 for _ in range(16)]
+        rooms = [
+            _Room((cx, 7), {(x, y) for x in range(cx - 1, cx + 2)
+                           for y in range(6, 9)}, False)
+            for cx in (3, 26)
+        ]
+        corridors = [_Corridor(tuple((x, 7) for x in range(3, 27)), " ")]
+        _rebuild_layout(rows, rooms, corridors)
+        original_floor = {
+            (x, y) for y, row in enumerate(rows) for x, tile in enumerate(row) if tile == " "
+        }
+        original_route = corridors[0]
+        passages, _, notes = _place_stairways(
+            rows, GenerationOptions(width=30, height=16, levels=2, stair_length=5),
+            random.Random(3), (), 1, rooms, corridors,
+        )
+        self.assertEqual(len(passages), 2)
+        self.assertFalse(notes)
+        self.assertIs(corridors[0], original_route)
+        room_cells = set().union(*(room.cells for room in rooms))
+        for passage in passages:
+            self.assertFalse((set(passage.cells) | passage.walls) & original_floor)
+            self.assertFalse(set(passage.cells + passage.approach) & room_cells)
+        self.assertTrue(is_connected(DungeonMap(tuple("".join(row) for row in rows))))
+
+    def test_collision_reroutes_full_corridor_or_removes_it_and_orphaned_room(self):
+        """Stair collisions reroute entire corridors or remove them and orphaned rooms."""
+        corridor = _Corridor(tuple((x, 4) for x in range(2, 13)), ".")
+        untouched = _Corridor(((1, 1), (2, 1)), " ")
+        obstacle = {(7, y) for y in range(3, 6)}
+        retained, rerouted, removed = _reroute_corridors([corridor, untouched], obstacle, 15, 9)
+        self.assertEqual((rerouted, removed), (1, 0))
+        self.assertEqual(retained[0].cells[0], corridor.cells[0])
+        self.assertEqual(retained[0].cells[-1], corridor.cells[-1])
+        self.assertFalse(obstacle.intersection(retained[0].cells))
+        self.assertEqual(retained[0].tile, ".")
+        self.assertIs(retained[1], untouched)
+
+        barrier = {(7, y) for y in range(9)}
+        retained, rerouted, removed = _reroute_corridors([corridor], barrier, 15, 9)
+        self.assertEqual((retained, rerouted, removed), ([], 0, 1))
+        rooms = [
+            _Room((cx, 4), {(x, y) for x in range(cx - 1, cx + 2)
+                           for y in range(3, 6)}, False)
+            for cx in (2, 12)
+        ]
+        rows = [["#"] * 15 for _ in range(9)]
+        _rebuild_layout(rows, rooms, retained)
+        with self.assertRaisesRegex(ValueError, "entrances cannot be connected"):
+            _prune_unreachable(rows, rooms, retained, [(2, 4), (12, 4)])
+        removed_rooms, _ = _prune_unreachable(rows, rooms, retained, [(2, 4)])
+        self.assertEqual(removed_rooms, 1)
+        self.assertEqual([room.center for room in rooms], [(2, 4)])
+        self.assertTrue(all(rows[y][x] == "#" for y in range(9) for x in range(4, 15)))
+        self.assertTrue(is_connected(DungeonMap(tuple("".join(row) for row in rows))))
+
+    def test_all_stair_types_have_corner_clearance_and_corridor_approaches(self):
+        """Every stair type has stone corner clearance and a walkable corridor approach."""
+        observed = []
+
+        def observe(rows, options, rng, incoming, down_count, rooms, corridors):
+            """Capture placed stairways and the room cells that they must avoid."""
+            result = _place_stairways(rows, options, rng, incoming, down_count, rooms, corridors)
+            observed.append((result[0], set().union(*(room.cells for room in rooms))))
+            return result
+
+        for levels in (1, 3):
+            observed.clear()
+            with patch("dungeon_map._place_stairways", side_effect=observe):
+                result = generate_dungeon(GenerationOptions(
+                    seed=5, levels=levels, stairs_down=2, ramps_down=1,
+                    stairs_up=1, ramps_up=1 if levels == 1 else 0,
+                    stair_length=5, chamfer_probability=1, traps=8, pits=4,
+                ))
+            self.assertEqual(len(observed), levels)
+            for level, (passages, room_cells) in zip(result.levels, observed):
+                self.assertTrue(is_connected(level.grid))
+                self.assertTrue(all(level.grid.tile(*cell) != "#" for cell in room_cells))
+                for passage in passages:
+                    self.assertFalse((set(passage.cells + passage.approach) | passage.walls) & room_cells)
+                    for x, y in passage.cells:
+                        for dx in (-1, 0, 1):
+                            for dy in (-1, 0, 1):
+                                neighbor = (x + dx, y + dy)
+                                if neighbor not in passage.cells and neighbor != passage.entrance:
+                                    self.assertEqual(level.grid.tile(*neighbor), "#")
+                    for cell in passage.approach:
+                        self.assertIn(level.grid.tile(*cell), " .")
+                root = xml(level.grid)
+                symbols = [g for g in root.findall(".//s:g[@data-tile]", NS)
+                           if g.attrib["data-tile"] in "EeRr"]
+                self.assertEqual(len(symbols), len(passages))
+
+    def test_linked_footprints_lengths_depths_and_feature_protection(self):
+        """Linked stairs preserve footprints, depth, feature counts, and protected access."""
+        for seed, length in ((0, 1), (2, 3), (7, 6)):
+            with self.subTest(seed=seed, length=length):
+                options = GenerationOptions(
+                    seed=seed, levels=4, stair_length=length, stairs_down=2,
+                    ramps_down=1, ramp_probability=50, traps=3, pits=2,
+                    doors=2, secret_doors=1, concealed_doors=1,
+                    chamfer_probability=1,
+                )
+                result = generate_dungeon(options)
+                self.assertEqual(result, generate_dungeon(options))
+                self.assertEqual(len(result.levels), 4)
+                for index, level in enumerate(result.levels):
+                    self.assertEqual(level.depth_feet, (index + 1) * length * 10)
+                    self.assertTrue(is_connected(level.grid))
+                    self.assertEqual(parse_ascii(level.grid.to_ascii()), level.grid)
+                    counts = Counter("".join(level.grid.rows))
+                    self.assertEqual({tile: counts[tile] for tile in "TDXC"},
+                                     {"T": 5, "D": 2, "X": 1, "C": 1})
+                    self.assertEqual(counts["e"] + counts["r"],
+                                     0 if index == 3 else 3 * length)
+                    self._assert_linked_stair_footprints(level, length)
+                    up = [s for s in level.stairways if s.tile in "ER"]
+                    if index == 0:
+                        self.assertEqual(len(up), 1)
+                        self.assertEqual(up[0].tile, "E")
+                    else:
+                        above = [replace(s, tile="E" if s.tile == "e" else "R")
+                                 for s in result.levels[index - 1].stairways if s.tile in "er"]
+                        self.assertEqual(up, above)
+                        descents = [s for s in result.levels[index - 1].stairways if s.tile in "er"]
+                        for descent, ascent in zip(descents, up):
+                            self.assertEqual(descent.entrance, ascent.closed_end)
+                            self.assertEqual(descent.closed_end, ascent.entrance)
+                    root = xml(level.grid)
+                    if length > 1:
+                        rendered = root.findall(".//s:g[@data-length]", NS)
+                        self.assertEqual(len(rendered), len(level.stairways))
+                        self.assertTrue(all(g.attrib["data-length"] == str(length) for g in rendered))
+
+    def _assert_linked_stair_footprints(self, level, length):
+        """Check disjoint straight footprints with matching tiles and one open entrance."""
+        used = set()
+        for passage in level.stairways:
+            self.assertEqual(len(passage.cells), length)
+            self.assertFalse(used.intersection(passage.cells))
+            used.update(passage.cells)
+            for first, second in zip(passage.cells, passage.cells[1:]):
+                self.assertEqual((second[0] - first[0], second[1] - first[1]),
+                                 (1, 0) if passage.horizontal else (0, 1))
+            for x, y in passage.cells:
+                self.assertEqual(level.grid.tile(x, y), passage.tile)
+                self.assertTrue(0 < x < level.grid.width - 1)
+                self.assertTrue(0 < y < level.grid.height - 1)
+            self.assertIn(level.grid.tile(*passage.entrance), " .")
+            self.assertEqual(level.grid.tile(*passage.closed_end), "#")
+            accessible = {
+                (x + dx, y + dy) for x, y in passage.cells
+                for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+                if (x + dx, y + dy) not in passage.cells
+                and level.grid.tile(x + dx, y + dy) != "#"
+            }
+            self.assertEqual(accessible, {passage.entrance})
+
+    def test_ramp_percentage_endpoints_and_surface_stair(self):
+        """Ramp percentages select descent types without changing the surface stair."""
+        for chance, down, up in ((0, "e", "E"), (100, "r", "R")):
+            result = generate_dungeon(GenerationOptions(
+                seed=23, levels=3, stairs_down=2, ramp_probability=chance,
+            ))
+            for index, level in enumerate(result.levels):
+                counts = Counter(s.tile for s in level.stairways)
+                expected = Counter({"E": 1}) if index == 0 else Counter({up: 2})
+                if index < 2:
+                    expected[down] += 2
+                self.assertEqual(counts, expected)
+        ramps_only = generate_dungeon(GenerationOptions(
+            seed=23, levels=2, stairs_down=0, ramps_down=2,
+        ))
+        self.assertEqual(Counter(s.tile for s in ramps_only.stairways), {"E": 1, "r": 2})
+        self.assertEqual(Counter(s.tile for s in ramps_only.levels[-1].stairways), {"R": 2})
+
+    def test_defaults_random_seed_replay_and_single_level_compatibility(self):
+        """Default linked layouts replay seeds and preserve single-level compatibility."""
+        result = generate_dungeon(GenerationOptions(width=30, height=24, levels=3))
+        self.assertEqual(result, generate_dungeon(GenerationOptions(
+            width=30, height=24, levels=3, seed=result.seed,
+        )))
+        for level in result.levels[:-1]:
+            self.assertIn(sum(s.tile in "er" for s in level.stairways), (1, 2, 3))
+            self.assertTrue(all(len(s.cells) == 3 for s in level.stairways))
+        options = GenerationOptions(seed=31, stairs_down=2, stairs_up=2, ramps_up=1)
+        original = generate_dungeon(options)
+        explicit = generate_dungeon(replace(options, levels=1, stair_length=8, ramp_probability=100))
+        self.assertEqual(original, explicit)
+        self.assertEqual(original.levels, (original,))
+        self.assertEqual(Counter(original.grid.to_ascii())["e"], 2)
+        self.assertEqual(generate_dungeon(GenerationOptions(seed=31)),
+                         generate_dungeon(GenerationOptions(seed=31, stairs_down=0)))
+
+    def test_invalid_and_impossible_linked_passages(self):
+        """Reject invalid linked-level controls and impossible passage arrangements."""
+        for values in (
+            {"levels": 0}, {"levels": -1}, {"levels": 1.5}, {"levels": True},
+            {"stair_length": 0}, {"stair_length": 2.5},
+            {"ramp_probability": -1}, {"ramp_probability": 101},
+            {"ramp_probability": float("nan")}, {"ramp_probability": float("inf")},
+            {"levels": 2, "width": 10, "height": 10, "stair_length": 7},
+            {"levels": 2, "stairs_up": 2}, {"levels": 2, "ramps_up": 1},
+            {"levels": 2, "stairs_down": 0},
+            {"levels": 2, "width": 7, "height": 7, "stairs_down": 20},
+        ):
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                generate_dungeon(GenerationOptions(seed=1, **values))
+
+
+class EncounterTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """Load encounter tables once for the encounter-generation fixtures."""
+        cls.rules = EncounterRules()
+
+    def chamber(self, seed=42):
+        """Build a single nine-cell chamber with a configurable encounter seed."""
+        cells = tuple((x, y) for y in range(1, 4) for x in range(1, 4))
+        return GeneratedDungeon(
+            DungeonMap(("#####", "#   #", "#   #", "#   #", "#####")),
+            seed, (9,), (), room_cells=(cells,),
+        )
+
+    def test_basic_roll_has_three_zero_based_dice_and_no_symbol_rerolls(self):
+        """A basic roll sums exactly three zero-based d12 rolls without rerolling symbols."""
+        for values, expected in (((0, 0, 0), 0), ((11, 11, 11), 33), ((11, 0, 4), 15)):
+            rng = Mock()
+            rng.randint.side_effect = values
+            self.assertEqual(basic_roll(rng), expected)
+            self.assertEqual(rng.randint.call_count, 3)
+            self.assertTrue(all(call[0] == (0, 11) for call in rng.randint.call_args_list))
+
+    def test_source_table_bands_counts_and_typo_rulings(self):
+        """Encounter depth bands, group sizes, and source spelling rulings match tables."""
+        for depth, expected in ((1, "Mummy"), (3, "Mummy"), (4, "Gargoyles"),
+                                (6, "Gargoyles"), (7, "Ogres"), (9, "Ogres"),
+                                (10, "Ogres"), (25, "Ogres")):
+            monster = monster_encounter(self.rules, random.Random(42), depth, 22)
+            self.assertIn(expected, monster.description)
+        self.assertEqual(self.rules.categories[12], ["Misc"])
+        self.assertEqual(self.rules.classes[28], ["Cleric"])
+        for depth in (1, 4, 7, 10):
+            for roll in range(34):
+                monster = monster_encounter(self.rules, random.Random(roll), depth, roll)
+                self.assertTrue(monster.levels)
+                self.assertTrue(all(level >= 1 for level in monster.levels))
+        rng = Mock()
+        rng.randint.return_value = 4
+        skeletons = monster_encounter(self.rules, rng, 1, 20)
+        self.assertEqual(skeletons.levels, (1,) * 5)
+        slimes = monster_encounter(self.rules, rng, 4, 21)
+        self.assertEqual(slimes.levels, (1,) * 4)
+        self.assertEqual(self.rules.creature_level("Sphynx", 9), (8, False))
+        self.assertEqual(self.rules.creature_level("Mummys", 9), (6, False))
+        self.assertEqual(self.rules.creature_level("Balrog", 9), (9, True))
+
+    def test_dragon_and_monster_treasure_stay_in_the_encounter_chamber(self):
+        """Dragon lairs and monster treasure remain in their encounter chamber."""
+        debug = []
+        monster = monster_encounter(self.rules, random.Random(42), 7, 1, debug)
+        self.assertTrue(monster.dragon)
+        self.assertIn("in its lair in this chamber", monster.description)
+        self.assertNotIn("miles", monster.description)
+        self.assertFalse(any("Dragon location" in line or "lair distance" in line for line in debug))
+        with patch("dungeon_encounters.basic_roll", side_effect=[21, 0, 0]):
+            loot = treasure(self.rules, random.Random(42), 1, MonsterEncounter("Goblin", (1,)))
+        self.assertEqual(loot[0], "Lair cache in this chamber.")
+        self.assertNotIn("must be located", " ".join(loot))
+
+    def test_container_thresholds_are_inclusive_and_only_chests_can_be_trapped(self):
+        """Inclusive container thresholds trap only chests and keep rolls in debug logs."""
+        dungeon = self.chamber()
+        for chest_roll, trap_roll, trapped in ((16, None, False), (17, 18, False), (17, 19, True)):
+            rolls = [0, 0, chest_roll] + ([] if trap_roll is None else [trap_roll, 0])
+            with self.subTest(chest_roll=chest_roll, trap_roll=trap_roll), \
+                    patch("dungeon_encounters.basic_roll", side_effect=rolls) as roll, \
+                    patch("dungeon_encounters.treasure", return_value=("Coins: 2 cp.",)):
+                key = generate_encounters(dungeon, rules=self.rules)[0]
+            area = key.areas[0]
+            self.assertEqual(roll.call_count, len(rolls))
+            self.assertEqual(area.container == "chest", chest_roll >= 17)
+            self.assertEqual(area.chest_trap is not None, trapped)
+            if area.container != "chest":
+                self.assertIn(area.container, ("bag", "pack"))
+            guide = encounter_document(dungeon, (key,), 11)
+            label = "Unlocked chest" if area.container == "chest" else area.container.capitalize()
+            self.assertIn("- {}.".format(label), guide)
+            self.assertEqual("**Chest trap:**" in guide, trapped)
+            log = encounter_log(dungeon, (key,), 11)
+            self.assertIn("Treasure chest (DC 17): basic roll = {}".format(chest_roll), log)
+            self.assertEqual("Chest trap (DC 19)" in log, trap_roll is not None)
+            self.assertNotIn("Treasure chest (DC", guide)
+
+    def test_container_overrides_validate_and_leave_other_contents_unchanged(self):
+        """Container overrides preserve other contents and reject invalid thresholds."""
+        dungeon = generate_dungeon(GenerationOptions(seed=42))
+        def original_contents(keys):
+            """Remove container metadata and debug rolls before comparing encounter contents."""
+            return tuple(replace(key, areas=tuple(
+                replace(area, container=None, chest_trap=None, chest_locked=None, debug=()) for area in key.areas
+            )) for key in keys)
+        first = generate_encounters(dungeon, rules=self.rules, treasure_chest_dc=0, chest_trap_dc=0)
+        for chest_dc, trap_dc in ((0, 34), (34, 0)):
+            keys = generate_encounters(dungeon, rules=self.rules,
+                                       treasure_chest_dc=chest_dc, chest_trap_dc=trap_dc)
+            self.assertEqual(original_contents(first), original_contents(keys))
+            self.assertTrue(any(area.container for key in keys for area in key.areas))
+            for key in keys:
+                for area in key.areas:
+                    if area.container:
+                        self.assertEqual(area.container == "chest", chest_dc == 0)
+                        self.assertIsNone(area.chest_trap)
+        for key in first:
+            for area in key.areas:
+                if area.container:
+                    self.assertEqual(area.container, "chest")
+                    self.assertIsNotNone(area.chest_trap)
+        for name in ("treasure_chest_dc", "chest_trap_dc", "chest_lock_dc"):
+            for invalid in (-1, 35, True, 2.5):
+                with self.assertRaisesRegex(ValueError, name):
+                    generate_encounters(dungeon, rules=self.rules, **{name: invalid})
+
+    def test_chest_lock_threshold_is_inclusive_independent_and_only_in_log(self):
+        """Chest locks use an inclusive independent threshold recorded only in debug logs."""
+        dungeon = self.chamber()
+        for trap_roll in (18, 19):
+            for lock_roll in (16, 17):
+                with self.subTest(trap_roll=trap_roll, lock_roll=lock_roll), \
+                        patch("dungeon_encounters.basic_roll",
+                              side_effect=[0, 0, 17, trap_roll, lock_roll]), \
+                        patch("dungeon_encounters.treasure",
+                              return_value=("Lair cache in this chamber.", "Coins: 2 cp.")):
+                    keys = generate_encounters(dungeon, rules=self.rules)
+                area = keys[0].areas[0]
+                self.assertEqual(area.chest_locked, lock_roll >= 17)
+                self.assertEqual(area.chest_trap is not None, trap_roll >= 19)
+                guide = encounter_document(dungeon, keys, 11)
+                label = "Locked chest" if lock_roll >= 17 else "Unlocked chest"
+                self.assertIn("- {}.".format(label), guide)
+                self.assertIn("Coins: 2 cp.", guide)
+                self.assertNotIn("cache", guide)
+                self.assertNotIn("in this chamber", guide)
+                self.assertNotIn("Chest lock (DC", guide)
+                log = encounter_log(dungeon, keys, 11)
+                self.assertIn("Chest lock (DC 17): basic roll = {}".format(lock_roll), log)
+                self.assertIn("Treasure result: Lair cache in this chamber.", log)
+
+    def test_lock_override_preserves_containers_loot_and_traps(self):
+        """Lock overrides change only chest lock state, leaving containers and loot intact."""
+        dungeon = generate_dungeon(GenerationOptions(seed=42))
+        locked = generate_encounters(dungeon, rules=self.rules, chest_lock_dc=0)
+        unlocked = generate_encounters(dungeon, rules=self.rules, chest_lock_dc=34)
+        self.assertTrue(any(area.container == "chest" for key in locked for area in key.areas))
+        for first, second in zip(locked, unlocked):
+            for a, b in zip(first.areas, second.areas):
+                self.assertEqual(replace(a, chest_locked=None, debug=()),
+                                 replace(b, chest_locked=None, debug=()))
+                if a.container == "chest":
+                    self.assertIs(a.chest_locked, True)
+                    self.assertIs(b.chest_locked, False)
+                else:
+                    self.assertIsNone(a.chest_locked)
+                    self.assertIsNone(b.chest_locked)
+                    self.assertFalse(any("Chest lock (" in line for line in a.debug + b.debug))
+
+    def test_chest_trap_triggers_on_opening_not_a_floor_mechanism(self):
+        """Chest traps trigger on opening and describe poison timing rather than floor plates."""
+        for kind in (3, 4):
+            rng = Mock()
+            rng.choice.side_effect = [kind, "sleep"]
+            rng.randint.return_value = 2
+            description = trap_description(rng, chest=True)
+            self.assertIn("opening the chest", description)
+            self.assertIn("CON / PSN-SLEEP", description)
+            self.assertIn("after 2 rounds, lasting 2 hours", description)
+            self.assertNotIn("pressure plate", description)
+
+    def test_monster_threshold_is_inclusive_and_validated(self):
+        """Monster presence uses an inclusive threshold and rejects invalid threshold values."""
+        for threshold, presence, expected in ((11, 10, False), (11, 11, True),
+                                               (0, 0, True), (33, 32, False),
+                                               (33, 33, True)):
+            rolls = [presence, 0, 0] if expected else [presence, 0]
+            with patch("dungeon_encounters.basic_roll", side_effect=rolls), \
+                    patch("dungeon_encounters.treasure", return_value=("None.",)):
+                area = generate_encounters(self.chamber(), threshold, self.rules)[0].areas[0]
+            self.assertEqual(area.monster is not None, expected)
+            self.assertEqual(area.table_roll, 0 if expected else None)
+        for invalid in (-1, 34, True, 2.5):
+            with self.assertRaisesRegex(ValueError, "0 through 33"):
+                generate_encounters(self.chamber(), invalid, self.rules)
+
+    def test_treasure_uses_monster_level_and_rolls_coins_per_individual(self):
+        """Treasure uses monster level and rolls coin awards for each individual."""
+        rng = Mock()
+        rng.randint.return_value = 1
+        monsters = MonsterEncounter("Three level-one goblins", (1, 1, 1))
+        debug = []
+        with patch("dungeon_encounters.basic_roll", side_effect=[21, 20, 24]):
+            loot = treasure(self.rules, rng, 9, monsters, debug)
+        self.assertIn("Coins: 6 cp", loot[1])
+        self.assertIn("1 pieces, worth 1 cp", loot[2])
+        self.assertIn("Gems/jewelry presence (DC 23, modifier +3): basic roll = 20", debug)
+        self.assertNotIn("check", loot[2])
+        self.assertIn("Magic: none", loot[3])
+        with patch("dungeon_encounters.basic_roll", return_value=20):
+            self.assertIn("None", treasure(self.rules, rng, 1, monsters)[0])
+
+    def test_empty_cache_and_magic_threshold_bonus(self):
+        """Empty caches use depth-scaled coin and magic-presence bonuses."""
+        rng = Mock()
+        rng.randint.return_value = 1
+        debug = []
+        with patch("dungeon_encounters.basic_roll", side_effect=[21, 0, 23]), \
+                patch("dungeon_encounters.magic_item", return_value="Magic Shield") as item:
+            loot = treasure(self.rules, rng, 6, None, debug)
+        self.assertIn("Abandoned chamber cache", loot[0])
+        self.assertIn("Coins: 1 gp", loot[1])
+        self.assertIn("Magic presence (DC 25, modifier +2): basic roll = 23", debug)
+        item.assert_called_once_with(self.rules, rng, 6, debug)
+        with patch("dungeon_encounters.basic_roll", side_effect=[21, 0, 0]), \
+                patch("dungeon_encounters.magic_item", return_value="Magic Shield"):
+            deep = treasure(self.rules, rng, 30, None)
+        self.assertIn("Coins: 4 pp", deep[1])
+
+    def test_dragon_hoard_guarantees_and_multipliers(self):
+        """Dragon hoards guarantee treasure and apply coin, gem, and magic multipliers."""
+        rng = Mock()
+        rng.randint.return_value = 1
+        with patch("dungeon_encounters.basic_roll", side_effect=[0, 22, 0]), \
+                patch("dungeon_encounters.magic_item", return_value="Magic Shield") as item:
+            loot = treasure(self.rules, rng, 7, MonsterEncounter("Young Horntail", (8,), True))
+        self.assertEqual("Dragon hoard.", loot[0])
+        self.assertIn("Coins: 400 gp", loot[1])
+        self.assertIn("2 pieces, worth 4 gp, 4 gp", loot[2])
+        self.assertIn("Magic: 2 items", loot[3])
+        self.assertEqual(item.call_count, 2)
+        item.assert_called_with(self.rules, rng, 10, None)
+
+    def test_magic_category_subtype_bonus_and_charges(self):
+        """Magic categories select the expected subtype, level bonus, and item charges."""
+        rng = Mock()
+        rng.randint.return_value = 1
+        cases = (
+            (0, "Mace", "+2 to hit and attack power"),
+            (9, "Plate", "+2 toughness"),
+            (11, "Magic Shield", "-2 to hit"),
+            (12, "Cloak of Invisibility", "power +2"),
+            (14, "Invisibility", "single use"),
+            (17, "Invisibility", "power +2"),
+            (20, "Magic Missile", "2 missiles per charge"),
+            (22, "Magic Missile", "+2 to hit and AP as a quarterstaff"),
+            (24, "Magic Bracers", "+2 toughness"),
+            (29, "Invisibility", "power +2"),
+        )
+        for roll, subtype, effect in cases:
+            debug = []
+            with patch("dungeon_encounters.basic_roll", side_effect=[roll, 27]):
+                item = magic_item(self.rules, rng, 1, debug)
+            self.assertIn(subtype, item)
+            self.assertIn(effect, item)
+            self.assertNotRegex(item, r"\broll\b")
+            self.assertIn("Magic item category: basic roll = {}".format(roll), debug)
+            self.assertIn("Magic item power at table level 1: basic roll = 27", debug)
+            if roll in (20, 22):
+                self.assertIn("2 charges", item)
+                self.assertIn("Magic item charges: 2d12 = 2", debug)
+        for level, power_roll, expected in ((1, 26, 1), (1, 27, 2), (3, 33, 3),
+                                             (10, 30, 5), (20, 30, 5)):
+            with patch("dungeon_encounters.basic_roll", side_effect=[11, power_roll]):
+                self.assertIn("power +{}".format(expected), magic_item(self.rules, rng, level))
+
+    def test_traps_use_saves_poison_timing_and_falling_attack_power(self):
+        """Trap descriptions include saves, poison timing, and falling attack power."""
+        rng = Mock()
+        rng.randint.return_value = 2
+        pit = trap_description(rng, pit=True)
+        self.assertIn("fall 20 feet, AP 20", pit)
+        self.assertIn("ST 20 (DEX / FALL)", pit)
+        for kind in range(1, 5):
+            for poison in ("sleep", "paralysis", "deadly"):
+                rng.randrange.return_value = kind
+                rng.choice.return_value = poison
+                description = trap_description(rng)
+                self.assertIn("DC 20 (WIS)", description)
+                self.assertIn("ST ", description)
+                if kind >= 3:
+                    self.assertIn("CON / PSN-" + poison.upper(), description)
+                    self.assertIn("after 2 rounds", description)
+                    self.assertIn("death 2 rounds later" if poison == "deadly" else "lasting 2 hours",
+                                  description)
+
+    def test_room_footprints_labels_hidden_features_and_reproducibility(self):
+        """Seeded encounters match room footprints and ordered labels while hiding traps."""
+        dungeon = generate_dungeon(GenerationOptions(
+            seed=42, levels=3, traps=2, pits=2, secret_doors=2, concealed_doors=2,
+        ))
+        contents = generate_encounters(dungeon, rules=self.rules)
+        self.assertEqual(contents, generate_encounters(dungeon, rules=self.rules))
+        self.assertNotEqual(contents, generate_encounters(replace(dungeon, seed=43), rules=self.rules))
+        for level, key in zip(dungeon.levels, contents):
+            self.assertEqual(len(key.areas), len(level.room_areas))
+            self.assertEqual([len(cells) for cells in level.room_cells], list(level.room_areas))
+            self.assertEqual([area.number for area in key.areas], list(range(1, len(key.areas) + 1)))
+            positions = [(area.cell[1], area.cell[0]) for area in key.areas]
+            self.assertEqual(positions, sorted(positions))
+            for area in key.areas:
+                self.assertEqual(sum(area.cell in cells for cells in level.room_cells), 1)
+                self.assertIn(level.grid.tile(*area.cell), " .TP")
+            self.assertEqual(len(key.traps), 4)
+            self.assertEqual(Counter((kind, dc) for _, kind, dc in key.doors),
+                             Counter({("Secret", 20): 2, ("Concealed", 17): 2}))
+            root = xml(level.grid, encounter_labels=key.labels, player_view=True)
+            labels = root.findall("s:g[@id='encounters']/s:g", NS)
+            self.assertEqual(len(labels), len(key.areas))
+            for label, area in zip(labels, key.areas):
+                self.assertEqual(label.attrib["data-area"], str(area.number))
+                self.assertEqual(label.attrib["data-column"], str(area.cell[0] + 1))
+                self.assertEqual(label.attrib["data-row"], str(area.cell[1] + 1))
+                self.assertEqual(label.find("s:text", NS).text, str(area.number))
+            self.assertFalse(root.findall("s:g[@id='features']/s:g[@data-tile='T']", NS))
+        document = encounter_document(dungeon, contents, 11)
+        self.assertEqual(len(re.findall(r"^### \d+$", document, re.MULTILINE)),
+                         sum(len(key.areas) for key in contents))
+        self.assertIn("## Level 3", document)
+        self.assertNotIn("TM ONLY", document)
+        for level in contents:
+            for cell, kind, dc in level.doors:
+                self.assertIn("{} door at column {}, row {}: DC {} (WIS)".format(
+                    kind, cell[0] + 1, cell[1] + 1, dc), document)
+
+    def test_area_numbers_follow_label_rows_then_columns_not_generation_order(self):
+        """Area numbering follows label row and column rather than room-generation order."""
+        dungeon = GeneratedDungeon(
+            DungeonMap(("#########", "#       #", "#       #", "#       #", "#########")),
+            42, (1, 1, 1, 1), (),
+            room_cells=(((6, 3),), ((6, 1),), ((2, 3),), ((2, 1),)),
+        )
+        key = generate_encounters(dungeon, rules=self.rules)[0]
+        self.assertEqual([(area.number, area.cell) for area in key.areas],
+                         [(1, (2, 1)), (2, (6, 1)), (3, (2, 3)), (4, (6, 3))])
+        self.assertEqual(tuple(key.labels.values()), ("1", "2", "3", "4"))
+
+    def test_markdown_is_playable_description_and_debug_log_retains_rolls(self):
+        """Markdown contains playable descriptions while debug logs retain generation rolls."""
+        dungeon = self.chamber()
+        with patch("dungeon_encounters.basic_roll", return_value=33):
+            keys = generate_encounters(dungeon, rules=self.rules)
+        markdown = encounter_document(dungeon, keys, 11)
+        log = encounter_log(dungeon, keys, 11)
+        for text in ("Monster presence", "table roll", "basic roll", "treasure check",
+                     "Map label:", "Seed:", "Rules and generator rulings", "Encounter table:"):
+            self.assertNotIn(text, markdown)
+        area = markdown.split("### 1\n", 1)[1].split("### Explicit map traps", 1)[0]
+        self.assertNotIn("column", area)
+        self.assertNotIn("row", area)
+        self.assertIn("Unicorn", area)
+        self.assertIn("Coins:", area)
+        self.assertIn("Magic Ring", area)
+        self.assertIn("power +", area)
+        self.assertIn("**Trap:**", area)
+        for text in ("Seed: 42", "Level 1", "Area 1 (column 3, row 3)",
+                     "Monster presence roll: 33 vs DC 11", "Monster table roll: 33",
+                     "Treasure presence (DC 21): basic roll = 33", "Creature 1 coins",
+                     "Gem count", "Gem 1 value", "Magic presence", "Magic item count",
+                     "Magic item category: basic roll = 33", "Magic item subtype",
+                     "Magic item power at table level 3: basic roll = 33"):
+            self.assertIn(text, log)
+
+    def test_debug_capture_does_not_change_treasure_or_random_state(self):
+        """Capturing treasure debug output leaves both loot and random state unchanged."""
+        for seed in range(10):
+            plain_rng = random.Random(seed)
+            debug_rng = random.Random(seed)
+            plain = treasure(self.rules, plain_rng, 7, None)
+            debug = []
+            traced = treasure(self.rules, debug_rng, 7, None, debug)
+            self.assertEqual(plain, traced)
+            self.assertEqual(plain_rng.getstate(), debug_rng.getstate())
+            self.assertTrue(debug)
+
+    def test_markdown_omits_absent_contents_and_marks_only_empty_areas(self):
+        """Markdown omits absent contents and marks an area empty only when all are absent."""
+        dungeon = self.chamber()
+        key = generate_encounters(dungeon, rules=self.rules)[0]
+        for mask in range(8):
+            with self.subTest(monster=bool(mask & 1), treasure=bool(mask & 2), trap=bool(mask & 4)):
+                area = replace(
+                    key.areas[0],
+                    monster=MonsterEncounter("1 Goblin (level 1)", (1,)) if mask & 1 else None,
+                    treasure=("Abandoned chamber cache.", "Coins: 2 cp.",
+                              "Gems/jewelry: none.", "Magic: none.") if mask & 2 else ("None.",),
+                    trap="Scything blade: ST 20 (DEX / BLADE) avoids it." if mask & 4 else "None.",
+                    container=None, chest_trap=None, chest_locked=None,
+                )
+                contents = (replace(key, areas=(area,)),)
+                markdown = encounter_document(dungeon, contents, 11)
+                self.assertNotIn("Area", markdown)
+                self.assertNotIn("TM ONLY", markdown)
+                self.assertEqual("**Treasure:** None." in markdown, bool(mask & 1) and not bool(mask & 2))
+                self.assertNotIn("Gems/jewelry: none", markdown)
+                self.assertNotIn("Magic: none", markdown)
+                self.assertNotIn("No monster", markdown)
+                self.assertNotIn("### Explicit map traps", markdown)
+                self.assertNotIn("### Secret and concealed doors", markdown)
+                self.assertEqual("**Encounter:**" in markdown, bool(mask & 1))
+                self.assertEqual("**Treasure:**" in markdown, bool(mask & 3))
+                self.assertEqual("**Trap:**" in markdown, bool(mask & 4))
+                self.assertEqual("Empty" in markdown, mask == 0)
+                if mask == 0:
+                    self.assertEqual(markdown.split("### 1\n", 1)[1].strip(), "Empty")
+                    log = encounter_log(dungeon, contents, 11)
+                    self.assertIn("Encounter result: No monster", log)
+                    self.assertIn("Treasure result: None.", log)
+
+    def test_random_chamber_trap_without_explicit_feature_and_label_fallback(self):
+        """Random traps need no map feature and crowded rooms retain fallback labels."""
+        dungeon = self.chamber()
+        with patch("dungeon_encounters.basic_roll", side_effect=[0, 23]), \
+                patch("dungeon_encounters.treasure", return_value=("None.",)):
+            key = generate_encounters(dungeon, rules=self.rules)[0]
+        self.assertNotEqual(key.areas[0].trap, "None.")
+        self.assertEqual(dungeon.grid.tile(*key.areas[0].cell), " ")
+        occupied = replace(dungeon, grid=DungeonMap(("#####", "#TTT#", "#TTT#", "#TTT#", "#####")))
+        root = xml(occupied.grid, encounter_labels=generate_encounters(
+            occupied, rules=self.rules)[0].labels)
+        text = root.find("s:g[@id='encounters']/s:g/s:text", NS)
+        self.assertEqual(text.attrib["y"], "0.14")
+
+    def test_incomplete_rules_and_level_keys_fail_explicitly(self):
+        """Incomplete rule tables and missing per-level encounter keys fail explicitly."""
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "rules.md"
+            source.write_text("## Indoor Adventuring\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "missing section boundary"):
+                EncounterRules(source)
+            source.write_text("## Indoor Adventuring\n## Outdoor Adventuring\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "missing table"):
+                EncounterRules(source)
+        with self.assertRaisesRegex(ValueError, "every dungeon level"):
+            encounter_document(self.chamber(), (), 11)
+        with self.assertRaisesRegex(ValueError, "every dungeon level"):
+            encounter_log(self.chamber(), (), 11)
+
+
+class CommandLineTests(unittest.TestCase):
+    def test_campaign_imports_share_modules_without_leaking_search_paths(self):
+        """Campaign imports share tool modules without leaking paths or failed imports."""
+        code = """
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
+before = sys.path[:]
+from campaigns.ur import dungeon_map, dungeon_encounters
+from campaigns.ur._dungeon_tools import load_module
+import dungeon_map as shared_map
+import dungeon_encounters as shared_encounters
+assert dungeon_map is shared_map
+assert dungeon_encounters is shared_encounters
+assert Path(dungeon_map.__file__).parent.name == "Tools_temp"
+assert sys.path == before
+with patch("dungeon_map._generate_level") as generate:
+    dungeon_map.generate_dungeon(dungeon_map.GenerationOptions(seed=42))
+    generate.assert_called_once()
+try:
+    load_module("missing_dungeon_module")
+except FileNotFoundError:
+    pass
+else:
+    raise AssertionError("missing shared module must raise")
+assert "missing_dungeon_module" not in sys.modules
+assert sys.path == before
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", code], cwd=str(HERE.parent),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_campaign_ascii_command_matches_shared_renderer(self):
+        """Campaign and shared ASCII renderers produce byte-identical SVG documents."""
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "map.txt"
+            source.write_text("#####\n#...#\n#####\n", encoding="ascii")
+            documents = []
+            for script in (HERE / "ascii_map_to_svg.py",
+                           HERE.parent / "campaigns" / "ur" / "ascii_map_to_svg.py"):
+                result = subprocess.run(
+                    [sys.executable, str(script), str(source), "--seed", "7"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                documents.append(source.with_suffix(".svg").read_bytes())
+            self.assertEqual(documents[0], documents[1])
+
+    def run_cli(self, script, *args):
+        """Run a tool CLI with captured output and disable default puzzles for generation."""
+        if script == "generate_dungeon_map.py":
+            args = ("--puzzle-probability", 0) + args
+        return subprocess.run(
+            [sys.executable, str(HERE / script)] + [str(arg) for arg in args],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+
+    def test_ascii_command_output_and_input_protection(self):
+        """ASCII rendering honors geometry options and protects invalid or colliding inputs."""
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "map.txt"
+            source.write_text("###\n#.#\n###\n", encoding="ascii")
+            result = self.run_cli("ascii_map_to_svg.py", source, "--feet-per-square", 5,
+                                  "--corner-radius", 0.5, "--roughness", 0)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            root = ET.parse(str(source.with_suffix(".svg"))).getroot()
+            self.assertEqual(root.attrib["width"], "0.31in")
+            for line in walls(root):
+                for x, y in endpoints(line):
+                    self.assertAlmostEqual(math.hypot(x - 1.5, y - 1.5), 0.5, places=10)
+            result = self.run_cli("ascii_map_to_svg.py", source, "--output", source)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("must not overwrite", result.stderr)
+            self.assertEqual(source.read_text(), "###\n#.#\n###\n")
+            source.write_text("#?\n", encoding="ascii")
+            result = self.run_cli("ascii_map_to_svg.py", source)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("row 1, column 2", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_generator_roundtrip_and_distinct_outputs(self):
+        """Generated ASCII rerenders identically and colliding output paths preserve files."""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "generated.svg"
+            rerendered = Path(directory) / "rerendered.svg"
+            result = self.run_cli(
+                "generate_dungeon_map.py", "--output", output,
+                "--seed", 42, "--traps", 3, "--secret-doors", 2, "--meandering", 0.8,
+                "--corner-radius", 0.5,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Seed: 42;", result.stdout)
+            source = output.with_suffix(".txt")
+            grid = parse_ascii(source.read_text(encoding="ascii"))
+            self.assertTrue(is_connected(grid))
+            result = self.run_cli(
+                "ascii_map_to_svg.py", source, "--output", rerendered, "--seed", 42,
+                "--corner-radius", 0.5,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(output.read_bytes(), rerendered.read_bytes())
+            original = output.read_bytes()
+            result = self.run_cli(
+                "generate_dungeon_map.py", "--output", output, "--ascii-output", output
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("must be different", result.stderr)
+            self.assertEqual(original, output.read_bytes())
+
+    def test_generator_errors_do_not_write_outputs(self):
+        """Invalid generator controls fail cleanly without writing any output files."""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "invalid.svg"
+            for args in (("--generate-encounters", "yes"), ("--generate-encounters", "true"),
+                         ("--generate-encounters", "false"), ("--encounter-chance", -1),
+                         ("--encounter-chance", 34), ("--encounter-chance", "1.5"),
+                         ("--treasure-chest-dc", -1), ("--treasure-chest-dc", 35),
+                         ("--treasure-chest-dc", "1.5"), ("--chest-trap-dc", -1),
+                         ("--chest-trap-dc", 35), ("--chest-trap-dc", "nan"),
+                         ("--chest-lock-dc", -1), ("--chest-lock-dc", 35),
+                         ("--chest-lock-dc", "1.5"),
+                         ("--width", 2), ("--roughness", "nan"),
+                         ("--meandering", "nan"), ("--meandering", "1.1"),
+                         ("--corner-radius", "0.6"), ("--corner-radius", "nan"),
+                         ("--levels", 0), ("--levels", "1.5"), ("--stair-length", 0),
+                         ("--ramp-probability", 101), ("--ramp-probability", "nan"),
+                         ("--levels", 2, "--stairs-down", 0),
+                         ("--levels", 2, "--roughness", "nan"),
+                         ("--levels", 3, "--width", 7, "--height", 7, "--stairs-down", 20),
+                         ("--width", 7, "--height", 7, "--traps", 50)):
+                result = self.run_cli("generate_dungeon_map.py", "--output", output, *args)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertFalse(output.exists())
+                self.assertFalse(output.with_suffix(".txt").exists())
+                self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_encounters_opt_in_persistence_and_path_collision(self):
+        """Opt-in encounters preserve geometry, replay keys, and reject output collisions."""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "stocked.svg"
+            markdown = Path(directory) / "stocked-encounters.md"
+            log_path = markdown.with_suffix(".log")
+            result = self.run_cli("generate_dungeon_map.py", "--output", output, "--seed", 42)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            original_svg = output.read_bytes()
+            original_ascii = output.with_suffix(".txt").read_bytes()
+            self.assertFalse(markdown.exists())
+            self.assertFalse(log_path.exists())
+            self.assertNotIn('id="encounters"', output.read_text())
+            result = self.run_cli("generate_dungeon_map.py", "--output", output,
+                                  "--seed", 42, "--generate-encounters")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(original_ascii, output.with_suffix(".txt").read_bytes())
+            old_root = ET.fromstring(original_svg)
+            new_root = ET.parse(str(output)).getroot()
+            for group in ("walls", "features"):
+                self.assertEqual(ET.tostring(old_root.find("s:g[@id='{}']".format(group), NS)),
+                                 ET.tostring(new_root.find("s:g[@id='{}']".format(group), NS)))
+            self.assertTrue(markdown.exists())
+            guide = markdown.read_bytes()
+            debug_log = log_path.read_bytes()
+            self.assertIn(b"Monster presence roll:", debug_log)
+            self.assertIn(b"Treasure chest (DC 17):", debug_log)
+            self.assertIn(b"Chest lock (DC 17):", debug_log)
+            self.assertNotIn(b"Monster presence roll:", guide)
+            result = self.run_cli("generate_dungeon_map.py", "--output", output,
+                                  "--seed", 42, "--generate-encounters")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(guide, markdown.read_bytes())
+            self.assertEqual(debug_log, log_path.read_bytes())
+            for collision in (markdown, log_path):
+                result = self.run_cli("generate_dungeon_map.py", "--output", output,
+                                      "--ascii-output", collision, "--generate-encounters")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("must be different", result.stderr)
+                self.assertEqual(guide, markdown.read_bytes())
+                self.assertEqual(debug_log, log_path.read_bytes())
+
+    def test_container_cli_overrides_reach_markdown_and_log(self):
+        """CLI container thresholds reach playable descriptions and detailed debug logs."""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "dungeon.svg"
+            for chest_dc, trap_dc, lock_dc in ((0, 0, 0), (0, 34, 34), (34, 0, 0)):
+                result = self.run_cli(
+                    "generate_dungeon_map.py", "--output", output, "--seed", 42,
+                    "--generate-encounters", "--treasure-chest-dc", chest_dc,
+                    "--chest-trap-dc", trap_dc,
+                    "--chest-lock-dc", lock_dc,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                guide = (Path(directory) / "dungeon-encounters.md").read_text(encoding="utf-8")
+                log = (Path(directory) / "dungeon-encounters.log").read_text(encoding="utf-8")
+                self.assertIn("Treasure chest (DC {}):".format(chest_dc), log)
+                self.assertNotIn("Treasure chest (DC", guide)
+                self.assertNotIn("Nearby lair", guide)
+                self.assertNotIn("miles away", guide)
+                self.assertNotIn("Lair cache", guide)
+                self.assertNotIn("Abandoned chamber cache", guide)
+                self.assertNotIn("Dragon hoard.", guide)
+                self.assertEqual("**Chest trap:**" in guide, chest_dc == 0 and trap_dc == 0)
+                if chest_dc == 34:
+                    self.assertTrue("- Bag." in guide or "- Pack." in guide)
+                    self.assertNotIn("chest.", guide)
+                    self.assertNotIn("Chest trap (DC", log)
+                    self.assertNotIn("Chest lock (DC", log)
+                else:
+                    self.assertIn("Chest trap (DC {}):".format(trap_dc), log)
+                    self.assertIn("Chest lock (DC {}):".format(lock_dc), log)
+                    self.assertIn("- {} chest.".format("Locked" if lock_dc == 0 else "Unlocked"), guide)
+
+    def test_encounter_cli_keys_every_level_including_deeper_than_nine(self):
+        """Encounter CLI keys every depth with ordered labels and capped table bands."""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "dungeon.svg"
+            result = self.run_cli(
+                "generate_dungeon_map.py", "--output", output, "--seed", 42,
+                "--levels", 10, "--generate-encounters", "--encounter-chance", 0,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            guide = (Path(directory) / "dungeon-encounters.md").read_text(encoding="utf-8")
+            debug_log = (Path(directory) / "dungeon-encounters.log").read_text(encoding="utf-8")
+            self.assertNotIn("**Encounter:** No monster", guide)
+            for index in range(1, 11):
+                section = guide.split("## Level {}\n".format(index), 1)[1].split("\n## Level ", 1)[0]
+                root = ET.parse(str(Path(directory) / "dungeon-level-{}.svg".format(index))).getroot()
+                labels = root.findall("s:g[@id='encounters']/s:g", NS)
+                self.assertGreater(len(labels), 0)
+                self.assertEqual(len(re.findall(r"^### \d+$", section, re.MULTILINE)), len(labels))
+                band = "1-3" if index <= 3 else "4-6" if index <= 6 else "7-9"
+                log_section = debug_log.split("\nLevel {}\n".format(index), 1)[1].split("\nLevel ", 1)[0]
+                self.assertIn("Encounter table: levels " + band, log_section)
+                self.assertEqual(log_section.count("Monster presence roll:"), len(labels))
+                self.assertEqual([label.attrib["data-area"] for label in labels],
+                                 [str(number) for number in range(1, len(labels) + 1)])
+                positions = [(int(label.attrib["data-row"]), int(label.attrib["data-column"]))
+                             for label in labels]
+                self.assertEqual(positions, sorted(positions))
+
+    def test_multi_level_files_and_ascii_svg_roundtrip(self):
+        """Multi-level files preserve aligned ramps and rerender each level identically."""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "dungeon.svg"
+            source = Path(directory) / "editable.txt"
+            result = self.run_cli(
+                "generate_dungeon_map.py", "--output", output, "--ascii-output", source,
+                "--levels", 3, "--stair-length", 4, "--stairs-down", 2,
+                "--ramp-probability", 100, "--seed", 42, "--traps", 2, "--player-view",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Level 3: 120 feet below the surface", result.stdout)
+            self.assertFalse(output.exists())
+            self.assertFalse(source.exists())
+            previous = None
+            for index in range(1, 4):
+                text_path = Path(directory) / "editable-level-{}.txt".format(index)
+                svg_path = Path(directory) / "dungeon-level-{}.svg".format(index)
+                grid = parse_ascii(text_path.read_text(encoding="ascii"))
+                self.assertTrue(is_connected(grid))
+                counts = Counter(grid.to_ascii())
+                self.assertEqual(counts["T"], 2)
+                self.assertEqual(counts["r"], 8 if index < 3 else 0)
+                if previous:
+                    self.assertEqual(
+                        {(x, y) for y, row in enumerate(previous.rows)
+                         for x, tile in enumerate(row) if tile == "r"},
+                        {(x, y) for y, row in enumerate(grid.rows)
+                         for x, tile in enumerate(row) if tile == "R"},
+                    )
+                previous = grid
+                rerendered = Path(directory) / "rerendered.svg"
+                converted = self.run_cli(
+                    "ascii_map_to_svg.py", text_path, "--output", rerendered,
+                    "--seed", 42, "--player-view",
+                )
+                self.assertEqual(converted.returncode, 0, converted.stderr)
+                self.assertEqual(svg_path.read_bytes(), rerendered.read_bytes())
+
+
+if __name__ == "__main__":
+    unittest.main()
