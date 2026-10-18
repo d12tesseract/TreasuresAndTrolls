@@ -7,6 +7,7 @@ import math
 import random
 from collections import deque
 from dataclasses import dataclass, replace
+from heapq import heappop, heappush
 from typing import Callable, List, Optional, Sequence, Set, Tuple
 
 from dungeon_geometry import (
@@ -170,21 +171,41 @@ def _room_shape(options: GenerationOptions, rng: random.Random) -> Tuple[int, in
     area = min(options.room_size, (options.width - 4) * (options.height - 4))
     area *= rng.uniform(0.65, 1.35)
     aspect = rng.uniform(0.65, 1.55)
-    box_area = area / (0.75 if rough else 1)
+    box_area = area / (0.65 if rough else 1)
     width = max(3, min(options.width - 4, round(math.sqrt(box_area * aspect))))
     height = max(3, min(options.height - 4, round(math.sqrt(box_area / aspect))))
     if not rough:
         return width, height, {
             (x, y) for y in range(height) for x in range(width)
         }, rough
-    cells = set()
-    center = width // 2
-    for y in range(height):
-        normalized_y = (y - (height - 1) / 2) / (height / 2)
-        radius = (width / 2) * math.sqrt(max(0, 1 - normalized_y ** 2))
-        left = max(0, min(center, round(center - radius + rng.uniform(-0.7, 0.7))))
-        right = min(width - 1, max(center, round(center + radius + rng.uniform(-0.7, 0.7))))
-        cells.update((x, y) for x in range(left, right + 1))
+    lobes = [
+        (rng.uniform(0.1, 0.9) * (width - 1),
+         rng.uniform(0.1, 0.9) * (height - 1),
+         rng.uniform(0.2, 0.45) * width,
+         rng.uniform(0.2, 0.45) * height)
+        for _ in range(rng.randint(3, 6))
+    ]
+    resistance = {
+        (x, y): min(
+            ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2
+            for cx, cy, rx, ry in lobes
+        ) + rng.uniform(-0.35, 0.35)
+        for y in range(height) for x in range(width)
+    }
+    center = (width // 2, height // 2)
+    cells = {center}
+    frontier = [(resistance[center], center)]
+    queued = {center}
+    target = max(4, min(round(area), round(width * height * 0.85)))
+    # Grow through adjacent floor only; low-resistance lobes need not touch.
+    while len(cells) < target:
+        _, (x, y) = heappop(frontier)
+        cells.add((x, y))
+        for dx, dy in DIRECTIONS:
+            cell = (x + dx, y + dy)
+            if cell in resistance and cell not in queued:
+                heappush(frontier, (resistance[cell], cell))
+                queued.add(cell)
     return width, height, cells, rough
 
 
