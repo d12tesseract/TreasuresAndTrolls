@@ -231,7 +231,7 @@ an accessible source encounter for prerequisites.
 
 Stair puzzles are catalog numbers **3, 8, 13, 15, 26, 30, and 39**. Placement
 first seeks an unused existing room with a complete clear 5x5 floor region.
-It puts a 3x3 down spiral **inside that room**, with clear surrounding floor
+It puts a 2x2 down spiral **inside that room**, with clear surrounding floor
 and a separate label cell. Straight down stairs/ramps are removed when these
 spirals are placed. The staircase leads to the next level, including beyond
 the mapped dungeon when placed on the final level. Its seal is described at
@@ -261,8 +261,9 @@ placement notes give the concrete rewards and geography for the TM.
 Random monsters and chamber traps are cleared from puzzle encounter records.
 
 Required items are physical loot, with source and destination references.
-Selection prefers earlier puzzle rewards that cannot be permanently sealed;
-otherwise it uses accessible encounter loot on the same or an earlier level,
+Selection prefers earlier puzzle rewards that cannot be permanently sealed,
+listing items with those encounters' solved-only prizes, not just in notes.
+Otherwise it uses accessible encounter loot on the same or an earlier level,
 outside protected branches and puzzle rooms. Runtime validation checks sources,
 same-level accessibility, eligibility, unique puzzles, reward ranking, branch
 geometry, and aligned links.

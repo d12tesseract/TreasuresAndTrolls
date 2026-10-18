@@ -563,7 +563,8 @@ def _area_document(area: EncounterArea) -> List[str]:
             if item not in ("None.", "Gems/jewelry: none.", "Magic: none.",
                             "Lair cache in this chamber.", "Abandoned chamber cache.",
                             "Dragon hoard.")]
-    loot.extend(area.puzzle_items)
+    if not area.puzzle_reward:
+        loot.extend(area.puzzle_items)
     has_trap = bool(area.trap) and area.trap != "None."
     lines = ["", "### {}".format(area.number), ""]
     if (not area.monster and not loot and not has_trap and not area.chest_trap
@@ -588,7 +589,7 @@ def _area_document(area: EncounterArea) -> List[str]:
         lines.extend(["", "**Chest trap:** " + area.chest_trap])
     if area.puzzle_reward:
         lines.extend(["", "**Puzzle reward (released only when solved):**"])
-        lines.extend("- " + item for item in area.puzzle_reward)
+        lines.extend("- " + item for item in area.puzzle_reward + area.puzzle_items)
     for note in area.notes:
         lines.extend(["", note])
     return lines
