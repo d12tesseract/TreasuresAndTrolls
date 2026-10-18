@@ -45,6 +45,7 @@ from dungeon_map import (
     _prune_unreachable,
     _rebuild_layout,
     _reroute_corridors,
+    _room_shape,
     _terrain,
 )
 
@@ -569,6 +570,63 @@ class MeanderingTests(unittest.TestCase):
 
 
 class GenerationTests(unittest.TestCase):
+    def test_cavern_footprints_are_connected_bounded_and_repeatable(self):
+        for width, height, size in ((7, 7, 4), (7, 20, 35), (20, 7, 35),
+                                    (30, 24, 55), (30, 24, 500)):
+            options = GenerationOptions(
+                width=width, height=height, room_size=size, rough_probability=1,
+            )
+            for seed in range(30):
+                with self.subTest(width=width, height=height, size=size, seed=seed):
+                    shape = _room_shape(options, random.Random(seed))
+                    self.assertEqual(shape, _room_shape(options, random.Random(seed)))
+                    w, h, cells, rough = shape
+                    self.assertTrue(rough)
+                    self.assertGreaterEqual(len(cells), 4)
+                    self.assertTrue(all(0 <= x < w and 0 <= y < h for x, y in cells))
+                    self.assertLessEqual(w, width - 4)
+                    self.assertLessEqual(h, height - 4)
+                    self.assertIn((w // 2, h // 2), cells)
+                    grid = DungeonMap(tuple(
+                        "".join("." if (x, y) in cells else "#" for x in range(w))
+                        for y in range(h)
+                    ))
+                    self.assertTrue(is_connected(grid))
+
+    def test_caverns_have_bends_split_lobes_and_stone_pockets(self):
+        bends, split_rows, pockets = [], [], []
+        options = GenerationOptions(room_size=55, rough_probability=1)
+        for seed in range(40):
+            width, height, cells, _ = _room_shape(options, random.Random(seed))
+            bends.append(any(
+                (width // 2, y) not in cells and any(cy == y for x, cy in cells)
+                for y in range(height)
+            ))
+            split_rows.append(any(
+                (x, y) not in cells
+                and any((left, y) in cells for left in range(x))
+                and any((right, y) in cells for right in range(x + 1, width))
+                for y in range(height) for x in range(width)
+            ))
+            pockets.append(any(
+                (x, y) not in cells
+                and all(neighbor in cells for neighbor in
+                        ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)))
+                for y in range(1, height - 1) for x in range(1, width - 1)
+            ))
+        self.assertGreaterEqual(sum(bends), 20)
+        self.assertGreaterEqual(sum(split_rows), 10)
+        self.assertTrue(any(pockets))
+
+    def test_worked_room_footprints_remain_rectangular(self):
+        options = GenerationOptions(rough_probability=0)
+        for seed in range(20):
+            width, height, cells, rough = _room_shape(options, random.Random(seed))
+            self.assertFalse(rough)
+            self.assertEqual(cells, {
+                (x, y) for y in range(height) for x in range(width)
+            })
+
     def test_random_room_positions_do_not_favor_nearby_or_distant_rooms(self):
         shape = (3, 3, {(x, y) for x in range(3) for y in range(3)}, False)
         same_half = [0, 0]
