@@ -125,8 +125,8 @@ logs remain **TM-only**. Encounter numbers remain visible in player view.
 ### Rooms and passage networks
 
 `GenerationOptions` controls the base layout. All rooms are placed before
-passages. Worked rooms are rectangles; cavern rooms use irregular row spans
-around an elliptical footprint. Room area is sampled around `room_size`,
+passages. Worked rooms are rectangles; cavern rooms grow connected, irregular
+footprints around multiple offset lobes. Room area is sampled around `room_size`,
 with varied aspect ratio and dimensions of at least three squares.
 
 Room positions are sampled inside a two-square border. Placement rejects
@@ -135,6 +135,13 @@ rooms. The room budget is
 `(width - 4) * (height - 4) * density`. Placement stops when that budget is
 met or after 80 consecutive unsuccessful room attempts; each sampled shape
 gets up to 24 position attempts. The budget is a target, not an exact area.
+
+In mixed terrain, a candidate near an existing room of the opposite terrain
+is probabilistically retried, with the bias fading to zero over a distance
+of roughly four typical room widths. This softly clusters natural cave
+systems and worked rooms without forbidding either kind among the other.
+Room types are still sampled using `rough_probability`; values zero and one
+remain entirely worked and entirely natural, respectively.
 
 Room pairs are ranked by closest footprint distance. In shuffled room order,
 each room attempts one short connection to earlier rooms, or two with 25%

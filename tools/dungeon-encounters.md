@@ -9,14 +9,115 @@ Depth: 30 feet.
 
 ### 1
 
+**Encounter:** 3 Satyrs (level 2 each).
+
+**Treasure:**
+- Unlocked chest.
+- Coins: 7 sp.
+- Gems/jewelry: 6 pieces, worth 3 sp, 1 sp, 2 sp, 3 sp, 3 sp, 2 sp individually.
+
+**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 2 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 2
+
+**Encounter:** 2 Giant Rats (level 1 each).
+
+**Treasure:** None.
+
+### 3
+
+Empty
+
+### 4
+
+**Encounter:** 4 Goblins (level 1 each).
+
+**Treasure:** None.
+
+### 5
+
+**Encounter:** 1 Imps (level 1 each).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
+
+### 6
+
+**Encounter:** 2 Lizard Men (level 1 each).
+
+**Treasure:** None.
+
+### 7
+
+**Encounter:** 4 Goblins (level 1 each).
+
+**Treasure:** None.
+
+### 8
+
+**Encounter:** 1 Mummy (level 6 each).
+
+**Treasure:**
+- Locked chest.
+- Coins: 3 gp.
+- Gems/jewelry: 5 pieces, worth 1 gp, 4 gp, 2 gp, 2 gp, 5 gp individually.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 2 rounds, then death 1 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 4 rounds, then death 4 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 9
+
+**Encounter:** 3 Lizard Men (level 1 each).
+
+**Treasure:**
+- Locked chest.
+- Coins: 31 cp.
+
+### 10
+
+**Encounter:** 2 adventurers, Chaotic: Human Fighter (level 1); Dwarf Fighter (level 2).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 11
+
+**Encounter:** 1 Slime (level 1 each).
+
+**Treasure:**
+- Pack.
+- Coins: 17 cp.
+
+### 12
+
+**Encounter:** 2 Goblins (level 1 each).
+
+**Treasure:** None.
+
+### 13
+
+Empty
+
+### 14
+
+
+**Puzzle reward (released only when solved):**
+- Gem: amethyst worth 8 cp.
+- Gem: ruby worth 2 cp.
+- Gem: sapphire worth 4 cp.
+- Gem: amethyst worth 12 cp.
+- **Puzzle item:** ear-of-wheat token. Required for the later puzzle P09: The Pilgrim's Three Offerings in Level 4, Area 18. Keep it with this encounter's loot as a reward for solving the puzzle; a matching symbol identifies its later use. This is a physical item, not just a clue.
+- **Puzzle item:** bandaged-hand token. Required for the later puzzle P09: The Pilgrim's Three Offerings in Level 4, Area 18. Keep it with this encounter's loot as a reward for solving the puzzle; a matching symbol identifies its later use. This is a physical item, not just a clue.
+- **Puzzle item:** lantern token. Required for the later puzzle P09: The Pilgrim's Three Offerings in Level 4, Area 18. Keep it with this encounter's loot as a reward for solving the puzzle; a matching symbol identifies its later use. This is a physical item, not just a clue.
 
 **Puzzle P26: The Four Seasons' Audience** (Time and coordinated action)
 
 **Generated map binding:** The placement and item locations here override the catalog's example geography. Furnish this chamber with the described props and creatures; puzzle creatures replace, rather than join, a random encounter.
 
-**Progression gate:** The D at column 108, row 4 stays impassable until this puzzle is solved, then latches open. It blocks the only exit stairway to Level 2. Protected areas: 2. This branch is independent: other puzzles need not be solved to enter this puzzle room, and solving this puzzle does not unlock their reward areas. There is no alternate mapped entrance to its reward area. Any catalog shortcut, return route, or emergency release leads back to the accessible side, never around this gate.
-
-**Protected reward:** Area 2 holds the highest-ranked generated treasure remaining on this level and its guarding encounter (permanent magic first, then potions/scrolls, then money and gems). Each branch receives at least 100 sp in value or magic, plus a guardian; existing hoards are moved, not duplicated. Use the catalog reward as descriptive inspiration, not an extra rolled hoard.
+**Linked stair seal:** A circular 2x2 spiral staircase IN THIS ROOM at column 29, row 47 descends clockwise to Level 2. The chamber is at least 5x5 squares. The stairway is sealed at both ends until P26: The Four Seasons' Audience in Level 1, Area 14 is solved; other exits do not release it. Its corner landing remains open floor. There is no separate treasure chamber or passage gate attached to these stairs.
 
 **Puzzle consequence level:** L = 1.
 
@@ -85,283 +186,15 @@ season releases winter frost. The operator must **ST 11 (CON / cold), with
 -S on the save**, or suffer **-S toughness** for one exploration turn.
 Turning the wheel through the correct seasons is not a failure.
 
-**Reward:** Roots withdraw from a descending staircase and expose a small
-amber bird that can carry one short spoken message to a nearby room.
-
-### 2
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 3 gp.
-- Gems/jewelry: 5 pieces, worth 1 gp, 4 gp, 2 gp, 2 gp, 5 gp individually.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 4 rounds, then death 4 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 3
-
-**Encounter:** 1 Bear (level 3 each).
-
-**Treasure:** None.
-
-### 4
-
-Empty
-
-### 5
-
-**Encounter:** 4 Giant Beetles (level 1 each).
-
-**Treasure:** None.
-
-### 6
-
-**Encounter:** 2 Goblins (level 1 each).
-
-**Treasure:** None.
-
-### 7
-
-**Encounter:** 1 Gelatinous Cube (level 4 each).
-
-**Treasure:** None.
-
-### 8
-
-**Encounter:** 4 Bandits (level 1 each).
-
-**Treasure:** None.
-
-### 9
-
-**Encounter:** 1 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 10
-
-Empty
-
-### 11
-
-**Encounter:** 1 Slime (level 1 each).
-
-**Treasure:** None.
-
-### 12
-
-**Encounter:** 2 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 13
-
-**Encounter:** 4 Goblins (level 1 each).
-
-**Treasure:** None.
-
-### 14
-
-**Encounter:** 1 Slime (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 17 cp.
+**Reward:** Use the exact rolled puzzle reward listed above; the catalog's illustrative treasure is not an additional award.
 
 ### 15
-
-**Encounter:** 5 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 3 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 16
-
-**Encounter:** 4 Giant Beetles (level 1 each).
-
-**Treasure:** None.
-
-### 17
-
-**Encounter:** 2 Zombies (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 3 rounds, then death 2 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 18
-
-**Encounter:** 4 Goblins (level 1 each).
-
-**Treasure:** None.
-
-### 19
-
-**Encounter:** 1 Giant Bats (level 1 each).
-
-**Treasure:** None.
-
-### 20
-
-**Encounter:** 6 adventurers, Lawful: Human Fighter (level 1); Human Magic User (level 1); Human Magic User (level 1); Elf Cleric (level 2); Halfling Fighter (level 2); Human Magic User (level 2).
-
-**Treasure:** None.
-
-### 21
-
-**Encounter:** 3 adventurers, Chaotic: Human Fighter (level 1); Human Fighter (level 1); Elf Fighter (level 1).
-
-**Treasure:** None.
-
-### 22
-
-Empty
-
-### 23
-
-Empty
-
-### 24
-
-Empty
-
-### 25
-
-Empty
-
-### 26
-
-**Encounter:** 2 adventurers, Chaotic: Human Fighter (level 1); Dwarf Fighter (level 2).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 27
-
-**Encounter:** 3 Lizard Men (level 1 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 31 cp.
-
-### 28
-
-**Encounter:** 4 Wolves (level 2 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 6 sp.
-- Gems/jewelry: 6 pieces, worth 2 sp, 3 sp, 1 sp, 3 sp, 1 sp, 3 sp individually.
-
-### 29
-
-**Encounter:** 3 Gnomes (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 30
-
-**Encounter:** 2 Skeletons (level 1 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 15 cp.
-
-### 31
-
-**Encounter:** 5 adventurers, Lawful: Dwarf Fighter (level 1); Elf Fighter (level 1); Halfling Fighter (level 1); Human Fighter (level 2); Elf Magic User (level 2).
-
-**Treasure:**
-- Pack.
-- Coins: 45 cp, 4 sp.
-
-### 32
-
-**Encounter:** 2 Giant Rats (level 1 each).
-
-**Treasure:** None.
-
-### 33
-
-**Encounter:** 4 Gnomes (level 1 each).
-
-**Treasure:** None.
-
-### 34
-
-**Encounter:** 4 Giant Bats (level 1 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 46 cp.
-
-### 35
-
-**Encounter:** 4 Bandits (level 1 each).
-
-**Treasure:** None.
-
-### 36
 
 **Encounter:** 5 adventurers, Lawful: Human Thief (level 2); Human Fighter (level 1); Dwarf Fighter (level 1); Halfling Thief (level 2); Halfling Thief (level 2).
 
 **Treasure:** None.
 
-### 37
-
-**Encounter:** 1 Imps (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 38
-
-**Encounter:** 1 Gelatinous Cube (level 4 each).
-
-**Treasure:** None.
-
-### 39
-
-**Encounter:** 6 Giant Beetles (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 40
-
-**Encounter:** 3 Goblins (level 1 each).
-
-**Treasure:** None.
-
-### 41
-
-Empty
-
-### 42
-
-**Encounter:** 3 Satyrs (level 2 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 7 sp.
-- Gems/jewelry: 6 pieces, worth 3 sp, 1 sp, 2 sp, 3 sp, 3 sp, 2 sp individually.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 2 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 43
-
-**Encounter:** 1 Gelatinous Cube (level 4 each).
-
-**Treasure:** None.
-
-### 44
+### 16
 
 **Encounter:** 4 Lizard Men (level 1 each).
 
@@ -371,107 +204,65 @@ Empty
 
 **Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: opening the chest vents gas around the opener; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 3 rounds, lasting 5 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
-### 45
+### 17
 
-**Encounter:** 2 Giant Beetles (level 1 each).
-
-**Treasure:** None.
-
-### 46
-
-**Encounter:** 2 Gnomes (level 1 each).
+**Encounter:** 6 adventurers, Lawful: Human Fighter (level 1); Human Magic User (level 1); Human Magic User (level 1); Elf Cleric (level 2); Halfling Fighter (level 2); Human Magic User (level 2).
 
 **Treasure:** None.
 
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
+### 18
 
-### 47
-
-Empty
-
-### 48
-
-
-**Treasure:**
-- Locked chest.
-- Coins: 16 cp.
-- Gems/jewelry: 6 pieces, worth 6 cp, 1 cp, 10 cp, 1 cp, 11 cp, 4 cp individually.
-
-### 49
-
-**Encounter:** 6 Bandits (level 1 each).
+**Encounter:** 4 Bandits (level 1 each).
 
 **Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 4 rounds, lasting 3 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 50
-
-**Encounter:** 3 Centaurs (level 4 each).
-
-**Treasure:** None.
-
-### 51
-
-**Encounter:** 5 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 52
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 2 rounds, then death 1 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
 ### Secret and concealed doors
 
-- Concealed door at column 73, row 13: DC 17 (WIS) to detect.
-- Concealed door at column 5, row 15: DC 17 (WIS) to detect.
-- Secret door at column 18, row 18: DC 20 (WIS) to detect.
-- Secret door at column 43, row 29: DC 20 (WIS) to detect.
-- Secret door at column 26, row 47: DC 20 (WIS) to detect.
+- Secret door at column 14, row 25: DC 20 (WIS) to detect.
+- Secret door at column 13, row 49: DC 20 (WIS) to detect.
 
 ## Level 2
 
 Depth: 60 feet.
 
+### Puzzle-linked stairways
+
+**Linked stair seal:** A circular 2x2 spiral staircase IN THIS ROOM at column 29, row 47 descends clockwise to Level 2. The chamber is at least 5x5 squares. The stairway is sealed at both ends until P26: The Four Seasons' Audience in Level 1, Area 14 is solved; other exits do not release it. Its corner landing remains open floor. There is no separate treasure chamber or passage gate attached to these stairs.
+
 ### 1
 
-**Encounter:** 3 Fauns (level 1 each).
+**Encounter:** 4 Giant Spiders (level 3 each).
 
 **Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
 ### 2
 
-**Encounter:** 5 Giant Rats (level 1 each).
 
-**Treasure:** None.
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 1 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
 ### 3
 
-**Encounter:** 3 Skeletons (level 1 each).
+**Encounter:** 1 Fiend (level 3 each).
+
+**Treasure:** None.
+
+### 4
+
+**Encounter:** 5 Gnomes (level 1 each).
 
 **Treasure:**
 - Unlocked chest.
-- Coins: 34 cp.
+- Coins: 59 cp.
 
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-**Puzzle item:** bandaged-hand token. Place it visibly among the room's furnishings, outside locked containers; no secret-door or search roll is required to recognize it. It is used for P09: The Pilgrim's Three Offerings in Level 4, Area 1. Include a matching symbol or diagram pointing to that later use; do not remove it with ordinary treasure.
-
-### 4
+### 5
 
 **Encounter:** 4 Skeletons (level 1 each).
 
 **Treasure:**
 - Pack.
-- Coins: 57 cp.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 5
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 1 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+- Coins: 71 cp.
 
 ### 6
 
@@ -484,69 +275,31 @@ Depth: 60 feet.
 
 ### 7
 
-**Encounter:** 2 Zombies (level 1 each).
+**Encounter:** 3 Fauns (level 1 each).
 
 **Treasure:** None.
 
 ### 8
 
-**Encounter:** 5 adventurers, Neutral: Human Magic User (level 2); Dwarf Fighter (level 3); Elf Fighter (level 1); Elf Fighter (level 2); Human Thief (level 2).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 9 sp, 17 cp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: opening the chest vents gas around the opener; ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 2 rounds, then death 3 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+Empty
 
 ### 9
 
-
-**Treasure:**
-- Pack.
-- Coins: 1 sp.
+Empty
 
 ### 10
-
-**Encounter:** 1 Giant Scorpion (level 3 each).
-
-**Treasure:** None.
-
-### 11
-
-**Encounter:** 3 Wolves (level 2 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 7 sp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 3 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 12
-
-**Encounter:** 2 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 13
-
-
-**Treasure:**
-- Locked chest.
-- Coins: 2 sp.
-
-### 14
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:** None.
-
-### 15
 
 **Encounter:** 1 Gelatinous Cubes (level 4 each).
 
 **Treasure:** None.
 
-### 16
+### 11
+
+**Encounter:** 3 Zombies (level 1 each).
+
+**Treasure:** None.
+
+### 12
 
 **Encounter:** 1 adventurers, Neutral: Human Fighter (level 3).
 
@@ -554,13 +307,24 @@ Depth: 60 feet.
 
 **Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 20 feet, AP 20 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
 
-### 17
+### 13
 
-**Encounter:** 2 Giant Rats (level 1 each).
+**Encounter:** 4 Skeletons (level 1 each).
 
-**Treasure:** None.
+**Treasure:**
+- Pack.
+- Coins: 57 cp.
 
-### 18
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
+
+### 14
+
+
+**Treasure:**
+- Pack.
+- Coins: 1 sp.
+
+### 15
 
 **Encounter:** 4 Lizard Men (level 1 each).
 
@@ -571,38 +335,7 @@ Depth: 60 feet.
 - Magic Potion: Wisdom; +1 Wisdom for 1 hour (power +1)
 - Magic Wand: Charm Person; 19 charges (maximum 24) (power +1)
 
-### 19
-
-Empty
-
-### 20
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 20 feet, AP 20 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 21
-
-**Encounter:** 4 Wolves (level 2 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 22
-
-**Encounter:** 3 Giant Rats (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 1 rounds, then death 6 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 23
-
-**Encounter:** 3 Zombies (level 1 each).
-
-**Treasure:** None.
-
-### 24
+### 16
 
 **Encounter:** 2 Skeletons (level 1 each).
 
@@ -612,51 +345,7 @@ Empty
 
 **Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 3 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
-**Puzzle item:** lantern token. Place it visibly among the room's furnishings, outside locked containers; no secret-door or search roll is required to recognize it. It is used for P09: The Pilgrim's Three Offerings in Level 4, Area 1. Include a matching symbol or diagram pointing to that later use; do not remove it with ordinary treasure.
-
-### 25
-
-**Encounter:** 3 Wolves (level 2 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 2 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 26
-
-Empty
-
-### 27
-
-**Encounter:** 2 Bandits (level 2 each).
-
-**Treasure:** None.
-
-### 28
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 29
-
-**Encounter:** 1 Gelatinous Cube (level 4 each).
-
-**Treasure:** None.
-
-### 30
-
-Empty
-
-### 31
-
-**Encounter:** 6 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 32
+### 17
 
 **Encounter:** 5 Goblins (level 1 each).
 
@@ -667,200 +356,17 @@ Empty
 
 **Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 4 rounds, lasting 4 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
-**Puzzle item:** ear-of-wheat token. Place it visibly among the room's furnishings, outside locked containers; no secret-door or search roll is required to recognize it. It is used for P09: The Pilgrim's Three Offerings in Level 4, Area 1. Include a matching symbol or diagram pointing to that later use; do not remove it with ordinary treasure.
-
-### 33
-
-**Encounter:** 5 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 34
-
-**Encounter:** 3 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 35
-
-**Encounter:** 1 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 36
-
-**Encounter:** 1 Giant Beetles (level 1 each).
-
-**Treasure:** None.
-
-### 37
-
-**Encounter:** 4 Skeletons (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 71 cp.
-
-### 38
-
-**Encounter:** 2 Satyrs (level 2 each).
-
-**Treasure:** None.
-
-### 39
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:** None.
-
-### 40
-
-**Encounter:** 1 Gelatinous Cube (level 4 each).
-
-**Treasure:** None.
-
-### 41
-
-**Encounter:** 5 Gnomes (level 1 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 59 cp.
-
-### 42
-
-**Encounter:** 5 adventurers, Chaotic: Halfling Cleric (level 2); Human Thief (level 2); Human Cleric (level 3); Halfling Thief (level 1); Dwarf Thief (level 2).
-
-**Treasure:** None.
-
-### 43
-
-Empty
-
-### 44
-
-**Encounter:** 3 Gnomes (level 1 each).
-
-**Treasure:**
-- Bag.
-- Coins: 35 cp.
-- Gems/jewelry: 5 pieces, worth 12 cp, 2 cp, 11 cp, 9 cp, 2 cp individually.
-
-### 45
-
-**Encounter:** 3 Bandits (level 2 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 46
-
-**Encounter:** 4 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 47
-
-**Encounter:** 3 Lizard Men (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 61 cp.
-
-### 48
-
-**Encounter:** 3 Wolves (level 2 each).
-
-**Treasure:** None.
-
-### 49
-
-**Encounter:** 4 Skeletons (level 1 each).
-
-**Treasure:** None.
-
-### 50
-
-**Encounter:** 5 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 51
-
-**Encounter:** 1 Fiend (level 3 each).
-
-**Treasure:** None.
-
-### 52
-
-**Encounter:** 3 Giant Rats (level 1 each).
-
-**Treasure:** None.
-
-### 53
+### 18
 
 **Encounter:** 5 Skeletons (level 1 each).
 
 **Treasure:** None.
 
-### 54
-
-**Encounter:** 3 Giant Rats (level 1 each).
-
-**Treasure:** None.
-
-### 55
-
-**Encounter:** 4 Wolves (level 2 each).
-
-**Treasure:**
-- Bag.
-- Coins: 5 sp.
-- Gems/jewelry: 4 pieces, worth 2 sp, 1 sp, 3 sp, 2 sp individually.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 20 feet, AP 20 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 56
-
-**Encounter:** 3 Gnomes (level 1 each).
-
-**Treasure:** None.
-
-### 57
-
-**Encounter:** 3 Bandits (level 2 each).
-
-**Treasure:** None.
-
-### 58
-
-**Encounter:** 1 Gelatinous Cube (level 4 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 59
-
-Empty
-
-### 60
-
-Empty
-
 ### Secret and concealed doors
 
-- Concealed door at column 80, row 6: DC 17 (WIS) to detect.
-- Concealed door at column 67, row 36: DC 17 (WIS) to detect.
-- Secret door at column 17, row 44: DC 20 (WIS) to detect.
-- Concealed door at column 33, row 55: DC 17 (WIS) to detect.
-- Secret door at column 85, row 88: DC 20 (WIS) to detect.
-- Concealed door at column 104, row 95: DC 17 (WIS) to detect.
+- Secret door at column 56, row 22: DC 20 (WIS) to detect.
+- Concealed door at column 50, row 28: DC 17 (WIS) to detect.
+- Secret door at column 49, row 49: DC 20 (WIS) to detect.
 
 ## Level 3
 
@@ -868,79 +374,23 @@ Depth: 90 feet.
 
 ### 1
 
-**Encounter:** 3 Giant Bats (level 1 each).
+**Encounter:** 2 adventurers, Chaotic: Human Fighter (level 3); Elf Magic User (level 3).
 
-**Treasure:**
-- Pack.
-- Coins: 53 cp.
-- Gems/jewelry: 5 pieces, worth 5 cp, 1 cp, 11 cp, 8 cp, 3 cp individually.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 20 feet, AP 20 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
+**Treasure:** None.
 
 ### 2
 
-**Encounter:** 1 Bear (level 3 each).
+**Encounter:** 4 Wolves (level 2 each).
 
 **Treasure:** None.
 
 ### 3
 
-**Encounter:** 3 Skeletons (level 1 each).
+**Encounter:** 1 Gelatinous Cube (level 4 each).
 
 **Treasure:** None.
 
 ### 4
-
-**Encounter:** 2 Centaurs (level 4 each).
-
-**Treasure:** None.
-
-### 5
-
-**Encounter:** 1 Giant Beetles (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 3 rounds, lasting 3 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 6
-
-**Encounter:** 5 Skeletons (level 1 each).
-
-**Treasure:** None.
-
-### 7
-
-Empty
-
-### 8
-
-**Encounter:** 3 Zombies (level 1 each).
-
-**Treasure:** None.
-
-### 9
-
-
-**Treasure:**
-- Locked chest.
-- Coins: 3 sp.
-
-### 10
-
-**Encounter:** 1 Satyrs (level 2 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 3 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 11
-
-**Encounter:** 5 adventurers, Lawful: Human Fighter (level 4); Dwarf Cleric (level 3); Halfling Fighter (level 3); Halfling Fighter (level 4); Dwarf Fighter (level 2).
-
-**Treasure:** None.
-
-### 12
 
 **Encounter:** 1 Slime (level 1 each).
 
@@ -948,158 +398,12 @@ Empty
 - Unlocked chest.
 - Coins: 16 cp.
 
-### 13
-
-**Encounter:** 6 Giant Beetles (level 1 each).
-
-**Treasure:** None.
-
-### 14
-
-**Encounter:** 2 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 15
-
-**Encounter:** 3 Gnomes (level 1 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 27 cp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: opening the chest vents gas around the opener; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 4 rounds, lasting 5 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 16
-
-**Encounter:** 4 Wolves (level 2 each).
-
-**Treasure:** None.
-
-### 17
-
-**Encounter:** 6 adventurers, Lawful: Human Fighter (level 4); Human Fighter (level 4); Human Fighter (level 2); Elf Cleric (level 2); Human Fighter (level 3); Human Fighter (level 4).
-
-**Treasure:** None.
-
-### 18
-
-**Encounter:** 1 Giant Spiders (level 3 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 5 sp.
-
-### 19
-
-**Encounter:** 6 Giant Bats (level 1 each).
-
-**Treasure:** None.
-
-### 20
-
-
-**Treasure:**
-- Pack.
-- Coins: 3 sp.
-
-### 21
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:** None.
-
-### 22
-
-**Encounter:** 5 Skeletons (level 1 each).
-
-**Treasure:** None.
-
-### 23
-
-**Encounter:** 4 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 24
-
-**Encounter:** 3 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 25
-
-**Encounter:** 1 Gelatinous Cube (level 4 each).
-
-**Treasure:** None.
-
-### 26
-
-Empty
-
-### 27
+### 5
 
 
 **Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
 
-### 28
-
-**Encounter:** 1 Fiend (level 3 each).
-
-**Treasure:** None.
-
-### 29
-
-**Encounter:** 1 Slime (level 1 each).
-
-**Treasure:** None.
-
-### 30
-
-**Encounter:** 5 Giant Spiders (level 3 each).
-
-**Treasure:**
-- Bag.
-- Coins: 17 sp.
-
-### 31
-
-**Encounter:** 6 adventurers, Chaotic: Human Fighter (level 4); Halfling Fighter (level 4); Human Magic User (level 3); Halfling Thief (level 2); Human Fighter (level 2); Human Thief (level 4).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 32
-
-**Encounter:** 2 adventurers, Chaotic: Human Fighter (level 3); Elf Magic User (level 3).
-
-**Treasure:** None.
-
-### 33
-
-**Encounter:** 5 Zombies (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 58 cp.
-- Magic: 1 items.
-- Magic Wand: Healing; Cure minor wound; cleric only, minimum level 1; 9 charges (maximum 24) (power +1)
-
-### 34
-
-Empty
-
-### 35
-
-Empty
-
-### 36
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 10 feet, AP 10 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 37
+### 6
 
 **Encounter:** 3 Bandits (level 3 each).
 
@@ -1107,71 +411,31 @@ Empty
 
 **Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 4 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
-### 38
+### 7
 
-**Encounter:** 3 Gelatinous Cubes (level 4 each).
 
-**Treasure:** None.
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 10 feet, AP 10 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
 
-### 39
+### 8
 
-**Encounter:** 6 adventurers, Lawful: Halfling Thief (level 2); Halfling Fighter (level 2); Human Fighter (level 2); Human Fighter (level 2); Human Fighter (level 4); Halfling Fighter (level 4).
-
-**Treasure:**
-- Bag.
-- Coins: 28 sp.
-- Gems/jewelry: 2 pieces, worth 11 sp, 6 sp individually.
-
-### 40
-
-**Encounter:** 1 Mummy (level 6 each).
+**Encounter:** 2 Zombies (level 1 each).
 
 **Treasure:** None.
 
-### 41
-
-**Encounter:** 1 Slime (level 1 each).
-
-**Treasure:** None.
-
-### 42
+### 9
 
 
 **Treasure:**
 - Bag.
 - Coins: 5 sp.
 
-### 43
+### 10
 
-**Encounter:** 1 Gelatinous Cube (level 4 each).
-
-**Treasure:** None.
-
-### 44
-
-**Encounter:** 5 Goblins (level 1 each).
+**Encounter:** 1 Mummy (level 6 each).
 
 **Treasure:** None.
 
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 45
-
-Empty
-
-### 46
-
-**Encounter:** 5 Goblins (level 1 each).
-
-**Treasure:** None.
-
-### 47
-
-**Encounter:** 2 Zombies (level 1 each).
-
-**Treasure:** None.
-
-### 48
+### 11
 
 **Encounter:** 5 Giant Beetles (level 1 each).
 
@@ -1179,49 +443,59 @@ Empty
 - Locked chest.
 - Coins: 77 cp.
 
-### 49
+### 12
 
 **Encounter:** 4 Giant Rats (level 1 each).
 
 **Treasure:** None.
 
-### 50
-
-Empty
-
-### 51
-
-**Encounter:** 3 Goblins (level 1 each).
-
-**Treasure:** None.
-
-### 52
+### 13
 
 **Encounter:** 1 Bandits (level 3 each).
 
 **Treasure:** None.
 
-### 53
+### 14
 
-**Encounter:** 1 Giant Scorpion (level 3 each).
+Empty
+
+### 15
+
+**Encounter:** 1 Bear (level 3 each).
 
 **Treasure:** None.
 
-### 54
+### 16
 
-**Encounter:** 3 Centaurs (level 4 each).
+**Encounter:** 1 Giant Beetles (level 1 each).
 
-**Treasure:**
-- Locked chest.
-- Coins: 21 sp.
-- Gems/jewelry: 2 pieces, worth 8 sp, 4 sp individually.
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 3 rounds, lasting 3 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 17
+
+**Encounter:** 1 Fiend (level 3 each).
+
+**Treasure:** None.
+
+### 18
+
+**Encounter:** 2 Lizard Men (level 1 each).
+
+**Treasure:** None.
+
+### 19
+
+**Encounter:** 3 Gelatinous Cubes (level 4 each).
+
+**Treasure:** None.
 
 ### Secret and concealed doors
 
-- Secret door at column 105, row 22: DC 20 (WIS) to detect.
-- Secret door at column 5, row 32: DC 20 (WIS) to detect.
-- Secret door at column 86, row 34: DC 20 (WIS) to detect.
-- Concealed door at column 30, row 49: DC 17 (WIS) to detect.
+- Concealed door at column 46, row 23: DC 17 (WIS) to detect.
+- Secret door at column 40, row 32: DC 20 (WIS) to detect.
+- Secret door at column 53, row 32: DC 20 (WIS) to detect.
 
 ## Level 4
 
@@ -1229,6 +503,128 @@ Depth: 120 feet.
 
 ### 1
 
+**Encounter:** 1 Ogre (level 9 each).
+
+**Treasure:** None.
+
+### 2
+
+**Encounter:** 2 adventurers, Chaotic: Dwarf Fighter (level 5); Dwarf Magic User (level 4).
+
+**Treasure:** None.
+
+### 3
+
+**Encounter:** 1 adventurers, Neutral: Human Magic User (level 4).
+
+**Treasure:** None.
+
+### 4
+
+**Encounter:** 7 Bandits (level 4 each).
+
+**Treasure:**
+- Bag.
+- Coins: 50 sp.
+
+### 5
+
+**Encounter:** 4 adventurers, Lawful: Human Magic User (level 4); Human Fighter (level 3); Halfling Magic User (level 3); Dwarf Fighter (level 4).
+
+**Treasure:**
+- Pack.
+- Coins: 21 sp.
+
+### 6
+
+Empty
+
+### 7
+
+**Encounter:** 3 Gargoyles (level 4 each).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 2 rounds, lasting 5 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 8
+
+**Encounter:** 1 Basilisk (level 7 each).
+
+**Treasure:** None.
+
+### 9
+
+**Encounter:** 1 Mummy (level 6 each).
+
+**Treasure:**
+- Locked chest.
+- Coins: 3 gp.
+
+### 10
+
+**Encounter:** 5 Dire Wolves (level 4 each).
+
+**Treasure:**
+- Pack.
+- Coins: 28 sp.
+- Gems/jewelry: 6 pieces, worth 2 sp, 11 sp, 5 sp, 2 sp, 4 sp, 6 sp individually.
+
+### 11
+
+**Encounter:** 1 Gargoyles (level 4 each).
+
+**Treasure:** None.
+
+### 12
+
+**Encounter:** 6 Bandits (level 4 each).
+
+**Treasure:**
+- Locked chest.
+- Coins: 42 sp.
+
+**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 3 rounds, then death 5 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 13
+
+**Encounter:** 3 Giant Spiders (level 3 each).
+
+**Treasure:** None.
+
+### 14
+
+**Encounter:** 3 Grizzly Bears (level 5 each).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
+
+### 15
+
+**Encounter:** 4 Skeletons (level 1 each).
+
+**Treasure:** None.
+
+### 16
+
+**Encounter:** 1 Giant Snake (level 7 each).
+
+**Treasure:** None.
+
+### 17
+
+**Encounter:** 6 adventurers, Lawful: Elf Magic User (level 3); Dwarf Magic User (level 3); Halfling Magic User (level 4); Human Fighter (level 4); Halfling Fighter (level 4); Elf Fighter (level 3).
+
+**Treasure:**
+- Pack.
+- Coins: 24 sp.
+
+### 18
+
+
+**Puzzle reward (released only when solved):**
+- Gem: opal worth 9 sp.
 
 **Puzzle P09: The Pilgrim's Three Offerings** (Item matching and exploration)
 
@@ -1236,11 +632,11 @@ Depth: 120 feet.
 
 **Local challenge:** Apply the catalog's chest lock, temporary room trap, or item reward here; it does not replace the level's exit stairs. Temporary seals reopen as described in the solution or emergency-release clues.
 
-**Required item:** ear-of-wheat token -- found at Level 2, Area 32 before this puzzle; it is not part of a treasure container or locked behind a puzzle on its source level.
+**Required item:** ear-of-wheat token -- found at Level 1, Area 14 before this puzzle; collect it with that encounter's loot after solving its puzzle.
 
-**Required item:** bandaged-hand token -- found at Level 2, Area 3 before this puzzle; it is not part of a treasure container or locked behind a puzzle on its source level.
+**Required item:** bandaged-hand token -- found at Level 1, Area 14 before this puzzle; collect it with that encounter's loot after solving its puzzle.
 
-**Required item:** lantern token -- found at Level 2, Area 24 before this puzzle; it is not part of a treasure container or locked behind a puzzle on its source level.
+**Required item:** lantern token -- found at Level 1, Area 14 before this puzzle; collect it with that encounter's loot after solving its puzzle.
 
 **Puzzle consequence level:** L = 4.
 
@@ -1304,353 +700,15 @@ handle once all three tokens are placed. Each rejection extinguishes one of
 four pilgrim lights; the fourth permanently seals the treasure vault. The
 tokens are still returned and never become inaccessible required items.
 
-**Reward:** The vault contains a valuable pilgrim's necklace and supplies,
-but contains no onward route or required dungeon item.
-
-### 2
-
-**Encounter:** 7 Bandits (level 4 each).
-
-**Treasure:**
-- Bag.
-- Coins: 50 sp.
-
-### 3
-
-Empty
-
-### 4
-
-**Encounter:** 4 Zombies (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 73 cp.
-
-### 5
-
-**Encounter:** 1 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 6
-
-**Encounter:** 1 Gargoyles (level 4 each).
-
-**Treasure:** None.
-
-### 7
-
-
-**Treasure:**
-- Locked chest.
-- Coins: 8 sp.
-
-### 8
-
-**Encounter:** 1 Minotaur (level 6 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 4 gp.
-
-### 9
-
-**Encounter:** 1 Basilisk (level 7 each).
-
-**Treasure:** None.
-
-### 10
-
-**Encounter:** 7 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 11
-
-**Encounter:** 2 Zombies (level 1 each).
-
-**Treasure:**
-- Bag.
-- Coins: 20 cp.
-
-### 12
-
-**Encounter:** 6 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 13
-
-**Encounter:** 3 Dire Wolves (level 4 each).
-
-**Treasure:** None.
-
-### 14
-
-**Encounter:** 3 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 15
-
-**Encounter:** 5 Dire Wolves (level 4 each).
-
-**Treasure:**
-- Pack.
-- Coins: 28 sp.
-- Gems/jewelry: 6 pieces, worth 2 sp, 11 sp, 5 sp, 2 sp, 4 sp, 6 sp individually.
-
-### 16
-
-**Encounter:** 6 adventurers, Lawful: Elf Magic User (level 3); Dwarf Magic User (level 3); Halfling Magic User (level 4); Human Fighter (level 4); Halfling Fighter (level 4); Elf Fighter (level 3).
-
-**Treasure:**
-- Pack.
-- Coins: 24 sp.
-
-### 17
-
-Empty
-
-### 18
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 19
-
-**Encounter:** 6 adventurers, Neutral: Halfling Cleric (level 4); Human Thief (level 5); Human Fighter (level 3); Elf Thief (level 3); Human Fighter (level 4); Halfling Magic User (level 5).
-
-**Treasure:** None.
-
-### 20
-
-**Encounter:** 7 Zombies (level 1 each).
-
-**Treasure:** None.
-
-### 21
-
-**Encounter:** 4 Skeletons (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 55 cp.
-- Gems/jewelry: 5 pieces, worth 10 cp, 4 cp, 12 cp, 1 cp, 3 cp individually.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 2 rounds, lasting 4 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 22
-
-**Encounter:** 2 adventurers, Chaotic: Dwarf Fighter (level 5); Dwarf Magic User (level 4).
-
-**Treasure:** None.
-
-### 23
-
-**Encounter:** 3 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 24
-
-**Encounter:** 4 Skeletons (level 1 each).
-
-**Treasure:** None.
-
-### 25
-
-**Encounter:** 1 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 26
-
-**Encounter:** 1 Ogre (level 9 each).
-
-**Treasure:** None.
-
-### 27
-
-**Encounter:** 1 Basilisk (level 7 each).
-
-**Treasure:** None.
-
-### 28
-
-**Encounter:** 6 Bandits (level 4 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 42 sp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 3 rounds, then death 5 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 29
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 3 gp.
-
-### 30
-
-**Encounter:** 1 Ogre (level 9 each).
-
-**Treasure:** None.
-
-### 31
-
-**Encounter:** 3 adventurers, Chaotic: Halfling Fighter (level 4); Halfling Thief (level 3); Halfling Fighter (level 3).
-
-**Treasure:** None.
-
-### 32
-
-**Encounter:** 4 adventurers, Lawful: Human Magic User (level 4); Human Fighter (level 3); Halfling Magic User (level 3); Dwarf Fighter (level 4).
-
-**Treasure:**
-- Pack.
-- Coins: 21 sp.
-
-### 33
-
-**Encounter:** 1 Zombies (level 1 each).
-
-**Treasure:** None.
-
-### 34
-
-**Encounter:** 6 Dire Wolves (level 4 each).
-
-**Treasure:** None.
-
-### 35
-
-**Encounter:** 3 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 36
-
-Empty
-
-### 37
-
-**Encounter:** 6 Skeletons (level 1 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 51 cp.
-- Gems/jewelry: 3 pieces, worth 10 cp, 2 cp, 1 cp individually.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 3 rounds, then death 4 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 38
-
-**Encounter:** 1 Ogre (level 9 each).
-
-**Treasure:**
-- Bag.
-- Coins: 4 pp.
-
-### 39
-
-**Encounter:** 1 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 40
-
-**Encounter:** 1 Giant Lizard (level 4 each).
-
-**Treasure:** None.
-
-### 41
-
-**Encounter:** 5 Zombies (level 1 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 63 cp.
-- Gems/jewelry: 5 pieces, worth 3 cp, 8 cp, 12 cp, 10 cp, 12 cp individually.
-
-### 42
-
-**Encounter:** 3 Gargoyles (level 4 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 2 rounds, lasting 5 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 43
-
-**Encounter:** 3 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 44
-
-**Encounter:** 1 Gargoyles (level 4 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 45
-
-**Encounter:** 1 adventurers, Neutral: Human Magic User (level 4).
-
-**Treasure:** None.
-
-### 46
-
-**Encounter:** 5 Dire Wolves (level 4 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 32 sp.
-
-### 47
-
-
-**Treasure:**
-- Pack.
-- Coins: 12 sp.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 48
-
-Empty
-
-### 49
-
-**Encounter:** 1 Basilisk (level 7 each).
-
-**Treasure:**
-- Bag.
-- Coins: 8 gp.
-
-### 50
-
-**Encounter:** 5 Zombies (level 1 each).
-
-**Treasure:** None.
+**Reward:** Use the exact rolled puzzle reward listed above; the catalog's illustrative treasure is not an additional award.
 
 ### Secret and concealed doors
 
-- Secret door at column 92, row 23: DC 20 (WIS) to detect.
-- Secret door at column 8, row 24: DC 20 (WIS) to detect.
-- Concealed door at column 29, row 24: DC 17 (WIS) to detect.
-- Secret door at column 89, row 33: DC 20 (WIS) to detect.
-- Secret door at column 21, row 38: DC 20 (WIS) to detect.
-- Secret door at column 32, row 72: DC 20 (WIS) to detect.
-- Concealed door at column 16, row 88: DC 17 (WIS) to detect.
+- Secret door at column 18, row 9: DC 20 (WIS) to detect.
+- Secret door at column 51, row 10: DC 20 (WIS) to detect.
+- Secret door at column 40, row 23: DC 20 (WIS) to detect.
+- Secret door at column 8, row 33: DC 20 (WIS) to detect.
+- Secret door at column 22, row 54: DC 20 (WIS) to detect.
 
 ## Level 5
 
@@ -1662,6 +720,35 @@ Empty
 
 ### 2
 
+**Encounter:** 1 Giant Snake (level 7 each).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 2 rounds, then death 1 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 3
+
+**Encounter:** 6 Fiends (level 3 each).
+
+**Treasure:** None.
+
+### 4
+
+**Encounter:** 3 adventurers, Neutral: Elf Magic User (level 6); Halfling Fighter (level 5); Human Magic User (level 6).
+
+**Treasure:** None.
+
+### 5
+
+
+**Treasure:**
+- Bag.
+- Coins: 1 gp.
+
+**Puzzle reward (released only when solved):**
+- Jewelry: jeweled bracelet worth 3 gp.
+- Jewelry: jeweled bracelet worth 2 gp.
+- Jewelry: jeweled bracelet worth 1 gp.
 
 **Puzzle P07: The Apothecary's Balance** (Measurement and resource manipulation)
 
@@ -1741,288 +828,9 @@ Breaking a tin before then is a submitted choice: the correct tin grants its
 gold, while a wrong tin counts as a failure. The potion still requires solving
 the recess before the limit.
 
-**Reward:** The reliquary contains a restorative potion and the apothecary's
-gold reserve. Breaking tins open also exposes the gold, allowing a destructive
-shortcut, but ruins their collectible medicinal seals.
-
-### 3
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:** None.
-
-### 4
-
-**Encounter:** 5 Giant Spiders (level 3 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 19 sp.
-
-### 5
-
-**Encounter:** 1 Terrasaur (level 6 each).
-
-**Treasure:** None.
+**Reward:** Use the exact rolled puzzle reward listed above; the catalog's illustrative treasure is not an additional award.
 
 ### 6
-
-**Encounter:** 1 Giant Lizard (level 5 each).
-
-**Treasure:** None.
-
-### 7
-
-**Encounter:** 3 Giant Spiders (level 3 each).
-
-**Treasure:**
-- Bag.
-- Coins: 17 sp.
-
-### 8
-
-**Encounter:** 1 Manticore (level 5 each).
-
-**Treasure:** None.
-
-### 9
-
-**Encounter:** 6 Bandits (level 5 each).
-
-**Treasure:** None.
-
-### 10
-
-**Encounter:** 1 Ogre (level 9 each).
-
-**Treasure:** None.
-
-### 11
-
-**Encounter:** 8 Skeletons (level 1 each).
-
-**Treasure:** None.
-
-### 12
-
-**Encounter:** 3 adventurers, Chaotic: Halfling Fighter (level 6); Human Fighter (level 4); Halfling Fighter (level 6).
-
-**Treasure:** None.
-
-### 13
-
-Empty
-
-### 14
-
-**Encounter:** 4 Dire Wolves (level 4 each).
-
-**Treasure:** None.
-
-### 15
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:** None.
-
-### 16
-
-**Encounter:** 1 Giant Lizard (level 5 each).
-
-**Treasure:** None.
-
-### 17
-
-**Encounter:** 1 Giant Lizard (level 5 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 2 gp.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 18
-
-**Encounter:** 1 Terrasaur (level 6 each).
-
-**Treasure:** None.
-
-### 19
-
-**Encounter:** 3 Dire Wolves (level 4 each).
-
-**Treasure:** None.
-
-### 20
-
-**Encounter:** 8 Zombies (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 91 cp.
-- Gems/jewelry: 6 pieces, worth 12 cp, 12 cp, 7 cp, 5 cp, 10 cp, 7 cp individually.
-
-### 21
-
-**Encounter:** 1 Manticore (level 5 each).
-
-**Treasure:** None.
-
-### 22
-
-**Encounter:** 8 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 23
-
-**Encounter:** 1 Basilisk (level 7 each).
-
-**Treasure:**
-- Bag.
-- Coins: 8 gp.
-
-### 24
-
-**Encounter:** 6 Dire Wolves (level 4 each).
-
-**Treasure:** None.
-
-### 25
-
-Empty
-
-### 26
-
-**Encounter:** 3 adventurers, Neutral: Human Magic User (level 5); Elf Fighter (level 4); Human Thief (level 5).
-
-**Treasure:** None.
-
-### 27
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 2 rounds, lasting 5 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 28
-
-**Encounter:** 1 Giant Lizard (level 5 each).
-
-**Treasure:**
-- Pack.
-- Coins: 2 gp.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 4 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 29
-
-**Encounter:** 8 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 30
-
-**Encounter:** 6 Fiends (level 3 each).
-
-**Treasure:** None.
-
-### 31
-
-**Encounter:** 3 Satyrs (level 2 each).
-
-**Treasure:** None.
-
-### 32
-
-**Encounter:** 2 Fauns (level 1 each).
-
-**Treasure:** None.
-
-### 33
-
-Empty
-
-### 34
-
-
-**Treasure:**
-- Bag.
-- Coins: 2 gp.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 35
-
-**Encounter:** 1 Giant Lizard (level 5 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 20 feet, AP 20 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 36
-
-**Encounter:** 1 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 2 rounds, then death 1 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 37
-
-**Encounter:** 4 adventurers, Chaotic: Human Cleric (level 6); Human Thief (level 4); Human Fighter (level 6); Halfling Cleric (level 6).
-
-**Treasure:** None.
-
-### 38
-
-**Encounter:** 1 Manticore (level 5 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 3 gp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 4 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 39
-
-**Encounter:** 6 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 40
-
-**Encounter:** 5 Dire Wolves (level 4 each).
-
-**Treasure:** None.
-
-### 41
-
-**Encounter:** 2 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 2 rounds, lasting 3 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 42
-
-Empty
-
-### 43
-
-
-**Treasure:**
-- Bag.
-- Coins: 1 gp.
-
-### 44
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 4 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 45
-
-Empty
-
-### 46
 
 **Encounter:** 2 Grizzly Bears (level 5 each).
 
@@ -2030,47 +838,92 @@ Empty
 - Bag.
 - Coins: 4 gp.
 
-### 47
+### 7
+
+**Encounter:** 1 Giant Lizard (level 5 each).
+
+**Treasure:** None.
+
+### 8
+
+**Encounter:** 1 Terrasaur (level 6 each).
+
+**Treasure:** None.
+
+### 9
 
 **Encounter:** 1 Ogre (level 9 each).
 
 **Treasure:** None.
 
-### 48
+### 10
+
+Empty
+
+### 11
+
+**Encounter:** 3 Dire Wolves (level 4 each).
+
+**Treasure:** None.
+
+### 12
+
+**Encounter:** 8 Skeletons (level 1 each).
+
+**Treasure:** None.
+
+### 13
 
 **Encounter:** 5 Giant Spiders (level 3 each).
 
+**Treasure:**
+- Unlocked chest.
+- Coins: 19 sp.
+
+### 14
+
+**Encounter:** 1 Mummy (level 6 each).
+
 **Treasure:** None.
 
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 2 rounds, then death 5 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 49
+### 15
 
 
 **Treasure:**
-- Locked chest.
-- Coins: 1 gp.
+- Bag.
+- Coins: 2 gp.
 
-### 50
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
 
-**Encounter:** 3 Giant Scorpions (level 3 each).
+### 16
+
+**Encounter:** 3 Satyrs (level 2 each).
 
 **Treasure:** None.
 
-### 51
+### 17
 
-**Encounter:** 3 adventurers, Neutral: Elf Magic User (level 6); Halfling Fighter (level 5); Human Magic User (level 6).
+**Encounter:** 3 adventurers, Neutral: Human Magic User (level 5); Elf Fighter (level 4); Human Thief (level 5).
+
+**Treasure:** None.
+
+### 18
+
+Empty
+
+### 19
+
+**Encounter:** 8 Hobgoblins (level 3 each).
 
 **Treasure:** None.
 
 ### Secret and concealed doors
 
-- Secret door at column 91, row 34: DC 20 (WIS) to detect.
-- Concealed door at column 11, row 51: DC 17 (WIS) to detect.
-- Concealed door at column 9, row 54: DC 17 (WIS) to detect.
-- Secret door at column 15, row 56: DC 20 (WIS) to detect.
-- Secret door at column 5, row 75: DC 20 (WIS) to detect.
-- Secret door at column 45, row 81: DC 20 (WIS) to detect.
+- Concealed door at column 26, row 11: DC 17 (WIS) to detect.
+- Secret door at column 15, row 19: DC 20 (WIS) to detect.
+- Secret door at column 24, row 40: DC 20 (WIS) to detect.
+- Concealed door at column 27, row 41: DC 17 (WIS) to detect.
+- Concealed door at column 30, row 41: DC 17 (WIS) to detect.
 
 ## Level 6
 
@@ -2078,14 +931,107 @@ Depth: 180 feet.
 
 ### 1
 
+**Encounter:** 9 Lizard Men (level 1 each).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
+
+### 2
+
+**Encounter:** 4 Fauns (level 1 each).
+
+**Treasure:**
+- Locked chest.
+- Coins: 38 cp.
+- Gems/jewelry: 4 pieces, worth 7 cp, 7 cp, 5 cp, 8 cp individually.
+
+**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 3 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 3
+
+**Encounter:** 1 Giant Snake (level 7 each).
+
+**Treasure:** None.
+
+### 4
+
+**Encounter:** 3 adventurers, Chaotic: Human Fighter (level 6); Halfling Magic User (level 6); Elf Fighter (level 7).
+
+**Treasure:** None.
+
+### 5
+
+Empty
+
+### 6
+
+**Encounter:** 4 adventurers, Lawful: Human Fighter (level 6); Human Magic User (level 5); Elf Fighter (level 6); Halfling Thief (level 7).
+
+**Treasure:**
+- Bag.
+- Coins: 15 gp.
+
+### 7
+
+**Encounter:** 1 Lizard Men (level 1 each).
+
+**Treasure:** None.
+
+### 8
+
+**Encounter:** 6 Bandits (level 6 each).
+
+**Treasure:** None.
+
+### 9
+
+**Encounter:** 2 Zombies (level 1 each).
+
+**Treasure:** None.
+
+### 10
+
+**Encounter:** 1 adventurers, Chaotic: Human Fighter (level 7).
+
+**Treasure:** None.
+
+### 11
+
+
+**Treasure:**
+- Pack.
+- Coins: 5 gp.
+
+### 12
+
+**Encounter:** 4 Lizard Men (level 1 each).
+
+**Treasure:** None.
+
+### 13
+
+**Encounter:** 3 Gargoyles (level 6 each).
+
+**Treasure:** None.
+
+### 14
+
+**Encounter:** 4 Giant Spiders (level 3 each).
+
+**Treasure:** None.
+
+### 15
+
+
+**Puzzle reward (released only when solved):**
+- Magic Bracers; +1 toughness (power +1)
 
 **Puzzle P08: The Thirsty Door** (Measurement and resource manipulation)
 
 **Generated map binding:** The placement and item locations here override the catalog's example geography. Furnish this chamber with the described props and creatures; puzzle creatures replace, rather than join, a random encounter.
 
-**Progression gate:** The D at column 108, row 4 stays impassable until this puzzle is solved, then latches open. It blocks the only exit stairway to Level 7. Protected areas: 2. This branch is independent: other puzzles need not be solved to enter this puzzle room, and solving this puzzle does not unlock their reward areas. There is no alternate mapped entrance to its reward area. Any catalog shortcut, return route, or emergency release leads back to the accessible side, never around this gate.
-
-**Protected reward:** Area 2 holds the highest-ranked generated treasure remaining on this level and its guarding encounter (permanent magic first, then potions/scrolls, then money and gems). Each branch receives at least 100 sp in value or magic, plus a guardian; existing hoards are moved, not duplicated. Use the catalog reward as descriptive inspiration, not an extra rolled hoard.
+**Linked stair seal:** A circular 2x2 spiral staircase IN THIS ROOM at column 44, row 45 descends clockwise to Level 7. The chamber is at least 5x5 squares. The stairway is sealed at both ends until P08: The Thirsty Door in Level 6, Area 15 is solved; other exits do not release it. Its corner landing remains open floor. There is no separate treasure chamber or passage gate attached to these stairs.
 
 **Puzzle consequence level:** L = 6.
 
@@ -2156,100 +1102,7 @@ chilling water at the operator: **ST 11 (CON / cold), with -S on the save**,
 or **-S attack power** for one exploration turn. The room never fills and
 the unlimited water supply remains safe to use.
 
-**Reward:** The cistern drains, exposing stairs to a lower level and a small
-offering of old silver coins on the lowest step.
-
-### 2
-
-**Encounter:** 3 Satyrs (level 2 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 6 sp.
-- Magic: 3 items.
-- Magic Scroll: Dispel Magic; single use; caster level +2 for requirements and spell effects (power +1)
-- Magic Scroll: Protection; single use; caster level +2 for requirements and spell effects (power +1)
-- Magic Wand: Charm Person; 9 charges (maximum 24) (power +1)
-
-### 3
-
-**Encounter:** 3 Bandits (level 6 each).
-
-**Treasure:** None.
-
-### 4
-
-**Encounter:** 1 Manticore (level 6 each).
-
-**Treasure:** None.
-
-### 5
-
-Empty
-
-### 6
-
-Empty
-
-### 7
-
-**Encounter:** 7 Lizard Men (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 88 cp.
-
-### 8
-
-**Encounter:** 1 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 9
-
-**Encounter:** 1 Basilisk (level 7 each).
-
-**Treasure:** None.
-
-### 10
-
-**Encounter:** 3 Hobgoblins (level 3 each).
-
-**Treasure:**
-- Bag.
-- Coins: 9 sp.
-
-### 11
-
-**Encounter:** 1 adventurers, Chaotic: Human Fighter (level 7).
-
-**Treasure:** None.
-
-### 12
-
-
-**Treasure:**
-- Pack.
-- Coins: 3 gp.
-- Gems/jewelry: 4 pieces, worth 5 gp, 4 gp, 3 gp, 3 gp individually.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 13
-
-**Encounter:** 6 Bandits (level 6 each).
-
-**Treasure:** None.
-
-### 14
-
-Empty
-
-### 15
-
-**Encounter:** 1 Terrasaur (level 6 each).
-
-**Treasure:** None.
+**Reward:** Use the exact rolled puzzle reward listed above; the catalog's illustrative treasure is not an additional award.
 
 ### 16
 
@@ -2261,236 +1114,120 @@ Empty
 
 ### 17
 
-**Encounter:** 3 Gargoyles (level 6 each).
+**Encounter:** 1 Basilisk (level 7 each).
 
 **Treasure:** None.
 
 ### 18
 
-**Encounter:** 4 adventurers, Lawful: Human Fighter (level 6); Human Magic User (level 5); Elf Fighter (level 6); Halfling Thief (level 7).
-
-**Treasure:**
-- Bag.
-- Coins: 15 gp.
-
-### 19
-
-**Encounter:** 1 Ogre (level 9 each).
-
-**Treasure:** None.
-
-### 20
-
-**Encounter:** 9 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 21
-
-**Encounter:** 4 Fauns (level 1 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 38 cp.
-- Gems/jewelry: 4 pieces, worth 7 cp, 7 cp, 5 cp, 8 cp individually.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 3 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 22
-
-**Encounter:** 4 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 23
-
-**Encounter:** 3 Gargoyles (level 6 each).
-
-**Treasure:**
-- Pack.
-- Coins: 9 gp.
-- Magic: 1 items.
-- Magic Potion: Healing; Cure mortal wound (power +3)
-
-### 24
-
-Empty
-
-### 25
-
-
-**Treasure:**
-- Pack.
-- Coins: 5 gp.
-
-### 26
-
-**Encounter:** 1 Basilisk (level 7 each).
-
-**Treasure:**
-- Bag.
-- Coins: 8 gp.
-- Gems/jewelry: 1 pieces, worth 9 gp individually.
-
-### 27
-
-**Encounter:** 1 Giant Lizard (level 6 each).
-
-**Treasure:** None.
-
-### 28
-
-**Encounter:** 7 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 29
-
-**Encounter:** 1 Slimes (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 4 cp.
-- Gems/jewelry: 5 pieces, worth 4 cp, 12 cp, 3 cp, 5 cp, 8 cp individually.
-
-### 30
-
-**Encounter:** 5 Skeletons (level 1 each).
-
-**Treasure:** None.
-
-### 31
-
-**Encounter:** 4 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 32
-
-**Encounter:** 1 Gryffin (level 7 each).
-
-**Treasure:** None.
-
-### 33
-
-**Encounter:** 1 Giant Snake (level 7 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 8 gp.
-
-### 34
-
-**Encounter:** 1 Mummy (level 6 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 6 gp.
-
-### 35
-
-**Encounter:** 1 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-### 36
-
-**Encounter:** 3 Dire Wolves (level 4 each).
-
-**Treasure:** None.
-
-### 37
-
-**Encounter:** 1 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 38
-
-**Encounter:** 2 Zombies (level 1 each).
-
-**Treasure:** None.
-
-### 39
-
-**Encounter:** 7 Slimes (level 1 each).
-
-**Treasure:** None.
-
-### 40
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 2 rounds, lasting 4 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 41
-
-**Encounter:** 1 Basilisk (level 7 each).
-
-**Treasure:** None.
-
-### 42
-
-**Encounter:** 2 Gargoyles (level 6 each).
-
-**Treasure:** None.
-
-### 43
-
-**Encounter:** 1 Basilisk (level 7 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 44
-
-**Encounter:** 8 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 45
-
 **Encounter:** 1 adventurers, Chaotic: Human Fighter (level 7).
 
 **Treasure:** None.
 
-### 46
-
-**Encounter:** 6 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 47
-
-**Encounter:** 3 adventurers, Chaotic: Human Fighter (level 6); Halfling Magic User (level 6); Elf Fighter (level 7).
-
-**Treasure:** None.
-
-### 48
-
-Empty
-
-### 49
-
-Empty
-
 ### Secret and concealed doors
 
-- Secret door at column 55, row 18: DC 20 (WIS) to detect.
-- Concealed door at column 42, row 26: DC 17 (WIS) to detect.
-- Concealed door at column 28, row 52: DC 17 (WIS) to detect.
-- Concealed door at column 74, row 87: DC 17 (WIS) to detect.
+- Secret door at column 15, row 6: DC 20 (WIS) to detect.
+- Concealed door at column 41, row 10: DC 17 (WIS) to detect.
+- Secret door at column 36, row 14: DC 20 (WIS) to detect.
+- Concealed door at column 32, row 33: DC 17 (WIS) to detect.
+- Secret door at column 50, row 43: DC 20 (WIS) to detect.
+- Concealed door at column 49, row 49: DC 17 (WIS) to detect.
 
 ## Level 7
 
 Depth: 210 feet.
 
+### Puzzle-linked stairways
+
+**Linked stair seal:** A circular 2x2 spiral staircase IN THIS ROOM at column 44, row 45 descends clockwise to Level 7. The chamber is at least 5x5 squares. The stairway is sealed at both ends until P08: The Thirsty Door in Level 6, Area 15 is solved; other exits do not release it. Its corner landing remains open floor. There is no separate treasure chamber or passage gate attached to these stairs.
+
 ### 1
 
+**Encounter:** 3 Mummys (level 6 each).
+
+**Treasure:**
+- Bag.
+- Coins: 8 gp.
+- Gems/jewelry: 5 pieces, worth 1 gp, 6 gp, 1 gp, 1 gp, 6 gp individually.
+
+### 2
+
+**Encounter:** 1 Giant Centipede (level 8 each).
+
+**Treasure:** None.
+
+### 3
+
+**Encounter:** 2 Mummys (level 6 each).
+
+**Treasure:** None.
+
+### 4
+
+**Encounter:** 1 Ogres (level 9 each).
+
+**Treasure:** None.
+
+### 5
+
+**Encounter:** 1 Gargoyles (level 7 each).
+
+**Treasure:** None.
+
+### 6
+
+**Encounter:** 1 Terrasaur (level 6 each).
+
+**Treasure:** None.
+
+### 7
+
+**Encounter:** 4 Fiends (level 3 each).
+
+**Treasure:** None.
+
+### 8
+
+**Encounter:** 2 adventurers, Lawful: Halfling Fighter (level 7); Dwarf Magic User (level 6).
+
+**Treasure:** None.
+
+### 9
+
+**Encounter:** 3 Grizzly Bears (level 5 each).
+
+**Treasure:** None.
+
+### 10
+
+**Encounter:** 6 adventurers, Neutral: Human Fighter (level 7); Human Fighter (level 6); Elf Magic User (level 7); Elf Fighter (level 8); Dwarf Fighter (level 6); Human Fighter (level 7).
+
+**Treasure:** None.
+
+### 11
+
+**Encounter:** 12 Hobgoblins (level 3 each).
+
+**Treasure:**
+- Pack.
+- Coins: 45 sp.
+- Gems/jewelry: 3 pieces, worth 2 sp, 1 sp, 5 sp individually.
+
+### 12
+
+Empty
+
+### 13
+
+**Encounter:** 4 Mummys (level 6 each).
+
+**Treasure:** None.
+
+### 14
+
+
+**Puzzle reward (released only when solved):**
+- Jewelry: gold brooch worth 4 gp.
 
 **Puzzle P47: The Bellmaker's Interrupted Watch** (Escape rooms: binary and signal codes)
 
@@ -2582,407 +1319,9 @@ stunning peal: the operator must **ST 11 (CON / magic), with -S on the save**,
 or suffer **-S to hit and attack power** for one exploration turn. It never
 deafens a solver or affects searches; the emergency crank remains usable.
 
-**Reward:** The workshop releases its seals and opens a drawer containing
-a silver handbell and a finely made set of clockmaker's tools.
-
-### 2
-
-Empty
-
-### 3
-
-**Encounter:** 6 Hobgoblins (level 3 each).
-
-**Treasure:**
-- Bag.
-- Coins: 22 sp.
-- Magic: 3 items.
-- Magic Staff: Fire Ball; 6 charges (maximum 24); +1 to hit and AP as a quarterstaff (power +1)
-- Magic Potion: Dexterity; +2 Dexterity for 1 hour (power +2)
-- Magic Wand: Lightning; 6 charges (maximum 24) (power +1)
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 4
-
-**Encounter:** 12 Hobgoblins (level 3 each).
-
-**Treasure:**
-- Pack.
-- Coins: 45 sp.
-- Gems/jewelry: 3 pieces, worth 2 sp, 1 sp, 5 sp individually.
-
-### 5
-
-**Encounter:** 3 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 6
-
-Empty
-
-### 7
-
-**Encounter:** 1 adventurers, Lawful: Elf Thief (level 6).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 10 feet, AP 10 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 8
-
-**Encounter:** 1 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 9
-
-**Encounter:** 3 Giant Lizards (level 7 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 1 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 10
-
-**Encounter:** 1 Trolls (level 5 each).
-
-**Treasure:** None.
-
-### 11
-
-Empty
-
-### 12
-
-**Encounter:** 1 Terrasaur (level 6 each).
-
-**Treasure:** None.
-
-### 13
-
-Empty
-
-### 14
-
-Empty
+**Reward:** Use the exact rolled puzzle reward listed above; the catalog's illustrative treasure is not an additional award.
 
 ### 15
-
-**Encounter:** 4 Mummys (level 6 each).
-
-**Treasure:**
-- Bag.
-- Coins: 15 gp.
-- Magic: 3 items.
-- Magic Armor: Plate; +1 toughness (power +1)
-- Magic Armor: Scale; +2 toughness (power +2)
-- Misc: Bag of Holding (power +1)
-
-### 16
-
-Empty
-
-### 17
-
-**Encounter:** 6 Ogres (level 9 each).
-
-**Treasure:** None.
-
-### 18
-
-Empty
-
-### 19
-
-**Encounter:** 4 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 20
-
-**Encounter:** 1 Gorgons (level 7 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 4 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 21
-
-**Encounter:** 12 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 22
-
-**Encounter:** 7 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 4 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 23
-
-**Encounter:** 1 Giant Centipede (level 8 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 15 gp.
-- Magic: 1 items.
-- Magic Staff: Lightning; 12 charges (maximum 24); +2 to hit and AP as a quarterstaff (power +2)
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 4 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 24
-
-**Encounter:** 12 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 25
-
-**Encounter:** 4 Fauns (level 1 each).
-
-**Treasure:** None.
-
-### 26
-
-**Encounter:** 5 Bandits (level 7 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 29 gp.
-- Gems/jewelry: 4 pieces, worth 10 gp, 9 gp, 7 gp, 9 gp individually.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 27
-
-**Encounter:** 1 Gargoyles (level 7 each).
-
-**Treasure:** None.
-
-### 28
-
-**Encounter:** 8 Giant Spiders (level 3 each).
-
-**Treasure:**
-- Bag.
-- Coins: 26 sp.
-
-### 29
-
-**Encounter:** 4 Mummys (level 6 each).
-
-**Treasure:** None.
-
-### 30
-
-**Encounter:** 4 Gryffins (level 7 each).
-
-**Treasure:** None.
-
-### 31
-
-**Encounter:** 3 Mummys (level 6 each).
-
-**Treasure:** None.
-
-### 32
-
-**Encounter:** 6 Giant Snake (level 7 each).
-
-**Treasure:**
-- Bag.
-- Coins: 37 gp.
-- Gems/jewelry: 3 pieces, worth 8 gp, 7 gp, 7 gp individually.
-
-### 33
-
-**Encounter:** 2 Bandits (level 7 each).
-
-**Treasure:** None.
-
-### 34
-
-**Encounter:** 1 Gorgons (level 7 each).
-
-**Treasure:** None.
-
-### 35
-
-**Encounter:** 3 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-### 36
-
-**Encounter:** 3 Mummys (level 6 each).
-
-**Treasure:**
-- Bag.
-- Coins: 8 gp.
-- Gems/jewelry: 5 pieces, worth 1 gp, 6 gp, 1 gp, 1 gp, 6 gp individually.
-
-### 37
-
-**Encounter:** 2 Mummys (level 6 each).
-
-**Treasure:** None.
-
-### 38
-
-Empty
-
-### 39
-
-Empty
-
-### 40
-
-**Encounter:** 3 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 41
-
-**Encounter:** 1 Ogres (level 9 each).
-
-**Treasure:** None.
-
-### 42
-
-**Encounter:** 5 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 43
-
-**Encounter:** 1 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 44
-
-**Encounter:** 2 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 45
-
-**Encounter:** 3 Mummys (level 6 each).
-
-**Treasure:**
-- Bag.
-- Coins: 14 gp.
-
-### 46
-
-**Encounter:** 2 adventurers, Lawful: Halfling Fighter (level 7); Dwarf Magic User (level 6).
-
-**Treasure:** None.
-
-### 47
-
-**Encounter:** 1 Trolls (level 5 each).
-
-**Treasure:** None.
-
-### 48
-
-**Encounter:** 1 Ogres (level 9 each).
-
-**Treasure:** None.
-
-### 49
-
-**Encounter:** 4 Mummys (level 6 each).
-
-**Treasure:** None.
-
-### 50
-
-**Encounter:** 12 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 51
-
-**Encounter:** 6 adventurers, Neutral: Human Fighter (level 7); Human Fighter (level 6); Elf Magic User (level 7); Elf Fighter (level 8); Dwarf Fighter (level 6); Human Fighter (level 7).
-
-**Treasure:** None.
-
-### 52
-
-**Encounter:** 1 adventurers, Neutral: Halfling Fighter (level 8).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 53
-
-**Encounter:** 5 adventurers, Lawful: Elf Fighter (level 8); Elf Magic User (level 8); Elf Thief (level 7); Human Fighter (level 7); Human Fighter (level 8).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 54
-
-**Encounter:** 3 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 55
-
-**Encounter:** 4 Ogres (level 9 each).
-
-**Treasure:**
-- Pack.
-- Coins: 14 pp.
-- Magic: 1 items.
-- Magic Staff: Fire Ball; 20 charges (maximum 24); +2 to hit and AP as a quarterstaff (power +2)
-
-### 56
-
-**Encounter:** 3 Giant Lizards (level 7 each).
-
-**Treasure:** None.
-
-### 57
-
-**Encounter:** 1 Giant Centipede (level 8 each).
-
-**Treasure:** None.
-
-### 58
-
-
-**Treasure:**
-- Locked chest.
-- Coins: 11 gp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: opening the chest vents gas around the opener; ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 2 rounds, then death 2 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 59
-
-
-**Treasure:**
-- Locked chest.
-- Coins: 5 gp.
-- Magic: 2 items.
-- Magic Staff: Lightning; 17 charges (maximum 24); +2 to hit and AP as a quarterstaff (power +2)
-- Magic Wand: Charm Person; 13 charges (maximum 24) (power +2)
-
-### 60
-
-**Encounter:** 3 Gorgons (level 7 each).
-
-**Treasure:** None.
-
-### 61
 
 **Encounter:** 1 adventurers, Lawful: Human Magic User (level 8).
 
@@ -2995,22 +1334,33 @@ Empty
 
 **Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
 
-### 62
+### 16
 
-**Encounter:** 4 Fiends (level 3 each).
+**Encounter:** 1 Hobgoblins (level 3 each).
 
 **Treasure:** None.
 
+### 17
+
+Empty
+
+### 18
+
+**Encounter:** 2 Hobgoblins (level 3 each).
+
+**Treasure:** None.
+
+### 19
+
+Empty
+
 ### Secret and concealed doors
 
-- Concealed door at column 75, row 21: DC 17 (WIS) to detect.
-- Secret door at column 120, row 25: DC 20 (WIS) to detect.
-- Secret door at column 53, row 30: DC 20 (WIS) to detect.
-- Secret door at column 107, row 32: DC 20 (WIS) to detect.
-- Concealed door at column 35, row 46: DC 17 (WIS) to detect.
-- Secret door at column 15, row 63: DC 20 (WIS) to detect.
-- Secret door at column 5, row 70: DC 20 (WIS) to detect.
-- Secret door at column 61, row 80: DC 20 (WIS) to detect.
+- Secret door at column 28, row 23: DC 20 (WIS) to detect.
+- Secret door at column 27, row 29: DC 20 (WIS) to detect.
+- Secret door at column 18, row 43: DC 20 (WIS) to detect.
+- Secret door at column 24, row 52: DC 20 (WIS) to detect.
+- Secret door at column 11, row 53: DC 20 (WIS) to detect.
 
 ## Level 8
 
@@ -3018,14 +1368,127 @@ Depth: 240 feet.
 
 ### 1
 
+**Encounter:** 3 Giant Snake (level 7 each).
+
+**Treasure:** None.
+
+### 2
+
+**Encounter:** 2 Bandits (level 8 each).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 3 rounds, then death 6 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 3
+
+**Encounter:** 1 Wraiths (level 7 each).
+
+**Treasure:** None.
+
+### 4
+
+**Encounter:** 1 Sphynx (level 8 each).
+
+**Treasure:** None.
+
+### 5
+
+**Encounter:** 5 adventurers, Lawful: Halfling Fighter (level 8); Elf Magic User (level 7); Elf Fighter (level 7); Human Fighter (level 9); Elf Fighter (level 9).
+
+**Treasure:** None.
+
+### 6
+
+**Encounter:** 2 Wraiths (level 7 each).
+
+**Treasure:** None.
+
+### 7
+
+**Encounter:** 3 Mummys (level 6 each).
+
+**Treasure:** None.
+
+### 8
+
+**Encounter:** 1 Minotaurs (level 6 each).
+
+**Treasure:** None.
+
+### 9
+
+**Encounter:** 4 Giant Lizards (level 8 each).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
+
+### 10
+
+**Encounter:** 5 Hobgoblins (level 3 each).
+
+**Treasure:** None.
+
+### 11
+
+**Encounter:** 6 Ogres (level 9 each).
+
+**Treasure:** None.
+
+### 12
+
+**Encounter:** 5 Giant Spiders (level 3 each).
+
+**Treasure:** None.
+
+### 13
+
+**Encounter:** 1 Hobgoblins (level 3 each).
+
+**Treasure:** None.
+
+### 14
+
+**Encounter:** 8 Lizard Men (level 1 each).
+
+**Treasure:**
+- Pack.
+- Coins: 100 cp.
+
+### 15
+
+**Encounter:** 1 Lizard Men (level 1 each).
+
+**Treasure:** None.
+
+### 16
+
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
+
+### 17
+
+**Encounter:** 2 Trolls (level 5 each).
+
+**Treasure:**
+- Bag.
+- Coins: 4 gp.
+
+### 18
+
+
+**Puzzle reward (released only when solved):**
+- Jewelry: gold brooch worth 6 gp.
+- Jewelry: silver circlet worth 2 gp.
 
 **Puzzle P42: The Apprentice's Borrowed Alphabet** (Escape rooms: substitution and reading order)
 
 **Generated map binding:** The placement and item locations here override the catalog's example geography. Furnish this chamber with the described props and creatures; puzzle creatures replace, rather than join, a random encounter.
 
-**Progression gate:** The D at column 108, row 4 stays impassable until this puzzle is solved, then latches open. It blocks the only exit stairway to Level 9. Protected areas: 2. This branch is independent: other puzzles need not be solved to enter this puzzle room, and solving this puzzle does not unlock their reward areas. There is no alternate mapped entrance to its reward area. Any catalog shortcut, return route, or emergency release leads back to the accessible side, never around this gate.
+**Progression gate:** The D at column 29, row 59 stays impassable until this puzzle is solved, then latches open. It blocks an isolated section of this level, with no stairs or ramps. Protected areas: 19. This branch is independent: other puzzles need not be solved to enter this puzzle room, and solving this puzzle does not unlock their reward areas. There is no alternate mapped entrance to its reward area. Any catalog shortcut, return route, or emergency release leads back to the accessible side, never around this gate.
 
-**Protected reward:** Area 2 holds the highest-ranked generated treasure remaining on this level and its guarding encounter (permanent magic first, then potions/scrolls, then money and gems). Each branch receives at least 100 sp in value or magic, plus a guardian; existing hoards are moved, not duplicated. Use the catalog reward as descriptive inspiration, not an extra rolled hoard.
+**Protected reward:** Area 19 holds the highest-ranked generated treasure remaining on this level and its guarding encounter (permanent magic first, then potions/scrolls, then money and gems). Each branch receives at least 100 sp in value or magic, plus a guardian; existing hoards are moved, not duplicated. Use the catalog reward as descriptive inspiration, not an extra rolled hoard.
 
 **Escape code:** OPEN
 
@@ -3061,285 +1524,9 @@ not the cipher text, on the four letter wheels.
 one exploration turn but do not erase evidence or prevent later attempts.
 The tutor's portrait can demonstrate R becoming O without revealing the rest.
 
-**Reward:** The study passage unseals, revealing access to the next dungeon
-section and a small cache of unused spell-writing supplies.
-
-### 2
-
-**Encounter:** 4 Gargoyles (level 8 each).
-
-**Treasure:**
-- Bag.
-- Coins: 11 gp.
-- Magic: 2 items.
-- Magic Scroll: Invisibility; single use; caster level +2 for requirements and spell effects (power +1)
-- Magic Staff: Fire Ball; 12 charges (maximum 24); +2 to hit and AP as a quarterstaff (power +2)
-
-### 3
-
-**Encounter:** 4 adventurers, Chaotic: Elf Thief (level 9); Human Fighter (level 7); Elf Fighter (level 9); Halfling Fighter (level 7).
-
-**Treasure:** None.
-
-### 4
-
-Empty
-
-### 5
-
-**Encounter:** 4 Gorgons (level 7 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 22 gp.
-- Gems/jewelry: 2 pieces, worth 7 gp, 9 gp individually.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 1 rounds, lasting 6 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 6
-
-**Encounter:** 3 Mummys (level 6 each).
-
-**Treasure:** None.
-
-### 7
-
-
-**Treasure:**
-- Locked chest.
-- Coins: 10 gp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: opening the chest vents gas around the opener; ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 3 rounds, then death 5 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 8
-
-**Encounter:** 5 adventurers, Lawful: Halfling Fighter (level 8); Elf Magic User (level 7); Elf Fighter (level 7); Human Fighter (level 9); Elf Fighter (level 9).
-
-**Treasure:** None.
-
-### 9
-
-**Encounter:** 4 Giant Lizards (level 8 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 10
-
-**Encounter:** 4 Minotaurs (level 6 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 16 gp.
-
-### 11
-
-**Encounter:** 5 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 12
-
-**Encounter:** 4 Basilisk (level 7 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 27 gp.
-
-### 13
-
-**Encounter:** 3 Bandits (level 8 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 23 gp.
-- Gems/jewelry: 5 pieces, worth 12 gp, 4 gp, 9 gp, 11 gp, 8 gp individually.
-- Magic: 2 items.
-- Magic Scroll: Sleep; single use; caster level +2 for requirements and spell effects (power +3)
-- Magic Scroll: Sleep; single use; caster level +2 for requirements and spell effects (power +2)
-
-### 14
-
-**Encounter:** 3 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 15
-
-**Encounter:** 4 adventurers, Chaotic: Halfling Fighter (level 9); Human Fighter (level 8); Human Magic User (level 9); Human Magic User (level 7).
-
-**Treasure:** None.
-
-### 16
-
-**Encounter:** 1 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 17
-
-**Encounter:** 1 Gargoyles (level 8 each).
-
-**Treasure:** None.
-
-### 18
-
-**Encounter:** 5 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
+**Reward:** Use the exact rolled puzzle reward listed above; the catalog's illustrative treasure is not an additional award.
 
 ### 19
-
-**Encounter:** 2 Bandits (level 8 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 3 rounds, then death 6 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 20
-
-**Encounter:** 2 Wraiths (level 7 each).
-
-**Treasure:** None.
-
-### 21
-
-**Encounter:** 2 Fauns (level 1 each).
-
-**Treasure:** None.
-
-### 22
-
-**Encounter:** 5 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 23
-
-**Encounter:** 1 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 24
-
-**Encounter:** 1 Sphynx (level 8 each).
-
-**Treasure:** None.
-
-### 25
-
-**Encounter:** 9 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 26
-
-**Encounter:** 2 Mimics (level 6 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 10 feet, AP 10 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 27
-
-**Encounter:** 1 Minotaurs (level 6 each).
-
-**Treasure:** None.
-
-### 28
-
-Empty
-
-### 29
-
-**Encounter:** 2 Fauns (level 1 each).
-
-**Treasure:**
-- Bag.
-- Coins: 33 cp.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 30
-
-Empty
-
-### 31
-
-**Encounter:** 8 Lizard Men (level 1 each).
-
-**Treasure:**
-- Pack.
-- Coins: 100 cp.
-
-### 32
-
-**Encounter:** 4 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 33
-
-**Encounter:** 7 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 34
-
-**Encounter:** 4 Minotaurs (level 6 each).
-
-**Treasure:** None.
-
-### 35
-
-**Encounter:** 4 Bandits (level 8 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 36
-
-**Encounter:** 1 adventurers, Lawful: Halfling Fighter (level 7).
-
-**Treasure:**
-- Bag.
-- Coins: 11 gp.
-- Gems/jewelry: 2 pieces, worth 9 gp, 5 gp individually.
-- Magic: 1 items.
-- Magic Potion: Invisibility (power +2)
-
-### 37
-
-**Encounter:** 6 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 38
-
-**Encounter:** 8 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 39
-
-**Encounter:** 2 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 40
-
-Empty
-
-### 41
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-### 42
 
 **Encounter:** 4 adventurers, Chaotic: Elf Fighter (level 9); Human Thief (level 8); Halfling Thief (level 9); Human Fighter (level 7).
 
@@ -3349,43 +1536,17 @@ Empty
 - Magic: 1 items.
 - Magic Potion: Invisibility (power +2)
 
-### 43
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 44
-
-**Encounter:** 3 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 45
-
-**Encounter:** 2 Trolls (level 5 each).
-
-**Treasure:**
-- Bag.
-- Coins: 4 gp.
-
-### 46
-
-**Encounter:** 1 Wraiths (level 7 each).
-
-**Treasure:** None.
-
-### 47
-
-**Encounter:** 6 Ogres (level 9 each).
-
-**Treasure:** None.
-
 ### Secret and concealed doors
 
-- Concealed door at column 29, row 14: DC 17 (WIS) to detect.
-- Secret door at column 92, row 53: DC 20 (WIS) to detect.
-- Concealed door at column 12, row 66: DC 17 (WIS) to detect.
-- Concealed door at column 75, row 72: DC 17 (WIS) to detect.
+- Secret door at column 13, row 11: DC 20 (WIS) to detect.
+- Secret door at column 13, row 13: DC 20 (WIS) to detect.
+- Secret door at column 45, row 26: DC 20 (WIS) to detect.
+- Secret door at column 13, row 30: DC 20 (WIS) to detect.
+- Secret door at column 39, row 30: DC 20 (WIS) to detect.
+- Secret door at column 42, row 44: DC 20 (WIS) to detect.
+- Secret door at column 44, row 44: DC 20 (WIS) to detect.
+- Secret door at column 17, row 50: DC 20 (WIS) to detect.
+- Secret door at column 26, row 54: DC 20 (WIS) to detect.
 
 ## Level 9
 
@@ -3393,26 +1554,106 @@ Depth: 270 feet.
 
 ### 1
 
-**Encounter:** 2 Gargoyles (level 9 each).
+**Encounter:** 3 Tunnel Worms (level 6 each).
 
 **Treasure:** None.
 
 ### 2
 
-**Encounter:** 3 Mummys (level 6 each).
+**Encounter:** 11 Lizard Men (level 1 each).
 
 **Treasure:** None.
 
 ### 3
 
-**Encounter:** 4 Basilisk (level 7 each).
+**Encounter:** 5 Giant Lizards (level 9 each).
 
-**Treasure:**
-- Unlocked chest.
-- Coins: 23 gp.
-- Gems/jewelry: 4 pieces, worth 7 gp, 6 gp, 10 gp, 6 gp individually.
+**Treasure:** None.
 
 ### 4
+
+**Encounter:** 6 adventurers, Chaotic: Halfling Fighter (level 9); Halfling Magic User (level 9); Human Thief (level 10); Dwarf Thief (level 9); Human Fighter (level 9); Human Fighter (level 10).
+
+**Treasure:** None.
+
+### 5
+
+**Encounter:** 5 Mimics (level 6 each).
+
+**Treasure:** None.
+
+### 6
+
+**Encounter:** 1 Hobgoblins (level 3 each).
+
+**Treasure:** None.
+
+### 7
+
+**Encounter:** 7 Giant Spiders (level 3 each).
+
+**Treasure:** None.
+
+### 8
+
+**Encounter:** 3 adventurers, Neutral: Human Magic User (level 10); Human Fighter (level 8); Halfling Fighter (level 10).
+
+**Treasure:** None.
+
+### 9
+
+**Encounter:** 1 Grizzly Bears (level 5 each).
+
+**Treasure:** None.
+
+### 10
+
+**Encounter:** 3 Mummys (level 6 each).
+
+**Treasure:** None.
+
+### 11
+
+**Encounter:** 1 Tunnel Worms (level 6 each).
+
+**Treasure:** None.
+
+### 12
+
+**Encounter:** 2 Ogres (level 9 each).
+
+**Treasure:** None.
+
+### 13
+
+**Encounter:** 1 Mummys (level 6 each).
+
+**Treasure:** None.
+
+### 14
+
+**Encounter:** 7 Lizard Men (level 1 each).
+
+**Treasure:** None.
+
+### 15
+
+**Encounter:** 6 Minotaurs (level 6 each).
+
+**Treasure:**
+- Pack.
+- Coins: 19 gp.
+- Magic: 2 items.
+- Magic Wand: Magic Missile; 1 missiles per charge; minimum user level 1; 13 charges (maximum 24) (power +1)
+- Misc: Boots of Silence (power +2)
+
+### 16
+
+**Encounter:** 4 Giant Snake (level 7 each).
+
+**Treasure:** None.
+
+### 17
 
 **Encounter:** 12 Hobgoblins (level 3 each).
 
@@ -3421,93 +1662,9 @@ Depth: 270 feet.
 - Coins: 40 sp.
 - Gems/jewelry: 3 pieces, worth 6 sp, 5 sp, 3 sp individually.
 
-### 5
-
-**Encounter:** 1 Gorgons (level 7 each).
-
-**Treasure:** None.
-
-### 6
-
-**Encounter:** 2 Gargoyles (level 9 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 19 pp.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 3 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 2 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 7
-
-**Encounter:** 1 adventurers, Chaotic: Halfling Fighter (level 9).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 8
-
-**Encounter:** 5 adventurers, Lawful: Human Fighter (level 8); Dwarf Magic User (level 8); Human Thief (level 9); Human Cleric (level 10); Dwarf Fighter (level 8).
-
-**Treasure:** None.
-
-### 9
-
-**Encounter:** 4 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 10
-
-**Encounter:** 1 Mummys (level 6 each).
-
-**Treasure:** None.
-
-### 11
-
-**Encounter:** 1 Gorgons (level 7 each).
-
-**Treasure:** None.
-
-### 12
-
-**Encounter:** 6 adventurers, Chaotic: Halfling Fighter (level 9); Halfling Magic User (level 9); Human Thief (level 10); Dwarf Thief (level 9); Human Fighter (level 9); Human Fighter (level 10).
-
-**Treasure:** None.
-
-### 13
-
-**Encounter:** 6 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 14
-
-**Encounter:** 6 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 15
-
-**Encounter:** 1 Ogres (level 9 each).
-
-**Treasure:** None.
-
-### 16
-
-Empty
-
-### 17
-
-**Encounter:** 4 adventurers, Lawful: Human Fighter (level 8); Human Cleric (level 9); Halfling Fighter (level 10); Human Fighter (level 9).
-
-**Treasure:** None.
-
 ### 18
 
-**Encounter:** 4 Wraiths (level 7 each).
+**Encounter:** 2 Gargoyles (level 9 each).
 
 **Treasure:** None.
 
@@ -3520,285 +1677,11 @@ Empty
 - Coins: 104 cp.
 - Gems/jewelry: 3 pieces, worth 10 cp, 1 cp, 5 cp individually.
 
-### 20
-
-**Encounter:** 1 Giant Centipede (level 8 each).
-
-**Treasure:** None.
-
-### 21
-
-**Encounter:** 2 Bandits (level 9 each).
-
-**Treasure:** None.
-
-### 22
-
-**Encounter:** 2 Gargoyles (level 9 each).
-
-**Treasure:** None.
-
-### 23
-
-**Encounter:** 4 Bandits (level 9 each).
-
-**Treasure:** None.
-
-### 24
-
-**Encounter:** 1 Terrasaur (level 6 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 3 gp.
-
-### 25
-
-**Encounter:** 6 Giant Lizards (level 9 each).
-
-**Treasure:** None.
-
-### 26
-
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 27
-
-**Encounter:** 1 Tunnel Worms (level 6 each).
-
-**Treasure:** None.
-
-### 28
-
-
-**Treasure:**
-- Locked chest.
-- Coins: 7 pp.
-- Gems/jewelry: 2 pieces, worth 15 gp, 14 gp individually.
-- Magic: 1 items.
-- Magic Scroll: Curse; single use; caster level +2 for requirements and spell effects (power +2)
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Covered pit: weight breaks the lid; ST 20 (DEX / FALL) avoids the fall. Failure: fall 30 feet, AP 30 (5 + distance beyond 5 feet); adjust AP to actual falling distance if hanging from the edge.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: opening the chest vents gas around the opener; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 1 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 29
-
-**Encounter:** 5 Ogres (level 9 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 30
-
-**Encounter:** 1 Giant Centipede (level 8 each).
-
-**Treasure:** None.
-
-### 31
-
-**Encounter:** 3 Tunnel Worms (level 6 each).
-
-**Treasure:** None.
-
-### 32
-
-**Encounter:** 1 Manticore (level 9 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 33
-
-**Encounter:** 2 Ogres (level 9 each).
-
-**Treasure:** None.
-
-### 34
-
-**Encounter:** 4 Giant Spiders (level 3 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 14 sp.
-
-### 35
-
-**Encounter:** 3 Tunnel Worms (level 6 each).
-
-**Treasure:** None.
-
-### 36
-
-**Encounter:** 5 Giant Lizards (level 9 each).
-
-**Treasure:** None.
-
-### 37
-
-**Encounter:** 7 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 38
-
-**Encounter:** 1 Terrasaur (level 6 each).
-
-**Treasure:** None.
-
-### 39
-
-**Encounter:** 5 Mimics (level 6 each).
-
-**Treasure:** None.
-
-### 40
-
-**Encounter:** 1 Trolls (level 5 each).
-
-**Treasure:** None.
-
-### 41
-
-**Encounter:** 2 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-### 42
-
-**Encounter:** 11 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 43
-
-Empty
-
-### 44
-
-**Encounter:** 3 adventurers, Neutral: Human Magic User (level 8); Human Fighter (level 8); Halfling Fighter (level 10).
-
-**Treasure:**
-- Bag.
-- Coins: 21 gp, 30 pp.
-- Magic: 3 items.
-- Misc: Bag of Holding (power +3)
-- Magic weapon: Long Sword; +3 to hit and attack power (power +3)
-- Misc: Cloak of Protection; +3 toughness (power +3)
-
-### 45
-
-**Encounter:** 1 Mummys (level 6 each).
-
-**Treasure:** None.
-
-### 46
-
-**Encounter:** 1 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-### 47
-
-**Encounter:** 1 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-### 48
-
-**Encounter:** 8 Giant Spiders (level 3 each).
-
-**Treasure:**
-- Pack.
-- Coins: 27 sp.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 49
-
-**Encounter:** 6 Minotaurs (level 6 each).
-
-**Treasure:**
-- Pack.
-- Coins: 19 gp.
-- Magic: 2 items.
-- Magic Wand: Magic Missile; 1 missiles per charge; minimum user level 1; 13 charges (maximum 24) (power +1)
-- Misc: Boots of Silence (power +2)
-
-### 50
-
-**Encounter:** 1 Hobgoblins (level 3 each).
-
-**Treasure:** None.
-
-### 51
-
-**Encounter:** 6 adventurers, Neutral: Elf Magic User (level 8); Human Magic User (level 9); Elf Fighter (level 10); Dwarf Magic User (level 10); Dwarf Fighter (level 10); Halfling Magic User (level 8).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 25 gp, 64 pp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 1 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 52
-
-**Encounter:** 2 Manticore (level 9 each).
-
-**Treasure:** None.
-
-### 53
-
-**Encounter:** 3 adventurers, Neutral: Human Magic User (level 10); Human Fighter (level 8); Halfling Fighter (level 10).
-
-**Treasure:** None.
-
-### 54
-
-**Encounter:** 6 Giant Lizards (level 9 each).
-
-**Treasure:** None.
-
-### 55
-
-**Encounter:** 2 Gnomes (level 1 each).
-
-**Treasure:** None.
-
-### 56
-
-**Encounter:** 7 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 57
-
-**Encounter:** 5 Gnomes (level 1 each).
-
-**Treasure:** None.
-
-### 58
-
-Empty
-
-### 59
-
-**Encounter:** 5 adventurers, Chaotic: Halfling Magic User (level 9); Elf Fighter (level 8); Dwarf Fighter (level 9); Elf Fighter (level 9); Halfling Fighter (level 10).
-
-**Treasure:** None.
-
-### 60
-
-Empty
-
 ### Secret and concealed doors
 
-- Concealed door at column 89, row 67: DC 17 (WIS) to detect.
-- Secret door at column 50, row 73: DC 20 (WIS) to detect.
-- Secret door at column 103, row 81: DC 20 (WIS) to detect.
+- Secret door at column 24, row 31: DC 20 (WIS) to detect.
+- Secret door at column 50, row 31: DC 20 (WIS) to detect.
+- Secret door at column 24, row 45: DC 20 (WIS) to detect.
 
 ## Level 10
 
@@ -3806,68 +1689,23 @@ Depth: 300 feet.
 
 ### 1
 
-**Encounter:** 2 Grizzly Bears (level 5 each).
+**Encounter:** 3 Bandits (level 10 each).
 
-**Treasure:**
-- Locked chest.
-- Coins: 4 gp.
-
-**Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: opening the chest vents gas around the opener; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 1 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+**Treasure:** None.
 
 ### 2
 
-**Encounter:** 9 Hobgoblins (level 3 each).
+**Encounter:** 5 Lizard Men (level 1 each).
 
 **Treasure:** None.
 
 ### 3
 
-**Encounter:** 4 Bandits (level 10 each).
+**Encounter:** 1 Gargoyles (level 10 each).
 
 **Treasure:** None.
 
 ### 4
-
-**Encounter:** 8 Giant Spiders (level 3 each).
-
-**Treasure:**
-- Locked chest.
-- Coins: 30 sp.
-- Gems/jewelry: 6 pieces, worth 6 sp, 1 sp, 3 sp, 3 sp, 1 sp, 2 sp individually.
-
-### 5
-
-**Encounter:** 5 adventurers, Lawful: Elf Fighter (level 10); Human Thief (level 11); Elf Fighter (level 9); Human Fighter (level 10); Elf Fighter (level 10).
-
-**Treasure:** None.
-
-### 6
-
-**Encounter:** 6 adventurers, Neutral: Elf Thief (level 11); Human Fighter (level 11); Human Fighter (level 9); Human Fighter (level 9); Human Fighter (level 11); Elf Fighter (level 9).
-
-**Treasure:** None.
-
-### 7
-
-**Encounter:** 2 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-### 8
-
-**Encounter:** 3 Gorgons (level 7 each).
-
-**Treasure:** None.
-
-### 9
-
-**Encounter:** 2 Gnomes (level 1 each).
-
-**Treasure:**
-- Unlocked chest.
-- Coins: 16 cp.
-
-### 10
 
 **Encounter:** 6 adventurers, Lawful: Human Fighter (level 10); Halfling Fighter (level 9); Human Magic User (level 9); Halfling Thief (level 11); Human Thief (level 11); Dwarf Thief (level 9).
 
@@ -3880,17 +1718,15 @@ Depth: 300 feet.
 
 **Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening the chest pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 2 rounds, lasting 1 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
-### 11
+### 5
 
-Empty
-
-### 12
-
-**Encounter:** 4 Giant Spiders (level 3 each).
+**Encounter:** 6 Fiends (level 3 each).
 
 **Treasure:** None.
 
-### 13
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 3 rounds, lasting 3 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
+
+### 6
 
 **Encounter:** 2 Gargoyles (level 10 each).
 
@@ -3902,9 +1738,58 @@ Empty
 
 **Chest trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: opening the chest vents gas around the opener; ST 23 (CON / PSN-SLEEP) prevents poisoning; failure causes sleep after 2 rounds, lasting 5 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
 
+### 7
+
+**Encounter:** 2 Bandits (level 10 each).
+
+**Treasure:** None.
+
+**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
+
+### 8
+
+**Encounter:** 2 Gnomes (level 1 each).
+
+**Treasure:**
+- Unlocked chest.
+- Coins: 16 cp.
+
+### 9
+
+**Encounter:** 1 Giant Centipede (level 8 each).
+
+**Treasure:** None.
+
+### 10
+
+**Encounter:** 8 Hobgoblins (level 3 each).
+
+**Treasure:**
+- Pack.
+- Coins: 30 sp.
+- Gems/jewelry: 6 pieces, worth 5 sp, 4 sp, 3 sp, 1 sp, 2 sp, 2 sp individually.
+
+### 11
+
+**Encounter:** 11 Hobgoblins (level 3 each).
+
+**Treasure:** None.
+
+### 12
+
+**Encounter:** 2 Bandits (level 10 each).
+
+**Treasure:** None.
+
+### 13
+
+**Encounter:** 3 Gorgons (level 7 each).
+
+**Treasure:** None.
+
 ### 14
 
-**Encounter:** 1 Wraiths (level 7 each).
+**Encounter:** 6 adventurers, Neutral: Elf Thief (level 11); Human Fighter (level 11); Human Fighter (level 9); Human Fighter (level 9); Human Fighter (level 11); Elf Fighter (level 9).
 
 **Treasure:** None.
 
@@ -3918,234 +1803,33 @@ Empty
 
 ### 16
 
-**Encounter:** 11 Hobgoblins (level 3 each).
+**Encounter:** 4 Mummys (level 6 each).
 
 **Treasure:** None.
 
 ### 17
 
-**Encounter:** 4 Basilisk (level 7 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Falling stone: a pressure plate drops masonry on the entrant. ST 23 (DEX / CRUSH) avoids it; failure causes one AP 12 damage roll.
-
-### 18
-
-**Encounter:** 1 Gargoyles (level 10 each).
-
-**Treasure:** None.
-
-### 19
-
-**Encounter:** 1 Giant Centipede (level 8 each).
-
-**Treasure:** None.
-
-### 20
-
-Empty
-
-### 21
-
-**Encounter:** 1 Gargoyles (level 10 each).
-
-**Treasure:** None.
-
-### 22
-
-**Encounter:** 3 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-DEADLY) prevents poisoning; failure causes incapacitation after 3 rounds, then death 1 rounds later. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 23
-
-**Encounter:** 1 Gorgons (level 7 each).
-
-**Treasure:**
-- Bag.
-- Coins: 7 gp.
-
-### 24
-
-**Encounter:** 2 Bandits (level 10 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 25
-
-**Encounter:** 1 Trolls (level 5 each).
-
-**Treasure:** None.
-
-### 26
-
-**Encounter:** 5 Giant Lizards (level 10 each).
-
-**Treasure:** None.
-
-### 27
-
-**Encounter:** 8 Hobgoblins (level 3 each).
-
-**Treasure:**
-- Pack.
-- Coins: 30 sp.
-- Gems/jewelry: 6 pieces, worth 5 sp, 4 sp, 3 sp, 1 sp, 2 sp, 2 sp individually.
-
-### 28
-
-**Encounter:** 4 Giant Snake (level 7 each).
-
-**Treasure:** None.
-
-### 29
-
-**Encounter:** 6 adventurers, Lawful: Human Thief (level 10); Human Fighter (level 9); Halfling Fighter (level 9); Elf Fighter (level 10); Human Fighter (level 10); Halfling Fighter (level 11).
-
-**Treasure:** None.
-
-### 30
-
-**Encounter:** 3 Grizzly Bears (level 5 each).
-
-**Treasure:** None.
-
-### 31
-
-**Encounter:** 5 Lizard Men (level 1 each).
-
-**Treasure:** None.
-
-### 32
-
-**Encounter:** 3 Basilisk (level 7 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison needle: opening a concealed cache pricks the opener; ST 17 (DEX / NEEDLE) avoids the needle and poison. If pricked, ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 3 rounds, lasting 2 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 33
-
-**Encounter:** 6 adventurers, Neutral: Elf Magic User (level 9); Human Thief (level 9); Halfling Magic User (level 11); Halfling Fighter (level 10); Human Fighter (level 10); Elf Fighter (level 10).
-
-**Treasure:**
-- Bag.
-- Coins: 135 pp.
-
-### 34
-
 **Encounter:** 1 Balrog (level 10 each).
 
 **Treasure:** None.
 
-### 35
-
-**Encounter:** 4 Giant Lizards (level 10 each).
-
-**Treasure:** None.
-
-### 36
-
-**Encounter:** 2 Bandits (level 10 each).
-
-**Treasure:** None.
-
-### 37
-
-**Encounter:** 1 Trolls (level 5 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 38
-
-**Encounter:** 3 Bandits (level 10 each).
-
-**Treasure:** None.
-
-### 39
+### 18
 
 **Encounter:** 4 adventurers, Lawful: Human Fighter (level 10); Human Magic User (level 9); Human Thief (level 10); Halfling Fighter (level 11).
 
 **Treasure:** None.
 
-### 40
+### 19
 
 Empty
-
-### 41
-
-**Encounter:** 3 Tunnel Worms (level 6 each).
-
-**Treasure:** None.
-
-### 42
-
-**Encounter:** 3 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 43
-
-**Encounter:** 1 adventurers, Chaotic: Human Fighter (level 9).
-
-**Treasure:** None.
-
-### 44
-
-Empty
-
-### 45
-
-**Encounter:** 4 Mummys (level 6 each).
-
-**Treasure:** None.
-
-### 46
-
-**Encounter:** 6 Fiends (level 3 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Poison gas: a pressure plate vents gas into the entrant's square; ST 23 (CON / PSN-PARALYSIS) prevents poisoning; failure causes paralysis after 3 rounds, lasting 3 hours. No separate wound damage. Sleeping victims cannot be roused; paralyzed victims remain aware but cannot act.
-
-### 47
-
-Empty
-
-### 48
-
-**Encounter:** 3 Giant Spiders (level 3 each).
-
-**Treasure:** None.
-
-### 49
-
-**Encounter:** 2 Giant Lizards (level 10 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
-
-### 50
-
-**Encounter:** 2 Pegasi (level 4 each).
-
-**Treasure:** None.
-
-**Trap:** Detect with DC 20 (WIS); bypass/disarm with DC 20 (DEX). Failed disarm triggers it. Scything blade: a tripwire sweeps a blade across the entrant. ST 20 (DEX / BLADE) avoids it; failure causes one AP 8 damage roll.
 
 ### Secret and concealed doors
 
-- Secret door at column 91, row 52: DC 20 (WIS) to detect.
-- Secret door at column 74, row 58: DC 20 (WIS) to detect.
-- Concealed door at column 47, row 59: DC 17 (WIS) to detect.
-- Secret door at column 89, row 77: DC 20 (WIS) to detect.
-- Secret door at column 49, row 79: DC 20 (WIS) to detect.
-- Concealed door at column 29, row 82: DC 17 (WIS) to detect.
+- Concealed door at column 38, row 14: DC 17 (WIS) to detect.
+- Concealed door at column 40, row 14: DC 17 (WIS) to detect.
+- Concealed door at column 21, row 20: DC 17 (WIS) to detect.
+- Secret door at column 21, row 24: DC 20 (WIS) to detect.
+- Secret door at column 25, row 28: DC 20 (WIS) to detect.
+- Secret door at column 30, row 28: DC 20 (WIS) to detect.
+- Secret door at column 34, row 47: DC 20 (WIS) to detect.
+- Secret door at column 49, row 51: DC 20 (WIS) to detect.

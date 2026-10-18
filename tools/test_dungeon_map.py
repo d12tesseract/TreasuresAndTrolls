@@ -39,7 +39,9 @@ from dungeon_map import (
     validate_map,
     _meander_path,
     _path,
+    _place_rooms,
     _place_stairways,
+    _position_room,
     _Corridor,
     _Room,
     _prune_unreachable,
@@ -626,6 +628,58 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(cells, {
                 (x, y) for y in range(height) for x in range(width)
             })
+
+    def test_mixed_terrain_clusters_without_eliminating_outliers(self):
+        options = GenerationOptions(width=80, height=60, rough_probability=0.5)
+        same, total = [0, 0], [0, 0]
+        for seed in range(60):
+            rooms = _place_rooms(options, random.Random(seed), set())
+            if seed < 3:
+                self.assertEqual(rooms, _place_rooms(options, random.Random(seed), set()))
+            for room in rooms:
+                nearest = min(
+                    (other for other in rooms if other is not room),
+                    key=lambda other: math.hypot(
+                        room.center[0] - other.center[0], room.center[1] - other.center[1],
+                    ),
+                )
+                total[room.rough] += 1
+                same[room.rough] += room.rough == nearest.rough
+        self.assertGreater(sum(same) / sum(total), 0.6)
+        self.assertGreater(same[True] / total[True], 0.48)
+        for terrain in (False, True):
+            self.assertGreater(same[terrain], 0)
+            self.assertLess(same[terrain], total[terrain])
+
+    def test_terrain_boundaries_are_probabilistic_and_local(self):
+        options = GenerationOptions(rough_probability=0.5)
+        cells = {(x, y) for x in range(3) for y in range(3)}
+        for rough in (False, True):
+            with self.subTest(rough=rough), patch(
+                "dungeon_map._room_shape", return_value=(3, 3, cells, rough),
+            ):
+                neighbor = _Room((7, 7), set(), not rough)
+                rng = Mock()
+                rng.randint.side_effect = [13, 6] * 24
+                rng.random.return_value = 0
+                self.assertIsNone(_position_room(options, rng, set(), set(), [neighbor]))
+                rng.randint.side_effect = [13, 6]
+                rng.random.return_value = 0.99
+                room = _position_room(options, rng, set(), set(), [neighbor])
+                self.assertEqual(room.center, (14, 7))
+                self.assertEqual(room.rough, rough)
+                rng.reset_mock()
+                rng.randint.side_effect = [45, 30]
+                room = _position_room(options, rng, set(), set(), [neighbor])
+                self.assertEqual(room.center, (46, 31))
+                rng.random.assert_not_called()
+
+    def test_terrain_clustering_preserves_probability_endpoints(self):
+        for probability in (0, 1):
+            options = GenerationOptions(rough_probability=probability)
+            for seed in range(5):
+                rooms = _place_rooms(options, random.Random(seed), set())
+                self.assertTrue(all(room.rough == bool(probability) for room in rooms))
 
     def test_random_room_positions_do_not_favor_nearby_or_distant_rooms(self):
         shape = (3, 3, {(x, y) for x in range(3) for y in range(3)}, False)

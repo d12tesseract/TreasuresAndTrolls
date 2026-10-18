@@ -209,8 +209,8 @@ def _room_shape(options: GenerationOptions, rng: random.Random) -> Tuple[int, in
     return width, height, cells, rough
 
 
-def _position_room(options, rng, excluded_rooms, room_exclusion):
-    """Try sampled positions for one room without touching reserved footprints."""
+def _position_room(options, rng, excluded_rooms, room_exclusion, rooms=()):
+    """Sample clear positions, softly favoring nearby rooms of the same terrain."""
     width, height, local_cells, rough = _room_shape(options, rng)
     for _ in range(24):
         left = rng.randint(2, options.width - width - 2)
@@ -220,7 +220,20 @@ def _position_room(options, rng, excluded_rooms, room_exclusion):
             continue
         if not cells.isdisjoint(room_exclusion):
             continue
-        return _Room((left + width // 2, top + height // 2), cells, rough)
+        center = (left + width // 2, top + height // 2)
+        if rooms and 0 < options.rough_probability < 1:
+            distance, index = min(
+                (math.hypot(center[0] - room.center[0], center[1] - room.center[1]), index)
+                for index, room in enumerate(rooms)
+            )
+            radius = 4 * math.sqrt(min(
+                options.room_size, (options.width - 4) * (options.height - 4),
+            ))
+            # A terrain boundary is less attractive, never forbidden.
+            if (distance < radius and rooms[index].rough != rough
+                    and rng.random() < 0.8 * (1 - distance / radius)):
+                continue
+        return _Room(center, cells, rough)
     return None
 
 
@@ -245,7 +258,7 @@ def _place_rooms(options, rng, excluded):
     area = misses = 0
     target = (options.width - 4) * (options.height - 4) * options.density
     while area < target and misses < 80:
-        room = _position_room(options, rng, excluded, exclusion)
+        room = _position_room(options, rng, excluded, exclusion, rooms)
         if room is None:
             misses += 1
             continue
