@@ -5,7 +5,7 @@ import random
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Set
 
 from dungeon_geometry import (
     Cell, DIAGONALS, DIRECTIONS, DOORS, DungeonMap, FEATURES, FLOORS, Point,
@@ -416,7 +416,7 @@ class _SvgRenderer:
     def draw_door(self, x, y, tile, player_view):
         """Draw a centered door, or hide a secret/concealed door as a wall."""
         axis = _door_axis(_neighbors(self.grid, x, y))
-        if player_view and tile in "XC":
+        if player_view and tile in "xc":
             endpoints = (
                 ((x, y + 0.5), (x + 1, y + 0.5)) if axis == "NS"
                 else ((x + 0.5, y), (x + 0.5, y + 1))
@@ -432,12 +432,12 @@ class _SvgRenderer:
         self.line(group, (0, 0.5), (0.15, 0.5))
         self.line(group, (0.85, 0.5), (1, 0.5))
         self.rectangle(group, 0.15, 0.38, 0.7, 0.24)
-        if tile != "D":
-            self.label(group, tile, y=0.61, size=0.28)
+        if tile != "d":
+            self.label(group, "S" if tile == "x" else "C", y=0.9, size=1.12)
 
     def draw_edge_doors(self, group, x, y, tile, paired_doors):
-        """Draw partition doors and exactly one symbol per double-tile door."""
-        if tile == "d":
+        """Draw partition doors and one normal-width door per pair of b tiles."""
+        if tile == "b":
             first, second = paired_doors[(x, y)]
             if (x, y) != first:
                 self.symbols.remove(group)
@@ -497,7 +497,7 @@ class _SvgRenderer:
         self.label(group, tile, x=length - 0.14 if horizontal else 0.86,
                    y=0.6, size=0.26)
 
-    def draw_feature(self, x, y, tile, run, paired_doors, player_view):
+    def draw_feature(self, x, y, tile, run, paired_doors, player_view, trapped_chests):
         """Dispatch one visible feature without altering SVG element order."""
         if tile in DOORS:
             self.draw_door(x, y, tile, player_view)
@@ -508,7 +508,7 @@ class _SvgRenderer:
         if run and run.spiral:
             self.spiral_symbol(group, run)
             return
-        if tile in "dlmn":
+        if tile in "blmn":
             self.draw_edge_doors(group, x, y, tile, paired_doors)
             return
         length = len(run.cells) if run else 1
@@ -518,35 +518,42 @@ class _SvgRenderer:
             self.line(group, (0.18, 0.18), (0.82, 0.82))
             self.line(group, (0.18, 0.82), (0.82, 0.18))
             self.label(group, "T", x=0.82, y=0.28, size=0.24)
+        elif tile == "C":
+            self.rectangle(group, 0.18, 0.3, 0.64, 0.44)
+            self.line(group, (0.18, 0.43), (0.82, 0.43))
+            self.rectangle(group, 0.46, 0.39, 0.08, 0.14)
+            if (x, y) in trapped_chests:
+                group.set("data-trapped", "true")
+                self.label(group, "T", x=0.82, y=0.25, size=0.24)
         else:
             horizontal = self.stair_horizontal(x, y, run)
             self.straight_symbol(group, tile, length, horizontal)
 
-    def draw_features(self, player_view):
+    def draw_features(self, player_view, trapped_chests):
         """Draw visible feature symbols in row order, once per recognized stair."""
         stair_runs = _stair_runs(self.grid)
         paired_doors = _paired_doors(self.grid)
         for y, row in enumerate(self.grid.rows):
             for x, tile in enumerate(row):
-                if tile not in FEATURES or (player_view and tile == "T"):
+                if tile not in FEATURES or (player_view and tile in "TC"):
                     continue
                 run = stair_runs.get((x, y))
                 if run and (x, y) != run.cells[0]:
                     continue
-                self.draw_feature(x, y, tile, run, paired_doors, player_view)
+                self.draw_feature(x, y, tile, run, paired_doors, player_view, trapped_chests)
 
     def draw_encounters(self, encounter_labels):
         """Append chamber numbers in supplied order, keeping trap labels legible."""
         grid = self.grid
         encounters = ET.SubElement(self.root, "g", {"id": "encounters"})
         for (x, y), number in encounter_labels.items():
-            if grid.tile(x, y) not in " .T":
+            if grid.tile(x, y) not in " .TC":
                 raise ValueError("encounter labels must be on chamber floor")
             group = ET.SubElement(encounters, "g", {
                 "data-area": str(number), "data-column": str(x + 1), "data-row": str(y + 1),
                 "transform": "translate({} {})".format(x, y),
             })
-            occupied = grid.tile(x, y) == "T"
+            occupied = grid.tile(x, y) in "TC"
             self.label(group, str(number), y=0.14 if occupied else 0.66,
                        size=min(0.22 if occupied else 0.46, 0.8 / max(1, len(str(number)))))
 
@@ -562,6 +569,7 @@ def svg_document(
     player_view: bool = False,
     corner_radius: Optional[float] = None,
     encounter_labels: Optional[Dict[Cell, str]] = None,
+    trapped_chests: Optional[Set[Cell]] = None,
 ) -> str:
     """Render a validated map with independently editable black wall segments."""
     dimensions = _render_dimensions(
@@ -570,7 +578,7 @@ def svg_document(
     )
     renderer = _SvgRenderer(grid, dimensions, roughness, rough_segments, seed)
     renderer.draw_walls()
-    renderer.draw_features(player_view)
+    renderer.draw_features(player_view, trapped_chests or set())
     if encounter_labels:
         renderer.draw_encounters(encounter_labels)
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(
