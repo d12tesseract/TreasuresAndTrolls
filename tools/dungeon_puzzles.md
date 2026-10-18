@@ -11,11 +11,11 @@ best loot, and key required items to reachable encounter areas. Its generated
 TM key overrides the illustrative locations and exit destinations below.
 Same-level passage puzzles use edge chambers and short passages to separate
 guarded treasure chambers, with no stairs in those reward chambers. Stair
-puzzles instead unlock circular 3x3 spiral stairs inside a chamber at least
+puzzles instead unlock circular 2x2 spiral stairs inside a chamber at least
 5x5 squares, with a complete one-square ring of clear floor around the stairwell
 so it neither touches walls nor blocks doorways. A stair puzzle on the final
 generated level leads to an explicitly unmapped lower level.
-Required items go first into a solvable earlier puzzle's reward;
+Required items go first into a solvable earlier puzzle's solved-only reward list;
 otherwise they are physical loot in another accessible encounter. Both
 encounters' generated descriptions give the level and area cross-references.
 Required items never go in a prize that can be permanently sealed by failure.
