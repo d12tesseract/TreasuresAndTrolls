@@ -51,10 +51,11 @@ does not add a row. Outside the map is solid stone.
 | space / `.` | Smooth worked floor / rough cavern floor |
 | `\` / `/` | Diagonal walls dividing a square into triangles |
 | `\|` / `_` / `L` | Floor with a left / bottom / both partition walls |
-| `D` / `X` / `C` | Normal / secret / concealed door |
-| `d` | Half of an isolated horizontal or vertical `dd` door pair |
+| `d` / `x` / `c` | Normal / secret / concealed door |
+| `bb` | One normal-width door centered on the shared edge of two adjacent squares |
 | `l` / `m` / `n` | Floor with a left / bottom / both edge doors |
 | `T` | Trap, including covered pits |
+| `C` | Chest |
 | `E` / `e` | Straight stairs up / down |
 | `R` / `r` | Ramp up / down |
 | `S` / `s` / `Z` | Spiral stairs up / down / both |
@@ -65,11 +66,12 @@ are north+west and south+east. Each pair must be two open neighbors
 must be open. When both are open, the wall still separates them: movement
 cannot cross it. Diagonal neighbors cannot be feature tiles.
 
-`D`, `X`, and `C` require opposite space/period neighbors and `#` on both
+`d`, `x`, and `c` require opposite floor/trap/chest neighbors and `#` on both
 perpendicular sides. `|` and `L` require literal space on the left; `_`
 and `L` require literal space below. The same respective adjacency rules
-apply to `l`, `m`, and `n`, whose doors remain passable. Each `d` must have
-exactly one cardinal `d` neighbor, forming an isolated pair.
+apply to `l`, `m`, and `n`, whose doors remain passable. Each `b` must have
+exactly one cardinal `b` neighbor. An isolated `bb` pair draws a single
+normal-width door, half in each square; `d` is centered within one square.
 
 Straight runs of the same stair/ramp letter render as one full-length
 symbol. Bent or branching clusters render individual symbols. Spiral
@@ -95,8 +97,10 @@ feature groups. Walls and features use separate `walls` and `features`
 groups; numbered encounter labels use `encounters`. Void squares clip wall
 and feature drawing, and edges adjoining void are not outlined.
 
-Doors use rectangles; secret and concealed doors include `X`/`C`. Traps use
-an X and `T`. Straight stairs use treads, ramps use tapering sides, and both
+Doors use rectangles; secret and concealed doors have large uppercase `S`/`C`
+labels independent of their ASCII keys. Traps use an X and `T`; chests use
+a lidded-box symbol. Trapped chests also show a `T` on generated TM maps.
+Straight stairs use treads, ramps use tapering sides, and both
 have arrows and tile labels. Runs determine orientation; single squares
 infer it from surrounding passages. Spiral symbols show their direction.
 
@@ -109,7 +113,7 @@ infer it from surrounding passages. Spiral symbols show their direction.
 | `--roughness` | `0.12` | Wall deviation, `0` through `0.2` squares |
 | `--rough-segments` | `6` | Segments per rough edge, `2` through `32` |
 | `--corner-radius` | Automatic | Radius, `0` through `0.5` squares |
-| `--player-view` | Off | Hide traps and draw secret/concealed doors as walls |
+| `--player-view` | Off | Hide trap/chest markers and draw secret/concealed doors as walls |
 
 Automatic corner radius is three times roughness, capped at 0.35 squares.
 An explicit radius of zero disables rounding, not jitter; positive radius
@@ -175,8 +179,10 @@ in `layout_notes`.
 Worked corners are chamfered probabilistically; eligible natural corners
 are chamfered automatically. Doors are placed at valid room entrances:
 exact counts first, then probabilities for unspecified types. Floor features
-avoid protected stair geometry and adjacent doors/diagonals.
-`traps + pits` produces that many `T` tiles; ASCII does not distinguish them.
+avoid protected stair geometry and adjacent diagonals; traps may adjoin doors.
+`traps + pits` produces that many explicit `T` tiles, preferring chamber
+entrances; ASCII does not distinguish pits from other traps. Stocking can
+add further chamber traps.
 
 Layout placement/routing failures are retried up to 12 times per level.
 Exhaustion raises an error with the placement problem and suggested option
@@ -302,6 +308,15 @@ treasure uses a bag or pack. Chest trapping and locking are independent.
 Random chamber traps occur on a basic roll of at least 23 unless that room
 already has an explicit `T`.
 
+After puzzle placement and hoard relocation, stocked room traps are marked
+`T`, preferring the room side of a door or open entrance. Chests are marked
+`C` away from entrances and door squares, avoiding positions that would cut
+off access through the chamber. Stair footprints, landings, and the clear
+ring around room spirals are protected. The encounter key gives each
+trap/chest's one-based column and row. A trapped chest keeps its `C` tile;
+the generated TM SVG adds a small `T` to its chest symbol. ASCII alone does
+not encode whether a chest is trapped.
+
 Generated trap descriptions specify detection, disarming, avoidance saves,
 and damage/poison consequences. Hidden doors are keyed at DC 20 WIS for
 secret doors and DC 17 WIS for concealed doors. `RULINGS` in
@@ -348,3 +363,10 @@ and void. It is distinct from the room-placement budget.
 progression validation before returning. Calling it with puzzles disabled
 still stocks encounters; the CLI only stocks a puzzle-disabled map when
 `--generate-encounters` is supplied.
+
+For manual stocking with `generate_encounters`, call
+`place_encounter_features(dungeon, keys)` on the unmarked dungeon after
+stocking and any encounter relocation to obtain the marked dungeon and keys
+with `trap_cell`/`chest_cell` coordinates.
+Pass `trapped_chests=keys[index].trapped_chests` to `svg_document` to include
+chest-trap indicators when rendering a stocked level.

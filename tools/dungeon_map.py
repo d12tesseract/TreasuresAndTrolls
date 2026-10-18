@@ -13,7 +13,7 @@ from typing import Callable, List, Optional, Sequence, Set, Tuple
 from dungeon_geometry import (
     Cell, DIAGONALS, DIRECTIONS, DOORS, DungeonMap, FEATURES, FLOORS, Point,
     Stairway, TILES, _diagonal_sides, _door_axis, _finite_positive, _neighbors,
-    _open_sides, _partition, _rough_cells, _route, _stair_runs,
+    _open_sides, _partition, _rough_cells, _room_entrances, _route, _stair_runs,
     clear_invalid_diagonals, is_connected, parse_ascii, validate_map,
 )
 from dungeon_render import (
@@ -715,9 +715,9 @@ def _door_candidates(rooms, options, rng, reserved, tile, neighbors):
 def _decorate_doors(rows, available, options, rng):
     """Place exact door counts before rolling unspecified door probabilities."""
     specifications = (
-        ("D", options.doors, options.door_probability),
-        ("X", options.secret_doors, options.secret_door_probability),
-        ("C", options.concealed_doors, options.concealed_door_probability),
+        ("d", options.doors, options.door_probability),
+        ("x", options.secret_doors, options.secret_door_probability),
+        ("c", options.concealed_doors, options.concealed_door_probability),
     )
     required = sum(count for _, count, _ in specifications if count is not None)
     if required > len(available):
@@ -741,16 +741,19 @@ def _decorate_doors(rows, available, options, rng):
                     break
 
 
-def _decorate_floor(rows, options, rng, reserved, tile, neighbors):
+def _decorate_floor(rows, rooms, options, rng, reserved, tile, neighbors):
     """Place exact floor features on eligible, shuffled floor squares."""
     width, height = options.width, options.height
     free = [
         (x, y) for y in range(1, height - 1) for x in range(1, width - 1)
         if tile(x, y) in " ."
         and (x, y) not in reserved
-        and not any(value in DOORS or value in DIAGONALS for value in neighbors(x, y))
+        and not any(value in DIAGONALS for value in neighbors(x, y))
     ]
     rng.shuffle(free)
+    grid = DungeonMap(tuple("".join(row) for row in rows))
+    entrances = set().union(*(_room_entrances(grid, room.cells) for room in rooms))
+    free.sort(key=lambda cell: cell in entrances)
     features = (
         ("T", options.traps + options.pits),
     )
@@ -786,7 +789,7 @@ def _decorate(
     _chamfer_rooms(rows, rooms, options, rng, reserved, tile, neighbors)
     available = _door_candidates(rooms, options, rng, reserved, tile, neighbors)
     _decorate_doors(rows, available, options, rng)
-    _decorate_floor(rows, options, rng, reserved, tile, neighbors)
+    _decorate_floor(rows, rooms, options, rng, reserved, tile, neighbors)
     clear_invalid_diagonals(rows)
     return DungeonMap(tuple("".join(row) for row in rows))
 

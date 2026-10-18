@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from typing import AbstractSet, Dict, List, Optional, Sequence, Set, Tuple
 
 
-TILES = frozenset("#~ .\\/|_LDXCTEeRrdlmnSsZ")
-FLOORS = frozenset(" .|_LDXCTEeRrdlmnSsZ")
-DOORS = frozenset("DXC")
+TILES = frozenset("#~ .\\/|_LdxbCTEeRrclmnSsZ")
+FLOORS = frozenset(" .|_LdxbCTEeRrclmnSsZ")
+DOORS = frozenset("dxc")
 DIAGONALS = frozenset("\\/")
-FEATURES = frozenset("DXCTEeRrdlmnSsZ")
+FEATURES = frozenset("dxbCTEeRrclmnSsZ")
 DIRECTIONS = ((0, -1), (1, 0), (0, 1), (-1, 0))  # N, E, S, W
 Point = Tuple[float, float]
 Cell = Tuple[int, int]
@@ -91,31 +91,31 @@ def _diagonal_sides(tile: str, neighbors: Sequence[str]) -> Set[int]:
 
 
 def _paired_doors(grid: DungeonMap) -> Dict[Cell, Tuple[Cell, Cell]]:
-    """Validate isolated double-tile doors and index each ordered pair."""
+    """Index paired b tiles representing one door centered on their shared edge."""
     remaining = {(x, y) for y, row in enumerate(grid.rows)
-                 for x, tile in enumerate(row) if tile == "d"}
+                 for x, tile in enumerate(row) if tile == "b"}
     result = {}
     for cell in sorted(remaining):
         adjacent = [(cell[0] + dx, cell[1] + dy) for dx, dy in DIRECTIONS
-                    if grid.tile(cell[0] + dx, cell[1] + dy) == "d"]
+                    if grid.tile(cell[0] + dx, cell[1] + dy) == "b"]
         if len(adjacent) != 1:
-            raise ValueError("row {}, column {}: d door requires exactly one adjacent d".format(
+            raise ValueError("row {}, column {}: b door requires exactly one adjacent b".format(
                 cell[1] + 1, cell[0] + 1))
         other = adjacent[0]
-        if sum(grid.tile(other[0] + dx, other[1] + dy) == "d"
+        if sum(grid.tile(other[0] + dx, other[1] + dy) == "b"
                for dx, dy in DIRECTIONS) != 1:
-            raise ValueError("d door requires an isolated horizontal or vertical pair")
+            raise ValueError("b door requires an isolated horizontal or vertical pair")
         result[cell] = tuple(sorted((cell, other)))
     return result
 
 
 def _door_axis(neighbors: Sequence[str]) -> Optional[str]:
     """Identify a door's opposing floor neighbors and perpendicular stone."""
-    if neighbors[0] in " ." and neighbors[2] in " ." and (
+    if neighbors[0] in " .TC" and neighbors[2] in " .TC" and (
         neighbors[1] == neighbors[3] == "#"
     ):
         return "NS"
-    if neighbors[1] in " ." and neighbors[3] in " ." and (
+    if neighbors[1] in " .TC" and neighbors[3] in " .TC" and (
         neighbors[0] == neighbors[2] == "#"
     ):
         return "EW"
@@ -150,7 +150,7 @@ def validate_map(grid: DungeonMap) -> None:
     _spiral_runs(grid)
     for y, row in enumerate(grid.rows):
         for x, tile in enumerate(row):
-            if tile not in "\\/DXC|_Llmn":
+            if tile not in "\\/dxc|_Llmn":
                 continue
             neighbors = _neighbors(grid, x, y)
             problem = None
@@ -161,7 +161,7 @@ def validate_map(grid: DungeonMap) -> None:
                 )
             elif tile in DOORS and _door_axis(neighbors) is None:
                 problem = (
-                    "door needs opposite space/period neighbors and "
+                    "door needs opposite floor/trap/chest neighbors and "
                     "'#' on both perpendicular sides"
                 )
             elif tile in "|L" and neighbors[3] != " ":
@@ -197,6 +197,18 @@ def _partition(grid: DungeonMap, x: int, y: int, side: int) -> bool:
     if side == 2:
         return grid.tile(x, y) in "_L"
     return grid.tile(x, y) in "|L"
+
+
+def _room_entrances(grid: DungeonMap, cells: AbstractSet[Cell]) -> Set[Cell]:
+    """Find room-side squares with a traversable connection outside the chamber."""
+    return {
+        (x, y) for x, y in cells
+        for side, (dx, dy) in enumerate(DIRECTIONS)
+        if (x + dx, y + dy) not in cells
+        and side in _open_sides(grid, x, y)
+        and (side + 2) % 4 in _open_sides(grid, x + dx, y + dy)
+        and not _partition(grid, x, y, side)
+    }
 
 
 def _walk_regions(grid: DungeonMap, cell: Cell):

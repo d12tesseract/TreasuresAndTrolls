@@ -14,11 +14,12 @@ import dungeon_map
 import dungeon_puzzles
 from dungeon_encounters import (
     EncounterArea, EncounterRules, encounter_document, encounter_log, generate_encounters,
-    puzzle_treasure,
+    place_encounter_features, puzzle_treasure,
 )
 from dungeon_geometry import reachable_cells
 from dungeon_map import GenerationOptions, generate_dungeon, is_connected, parse_ascii, validate_map
 from dungeon_puzzles import PUZZLE_COUNT, generate_adventure, load_puzzles, treasure_value, validate_puzzle_dungeon
+from dungeon_render import svg_document
 
 
 HERE = Path(__file__).resolve().parent
@@ -47,6 +48,7 @@ class PuzzleGenerationTests(unittest.TestCase):
         options = GenerationOptions(seed=42, width=30, height=24, levels=2)
         original = generate_dungeon(options)
         contents = generate_encounters(original, rules=self.rules)
+        original, contents = place_encounter_features(original, contents)
         for kwargs in (dict(puzzle_probability=0), dict(max_puzzles_per_level=0)):
             with self.subTest(kwargs=kwargs):
                 actual, keys = self.adventure(options, **kwargs)
@@ -187,8 +189,20 @@ class PuzzleGenerationTests(unittest.TestCase):
                     self.assertEqual(len(passage.clearance), 4)
                 self.assertEqual(len(keys[depth].stair_notes), 2)
                 for puzzle in key.puzzles:
-                    self.assertTrue(any("P{:02d}:".format(puzzle.definition.number) in note
-                                        for note in keys[depth].stair_notes))
+                    note = next(note for note in keys[depth].stair_notes
+                                if "P{:02d}:".format(puzzle.definition.number) in note)
+                    area = next(area for area in key.areas if area.cell == puzzle.cell)
+                    self.assertIn("ascends counterclockwise to Level {}, Area {}".format(
+                        depth, area.number,
+                    ), note)
+                    self.assertNotIn("IN THIS ROOM", note)
+                    self.assertNotIn("descends", note)
+                    room = next(set(cells) for cells in level.room_cells if puzzle.cell in cells)
+                    stairs = next(p for p in down if p.clearance <= room)
+                    self.assertIn("column {}, row {}".format(
+                        min(x for x, y in stairs.cells) + 1,
+                        min(y for x, y in stairs.cells) + 1,
+                    ), note)
         self.assertIn("Removed 3 old down", " ".join(dungeon.layout_notes))
 
     def test_single_level_protects_best_hoard_with_no_stair_bypass(self):
@@ -237,7 +251,16 @@ class PuzzleGenerationTests(unittest.TestCase):
             self.assertIsNotNone(reward.monster)
             self.assertGreaterEqual(treasure_value(reward), (0, 0, Decimal(1000)))
         self.assertEqual(len(keys[1].stair_notes), 1)
-        self.assertIn("2x2 spiral staircase IN THIS ROOM", keys[1].stair_notes[0])
+        note = keys[1].stair_notes[0]
+        self.assertIn("2x2 spiral staircase", note)
+        self.assertIn("lower landing", note)
+        self.assertNotIn("IN THIS ROOM", note)
+        puzzle = next(p for p in puzzles if p.next_level)
+        area = next(a for a in keys[0].areas if a.cell == puzzle.cell)
+        self.assertIn("ascends counterclockwise to Level 1, Area {}".format(area.number), note)
+        self.assertTrue(any("IN THIS ROOM" in entry and "descends clockwise to Level 2" in entry
+                            for entry in area.notes))
+        self.assertIn(note, encounter_document(dungeon, keys, 11).split("## Level 2\n", 1)[1])
 
     def test_separate_branches_fit_minimum_height_without_a_corridor_bypass(self):
         options = GenerationOptions(seed=42, width=30, height=7, room_size=4)
@@ -617,38 +640,40 @@ class PuzzleCommandLineTests(unittest.TestCase):
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               universal_newlines=True)
 
-    def test_both_entry_points_write_the_same_puzzle_adventure(self):
+    def test_cli_writes_the_same_puzzle_adventure_as_the_python_api(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            outputs = []
-            for name, script in (
-                ("tools", HERE / "generate_dungeon_map.py"),
-                ("campaign", HERE.parent / "campaigns" / "ur" / "generate_dungeon_map.py"),
-            ):
-                folder = root / name
-                folder.mkdir()
-                output = folder / "dungeon.svg"
-                result = self.run_cli(
-                    script, "--output", output, "--seed", 42, "--levels", 2,
-                    "--width", 30, "--height", 24, "--puzzle-probability", 1,
-                    "--player-view",
-                )
-                self.assertEqual(result.returncode, 0, result.stderr)
-                files = {path.name: path.read_bytes() for path in folder.iterdir()}
-                self.assertEqual(len(files), 6)
-                guide = files["dungeon-encounters.md"].decode("utf-8")
-                self.assertEqual(len(re.findall(r"\*\*Puzzle P\d\d:", guide)), 4)
-                self.assertIn("Progression gate:", guide)
-                self.assertIn("**Solution:**", guide)
-                for level in (1, 2):
-                    grid = parse_ascii(files["dungeon-level-{}.txt".format(level)].decode("ascii"))
-                    self.assertTrue(is_connected(grid))
-                    svg = files["dungeon-level-{}.svg".format(level)].decode("utf-8")
-                    self.assertIn('id="encounters"', svg)
-                    self.assertNotIn("Solution", svg)
-                    self.assertNotIn("Required item", svg)
-                outputs.append(files)
-            self.assertEqual(outputs[0], outputs[1])
+            folder = Path(directory)
+            output = folder / "dungeon.svg"
+            result = self.run_cli(
+                HERE / "generate_dungeon_map.py", "--output", output, "--seed", 42,
+                "--levels", 2, "--width", 30, "--height", 24,
+                "--puzzle-probability", 1, "--player-view",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            files = {path.name: path.read_text(encoding="utf-8") for path in folder.iterdir()}
+            self.assertEqual(len(files), 6)
+            dungeon, keys = generate_adventure(
+                GenerationOptions(seed=42, width=30, height=24, levels=2),
+                puzzle_probability=1,
+            )
+            self.assertEqual(files["dungeon-encounters.md"], encounter_document(dungeon, keys, 11))
+            self.assertEqual(files["dungeon-encounters.log"], encounter_log(dungeon, keys, 11))
+            guide = files["dungeon-encounters.md"]
+            self.assertEqual(len(re.findall(r"\*\*Puzzle P\d\d:", guide)), 4)
+            self.assertIn("Progression gate:", guide)
+            self.assertIn("**Solution:**", guide)
+            for depth, (level, key) in enumerate(zip(dungeon.levels, keys), 1):
+                text = files["dungeon-level-{}.txt".format(depth)]
+                self.assertEqual(text, level.grid.to_ascii())
+                self.assertTrue(is_connected(parse_ascii(text)))
+                svg = files["dungeon-level-{}.svg".format(depth)]
+                self.assertEqual(svg, svg_document(
+                    level.grid, seed=42, player_view=True,
+                    encounter_labels=key.labels, trapped_chests=key.trapped_chests,
+                ))
+                self.assertIn('id="encounters"', svg)
+                self.assertNotIn("Solution", svg)
+                self.assertNotIn("Required item", svg)
 
     def test_default_enables_stocking_and_zero_restores_unstocked_cli(self):
         with tempfile.TemporaryDirectory() as directory:
