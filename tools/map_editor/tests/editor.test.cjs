@@ -138,6 +138,29 @@ test("square brushes clip at edges, interpolate fast strokes, and undo as one tr
     assert.equal(document.canRedo, false);
 });
 
+test("2x2 strokes cover whole squares, clip at edges, and undo together", () => {
+    const document = new app.Document(app.Grid.stone(6, 6));
+    const original = document.grid.toAscii();
+    document.beginStroke();
+    document.paint(app.lineCells([1, 1], [3, 1]), " ", 2);
+    document.endStroke();
+    assert.equal(document.grid.toAscii(), "######\n#    #\n#    #\n######\n######\n######\n");
+    document.undo();
+    assert.equal(document.grid.toAscii(), original);
+    document.redo();
+    assert.equal(document.grid.tile(4, 2), " ");
+    document.beginStroke();
+    document.paint([[5, 5]], ".", 2);
+    document.endStroke();
+    assert.equal(document.grid.rows[5], "#####.");
+    assert.equal(document.grid.tile(4, 5), "#");
+    document.undo();
+    assert.equal(document.grid.tile(5, 5), "#");
+    document.beginStroke();
+    assert.throws(() => document.paint([[1, 1]], " ", 7), /Brush size/);
+    document.endStroke();
+});
+
 test("resize preserves the top-left, detects cropping, and restores dimensions on undo", () => {
     const document = new app.Document(app.parseAscii("####\n# C#\n####\n"));
     const original = document.grid.toAscii();
