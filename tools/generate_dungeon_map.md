@@ -42,11 +42,13 @@ and used on its own. There is no installation,
 build step, server, CDN, or network dependency. This is **only a map editor**:
 it does not generate procedural maps, puzzles, encounters, or treasure.
 
-Select a terrain type, choose a 1x1, 3x3, 5x5, or 7x7 square brush, and click
+Select a terrain type, choose a 1x1, 2x2, 3x3, or 5x5 square brush, and click
 or drag to paint. The graphical canvas is a simplified live preview; exported
 SVG adds full wall roughness, rounding, and feature drawings. One stroke is
 one undo operation. Undo/redo buttons and Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, and
 Ctrl+Y are available outside text fields.
+The 2x2 brush extends right and down from the cursor square; the 3x3 and 5x5
+brushes are centered on it. Brushes clip at the map edges.
 
 - **Load ASCII / Save ASCII:** preserve terrain cells, including literal spaces, and labels.
   Loading or creating a map asks before discarding unsaved terrain changes.
@@ -62,6 +64,9 @@ Ctrl+Y are available outside text fields.
   pixel zoom. Export uses 50 feet per inch. ASCII contains no scale metadata;
   loading retains the current scale. Use the same scale options in Python
   when comparing printed SVG dimensions.
+- **Zoom:** use the minus/plus buttons or percentage selector to zoom the
+  preview from 25% to 400%. Painting, moving, and label editing follow the
+  zoomed grid. Zoom does not change map data, undo history, or SVG scale.
 - **Export SVG:** runs the complete renderer directly in JavaScript, without
   invoking Python. Player SVG hides traps/chests and disguises secret and
   concealed doors as walls.
@@ -87,7 +92,7 @@ Old `D/X/C` door maps are not automatically migrated: `C` now means chest and
 `d` is a single-square door, so guessing old meanings would change maps.
 
 Maps are limited to 16,384 squares and 256 per dimension; files to 128 KiB.
-The canvas supports ordinary scrolling, not viewport pan/zoom. Exported
+The canvas supports view zoom and ordinary scrolling, not drag-to-pan. Exported
 ASCII/SVG contains no editor grid or selection overlays. The editor can edit
 encounter numbers and other map labels, but not encounter contents or trapped-chest metadata.
 

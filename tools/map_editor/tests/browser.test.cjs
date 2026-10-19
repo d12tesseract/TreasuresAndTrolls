@@ -109,10 +109,12 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         })`);
         const point = (x, y) => evaluate(`(() => {
             const canvas = document.getElementById('map'), view = document.getElementById('viewport');
-            view.scrollLeft = Math.max(0, ${x} * 20 - 100);
-            view.scrollTop = Math.max(0, ${y} * 20 - 100);
+            const cellWidth = canvas.getBoundingClientRect().width / DungeonEditor.document.grid.width;
+            const cellHeight = canvas.getBoundingClientRect().height / DungeonEditor.document.grid.height;
+            view.scrollLeft = Math.max(0, ${x} * cellWidth - 100);
+            view.scrollTop = Math.max(0, ${y} * cellHeight - 100);
             const rect = canvas.getBoundingClientRect();
-            return {x: rect.left + ${x} * 20 + 10, y: rect.top + ${y} * 20 + 10};
+            return {x: rect.left + (${x} + 0.5) * cellWidth, y: rect.top + (${y} + 0.5) * cellHeight};
         })()`);
         const mouse = async (type, point, pressed = false) => {
             await page.call("Input.dispatchMouseEvent", {
@@ -169,6 +171,46 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         assert.equal(await tile(0, 1), " ");
         assert.equal(await tile(2, 0), "#");
         await click("undo");
+        const beforeZoom = await ascii();
+        const historyBeforeZoom = await evaluate("DungeonEditor.document.undoStack.length");
+        await input("zoom", 2, true);
+        assert.equal(await evaluate("document.getElementById('map').getBoundingClientRect().width"), 320);
+        assert.equal(await ascii(), beforeZoom);
+        assert.equal(await evaluate("DungeonEditor.document.undoStack.length"), historyBeforeZoom);
+        await input("brush", 2, true);
+        await evaluate(`(() => {
+            globalThis.brushPreview = null;
+            const context = document.getElementById('map').getContext('2d'), strokeRect = context.strokeRect;
+            context.strokeRect = function(...args) {
+                if (this.strokeStyle === '#1262a8') brushPreview = args;
+                return strokeRect.apply(this, args);
+            };
+        })()`);
+        await mouse("mouseMoved", await point(2, 3));
+        assert.deepEqual(await evaluate("brushPreview"), [40, 60, 40, 40]);
+        await paint([2, 3]);
+        for (const [x, y] of [[2, 3], [3, 3], [2, 4], [3, 4]]) assert.equal(await tile(x, y), " ");
+        assert.equal(await tile(1, 3), "#");
+        assert.equal(await tile(4, 3), "#");
+        await click("undo");
+        assert.equal(await ascii(), beforeZoom);
+        await click("zoom-out");
+        assert.equal(await evaluate("document.getElementById('zoom').value"), "1.5");
+        await input("zoom", 0.5, true);
+        await paint([7, 7]);
+        assert.equal(await tile(7, 7), " ");
+        assert.equal(await tile(6, 7), "#");
+        await click("undo");
+        assert.equal(await ascii(), beforeZoom);
+        await input("zoom", 0.25, true);
+        assert.equal(await evaluate("document.getElementById('zoom-out').disabled"), true);
+        await click("zoom-in");
+        assert.equal(await evaluate("document.getElementById('zoom').value"), "0.5");
+        await input("zoom", 4, true);
+        assert.equal(await evaluate("document.getElementById('zoom-in').disabled"), true);
+        await click("zoom-out");
+        assert.equal(await evaluate("document.getElementById('zoom').value"), "3");
+        await input("zoom", 1.5, true);
         await input("brush", 1); await select("d"); await paint([6, 6]);
         assert.equal(await tile(6, 6), "#");
         assert.match(await evaluate("document.getElementById('status').textContent"), /Door needs/);
@@ -287,6 +329,7 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         const labeledSvg = await downloaded("labels-visible.svg");
         assert.match(labeledSvg, /data-area="Rock: &lt;&amp;&gt; \u00e9"/);
         assert.match(labeledSvg, /transform="translate\(0 0\)"/);
+        await input("zoom", 1, true);
 
         const dense = Array.from({ length: 128 }, (_, y) =>
             Array.from({ length: 128 }, (_, x) => (x + y) % 2 ? "." : "#").join("")).join("\n") + "\n";
@@ -300,6 +343,26 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         assert.ok(performance.bytes > 1000);
         assert.ok(performance.width >= 2560);
         t.diagnostic(`128x128 dense rough SVG: ${Math.round(performance.milliseconds)} ms, ${performance.bytes} characters.`);
+        await load("wide.txt", ("#".repeat(256) + "\n").repeat(64));
+        await input("zoom", 2, true);
+        const backingWidth = await evaluate("document.getElementById('map').width");
+        await evaluate("document.getElementById('viewport').scrollLeft = 1000; document.getElementById('viewport').scrollTop = 400");
+        const scrollCenter = () => evaluate(`(() => {
+            const view = document.getElementById('viewport'), rect = document.getElementById('map').getBoundingClientRect();
+            return [(view.scrollLeft + view.clientWidth / 2) * DungeonEditor.document.grid.width / rect.width,
+                (view.scrollTop + view.clientHeight / 2) * DungeonEditor.document.grid.height / rect.height];
+        })()`);
+        const centerBeforeZoom = await scrollCenter();
+        await input("zoom", 4, true);
+        assert.equal(await evaluate("document.getElementById('map').width"), backingWidth);
+        assert.equal(await evaluate("document.getElementById('map').getBoundingClientRect().width"), 20480);
+        const centerAfterZoom = await scrollCenter();
+        for (let axis = 0; axis < 2; axis++) assert.ok(Math.abs(centerBeforeZoom[axis] - centerAfterZoom[axis]) < 0.05);
+        await select(" "); await paint([250, 30]);
+        assert.equal(await tile(250, 30), " ");
+        assert.equal(await tile(249, 30), "#");
+        await click("undo");
+        assert.equal(await tile(250, 30), "#");
         assert.deepEqual(pageErrors, []);
         assert.deepEqual(dialogErrors, []);
         assert.deepEqual(requests.filter(url => /^https?:/.test(url)), []);
