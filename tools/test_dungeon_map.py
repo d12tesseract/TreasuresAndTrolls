@@ -11,7 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from dungeon_geometry import _open_sides, clear_invalid_diagonals, reachable_cells
+from dungeon_geometry import clear_invalid_diagonals, reachable_cells
 from dungeon_passages import HEADINGS, _cavern_path, _passage_cells, _segment_steps
 from dungeon_encounters import (
     EncounterRules,
@@ -43,9 +43,7 @@ from dungeon_map import (
     _place_stairways,
     _position_room,
     _Corridor,
-    _connect_rooms,
     _Room,
-    _room_passage,
     _prune_unreachable,
     _rebuild_layout,
     _reroute_corridors,
@@ -138,22 +136,11 @@ class InputTests(unittest.TestCase):
         for rows in (
             ("#.#", ".\\.", "###"),
             ("#.#", "#\\T", "###"),
-            ("# #", " \\ ", "###"),
+            ("# #", " \\ ", "# #"),
             ("###", "#\\ ", "###"),
         ):
             with self.subTest(rows=rows), self.assertRaisesRegex(ValueError, "diagonal"):
                 validate_map(DungeonMap(rows))
-
-    def test_two_sided_diagonals_keep_their_walkable_triangles_separate(self):
-        for symbol, reachable in (
-            ("\\", {(1, 0), (1, 1), (2, 1)}),
-            ("/", {(1, 0), (1, 1), (0, 1)}),
-        ):
-            with self.subTest(symbol=symbol):
-                grid = DungeonMap(("# #", " {} ".format(symbol), "# #"))
-                validate_map(grid)
-                self.assertEqual(reachable_cells(grid, (1, 0)), reachable)
-                self.assertFalse(is_connected(grid))
 
     def test_natural_and_mixed_diagonal_terrain_is_walkable(self):
         for rows, rough in (
@@ -408,17 +395,13 @@ class RenderingTests(unittest.TestCase):
         self.assertTrue(all(line.attrib["data-texture"] == "smooth" for line in walls(isolated)))
 
     def test_secret_and_concealed_doors_hidden_as_walls(self):
-        for symbol, marker in (("x", "S"), ("c", "C")):
+        for symbol in "xc":
             for horizontal in (False, True):
                 with self.subTest(symbol=symbol, horizontal=horizontal):
                     grid = door_map(symbol, horizontal)
                     gm = xml(grid)
                     player = xml(grid, player_view=True)
                     self.assertEqual(len(gm.findall(".//s:g[@data-tile='{}']".format(symbol), NS)), 1)
-                    label = gm.find(".//s:g[@data-tile='{}']/s:text".format(symbol), NS)
-                    self.assertEqual(label.text, marker)
-                    self.assertEqual(float(label.attrib["font-size"]), 1.12)
-                    self.assertEqual(grid.tile(2, 2), symbol)
                     self.assertEqual(len(player.findall(".//s:text", NS)), 0)
                     self.assertEqual(len(walls(player)), len(walls(gm)) + 1)
                     expected = (
@@ -431,16 +414,16 @@ class RenderingTests(unittest.TestCase):
         )
 
     def test_traps_hidden_but_stairs_and_ramps_remain(self):
-        grid = DungeonMap(("########", "#TCEeRr#", "########"))
+        grid = DungeonMap(("########", "#TPEURI#", "########"))
         gm = xml(grid)
         player = xml(grid, player_view=True)
         self.assertEqual(
             {group.attrib["data-tile"] for group in gm.findall(".//s:g[@data-tile]", NS)},
-            set("TCEeRr"),
+            set("TPEURI"),
         )
         self.assertEqual(
             {group.attrib["data-tile"] for group in player.findall(".//s:g[@data-tile]", NS)},
-            set("EeRr"),
+            set("EURI"),
         )
         self.assertEqual(
             [endpoints(line) for line in walls(gm)],
@@ -448,7 +431,7 @@ class RenderingTests(unittest.TestCase):
         )
 
     def test_stair_and_ramp_passage_orientation(self):
-        for symbol in "EeRr":
+        for symbol in "EURI":
             for rows, expected in (
                 (("#####", "# {} #".format(symbol), "#####"), "rotate(90 .5 .5)"),
                 (("###", "# #", "#{}#".format(symbol), "# #", "###"), "rotate(0)"),
@@ -462,7 +445,7 @@ class RenderingTests(unittest.TestCase):
                 self.assertEqual(drawing.attrib["transform"], expected)
 
     def test_multi_square_stairs_and_ramps_render_as_one_full_length_symbol(self):
-        for symbol in "EeRr":
+        for symbol in "EURI":
             for horizontal in (False, True):
                 rows = ("#####", "#   #", "#" + symbol * 3 + "#", "#   #", "#####")
                 if not horizontal:
@@ -476,9 +459,9 @@ class RenderingTests(unittest.TestCase):
                 self.assertEqual(drawing.attrib["transform"],
                                  "translate(3 0) rotate(90)" if horizontal else "rotate(0)")
                 lines = drawing.findall("s:line", NS)
-                self.assertEqual(len(lines), 18 if symbol in "Ee" else 5)
+                self.assertEqual(len(lines), 18 if symbol in "EU" else 5)
                 arrow = endpoints(lines[-3])
-                self.assertEqual(arrow, ((0.42, 2.82), (0.42, 0.18)) if symbol in "er"
+                self.assertEqual(arrow, ((0.42, 2.82), (0.42, 0.18)) if symbol in "ER"
                                  else ((0.42, 0.18), (0.42, 2.82)))
                 self.assertTrue(all(
                     0 <= x <= 1 and 0 <= y <= 3
@@ -698,25 +681,22 @@ class GenerationTests(unittest.TestCase):
                 rooms = _place_rooms(options, random.Random(seed), set())
                 self.assertTrue(all(room.rough == bool(probability) for room in rooms))
 
-    def test_room_positions_sample_the_full_interior_when_terrain_matches(self):
+    def test_random_room_positions_do_not_favor_nearby_or_distant_rooms(self):
         shape = (3, 3, {(x, y) for x in range(3) for y in range(3)}, False)
-        options = GenerationOptions(width=60, height=40)
-        neighbor = _Room((30, 20), {(30, 20)}, False)
+        same_half = [0, 0]
+        options = GenerationOptions(width=60, height=40, density=0.005)
         with patch("dungeon_map._room_shape", return_value=shape):
-            for left, top in ((2, 2), (55, 35), (38, 20)):
-                with self.subTest(left=left, top=top):
-                    rng = Mock()
-                    rng.randint.side_effect = (left, top)
-                    room = _position_room(options, rng, set(), neighbor.cells, [neighbor])
-                    self.assertIsNotNone(room)
-                    self.assertEqual(room.center, (left + 1, top + 1))
-                    self.assertEqual(room.cells, {
-                        (left + x, top + y) for x, y in shape[2]
-                    })
-                    self.assertEqual(
-                        [call[0] for call in rng.randint.call_args_list], [(2, 55), (2, 35)],
+            for seed in range(100):
+                _, rooms, _, _ = _terrain(options, random.Random(seed))
+                self.assertEqual(len(rooms), 2)
+                for axis, middle in enumerate((30, 20)):
+                    same_half[axis] += (
+                        (rooms[0].center[axis] < middle)
+                        == (rooms[1].center[axis] < middle)
                     )
-                    rng.random.assert_not_called()
+        for count in same_half:
+            self.assertGreater(count, 35)
+            self.assertLess(count, 65)
 
     def test_sparse_density_increases_chamber_spacing_and_passage_length(self):
         for width, height in ((60, 40), (40, 60)):
@@ -749,36 +729,29 @@ class GenerationTests(unittest.TestCase):
                 with self.subTest(width=width, height=height, rough=rough):
                     sparse, dense = measurements[0.1], measurements[0.4]
                     self.assertLess(sparse[0], dense[0])
-                    self.assertGreater(sparse[1], dense[1])
-                    self.assertGreater(sparse[2], dense[2])
+                    self.assertGreater(sparse[1], dense[1] * 1.5)
+                    self.assertGreater(sparse[2], dense[2] * 1.5)
 
     def test_cavern_routing_targets_the_exterior_of_the_destination_opening(self):
-        rooms = [
-            _Room((cx, 8), {(x, y) for x in range(cx - 1, cx + 2)
-                           for y in range(7, 10)}, True)
-            for cx in (5, 23)
-        ]
-        options = GenerationOptions(width=30, height=16, rough_probability=1)
-        room_floor = rooms[0].cells | rooms[1].cells
+        targets = []
 
         def observe(path, occupied, width, height, amount, rng):
-            self.assertNotIn(path[0], room_floor)
-            self.assertNotIn(path[-1], room_floor)
-            for endpoint, room in ((path[0], rooms[0]), (path[-1], rooms[1])):
-                self.assertEqual(sum(
-                    (endpoint[0] + dx, endpoint[1] + dy) in room.cells
-                    for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
-                ), 1)
-            return path
+            targets.append(path[-1])
+            return _meander_path(path, occupied, width, height, amount, rng)
 
-        with patch("dungeon_map._meander_path", side_effect=observe) as route:
-            corridor = _room_passage((0, 1), rooms, [], options, random.Random(42), set())
-        self.assertIsNotNone(corridor)
-        route.assert_called_once()
-        self.assertIn(corridor.centerline[0], rooms[0].cells)
-        self.assertIn(corridor.centerline[-1], rooms[1].cells)
-        self.assertEqual(set(corridor.cells) & room_floor,
-                         {corridor.centerline[0], corridor.centerline[-1]})
+        def terrain(*args):
+            targets.clear()
+            return _terrain(*args)
+
+        options = GenerationOptions(seed=42, rough_probability=1)
+        with patch("dungeon_map._meander_path", side_effect=observe), \
+                patch("dungeon_map._terrain", side_effect=terrain):
+            result = generate_dungeon(options)
+        self.assertEqual(len(targets), len(result.room_cells) - 1)
+        for target, cells in zip(targets, result.room_cells[1:]):
+            self.assertNotIn(target, cells)
+            self.assertTrue(any((target[0] + dx, target[1] + dy) in cells
+                                for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0))))
 
     def test_natural_chamfers_ignore_worked_corner_probability(self):
         for amount in (0, 1):
@@ -810,8 +783,8 @@ class GenerationTests(unittest.TestCase):
         )))
 
     def test_exact_features_valid_diagonals_and_connected_layouts(self):
-        expected = Counter({"d": 3, "x": 2, "c": 2, "T": 6,
-                            "e": 1, "E": 1, "r": 1, "R": 1})
+        expected = Counter({"d": 3, "x": 2, "c": 2, "T": 4, "P": 2,
+                            "E": 1, "U": 1, "R": 1, "I": 1})
         for seed in range(8):
             with self.subTest(seed=seed):
                 result = generate_dungeon(GenerationOptions(
@@ -833,20 +806,13 @@ class GenerationTests(unittest.TestCase):
     def test_meandering_changes_only_rough_corridors(self):
         for rough in (0, 1):
             routes = {0: [], 1: []}
-            layouts = {}
 
             def observe(path, occupied, width, height, amount, rng):
                 result = _meander_path(path, occupied, width, height, amount, rng)
                 routes[amount].append((path, result, occupied))
                 return result
 
-            def terrain(options, *args):
-                result = _terrain(options, *args)
-                layouts[options.meandering] = (result[1], result[3])
-                return result
-
-            with patch("dungeon_map._meander_path", side_effect=observe), \
-                    patch("dungeon_map._terrain", side_effect=terrain):
+            with patch("dungeon_map._meander_path", side_effect=observe):
                 results = [
                     generate_dungeon(GenerationOptions(
                         seed=7, rough_probability=rough, meandering=amount,
@@ -859,16 +825,15 @@ class GenerationTests(unittest.TestCase):
                 self.assertNotEqual(results[0].grid, results[1].grid)
                 self.assertTrue(any(direct != path for direct, path, occupied in routes[1]))
                 for amount, result in enumerate(results):
-                    rooms, corridors = layouts[amount]
-                    occupied = set().union(*(room.cells for room in rooms))
-                    lengths = []
-                    for corridor in corridors:
-                        self.assertEqual(corridor.tile, ".")
-                        lengths.append(len(set(corridor.cells) - occupied))
-                        occupied.update(corridor.cells)
-                        self.assertTrue(all(_open_sides(result.grid, x, y)
-                                            for x, y in corridor.cells))
-                    self.assertEqual(result.corridor_lengths, tuple(lengths))
+                    self.assertEqual(result.corridor_lengths, tuple(
+                        sum(cell not in occupied for cell in _passage_cells(path))
+                        for direct, path, occupied in routes[amount]
+                    ))
+                    self.assertTrue(all(
+                        result.grid.tile(x, y) in ".\\/"
+                        for direct, path, occupied in routes[amount]
+                        for x, y in _passage_cells(path)
+                    ))
             else:
                 self.assertEqual(results[0], results[1])
                 self.assertFalse(routes[0] or routes[1])
@@ -893,7 +858,7 @@ class GenerationTests(unittest.TestCase):
             self.assertEqual(actual, {symbol})
             self.assertTrue(is_connected(result.grid))
 
-    def test_density_and_room_size_controls(self):
+    def test_density_room_size_and_corridor_length_controls(self):
         def totals(**values):
             results = [
                 generate_dungeon(GenerationOptions(
@@ -905,34 +870,15 @@ class GenerationTests(unittest.TestCase):
                 sum(result.density for result in results) / len(results),
                 sum(sum(result.room_areas) for result in results)
                 / sum(len(result.room_areas) for result in results),
+                sum(sum(result.corridor_lengths) for result in results)
+                / sum(len(result.corridor_lengths) for result in results),
             )
         sparse, dense = totals(density=0.15), totals(density=0.4)
-        self.assertGreater(dense[0], sparse[0])
+        self.assertGreater(dense[0] - sparse[0], 0.15)
         small, large = totals(room_size=16), totals(room_size=60)
         self.assertGreater(large[1], small[1] * 2)
-
-    def test_corridor_length_is_a_soft_limit_with_a_connectivity_fallback(self):
-        rooms = [
-            _Room((cx, 8), {(x, y) for x in range(cx - 1, cx + 2)
-                           for y in range(7, 10)}, False)
-            for cx in (5, 23)
-        ]
-        room_floor = rooms[0].cells | rooms[1].cells
-        for limit in (2, 20):
-            with self.subTest(limit=limit), patch(
-                "dungeon_map._room_passage", wraps=_room_passage,
-            ) as route:
-                options = GenerationOptions(width=30, height=16, corridor_length=limit)
-                corridors = _connect_rooms(rooms, options, random.Random(42), set())
-                self.assertEqual(len(corridors), 1)
-                length = len(set(corridors[0].cells) - room_floor)
-                if limit == 2:
-                    self.assertGreater(length, limit)
-                    self.assertTrue(any(call[0][6] is None for call in route.call_args_list))
-                else:
-                    self.assertLessEqual(length, limit)
-                    self.assertTrue(route.called)
-                    self.assertTrue(all(call[0][6] == limit for call in route.call_args_list))
+        short, long = totals(corridor_length=2), totals(corridor_length=15)
+        self.assertGreater(long[2], short[2] * 1.5)
 
     def test_small_map_and_large_room_request(self):
         result = generate_dungeon(GenerationOptions(width=7, height=7, seed=2, room_size=1e308))
@@ -962,19 +908,19 @@ class GenerationTests(unittest.TestCase):
 
 class MultiLevelTests(unittest.TestCase):
     def test_stairs_terminate_existing_corridors_without_isolating_floor(self):
-        for symbol in "EeRr":
+        for symbol in "EURI":
             for horizontal in (False, True):
                 with self.subTest(symbol=symbol, horizontal=horizontal):
                     rows = [["#"] * 13 for _ in range(9)]
                     rows[4][1:12] = [" "] * 11
                     cells = ((5, 4), (6, 4), (7, 4))
-                    entrance = (4, 4) if symbol in "er" else (8, 4)
-                    closed_end = (8, 4) if symbol in "er" else (4, 4)
+                    entrance = (4, 4) if symbol in "ER" else (8, 4)
+                    closed_end = (8, 4) if symbol in "ER" else (4, 4)
                     if not horizontal:
                         rows = [list(row) for row in zip(*rows)]
                         cells = tuple((y, x) for x, y in cells)
-                        entrance = (4, 8) if symbol in "er" else (4, 4)
-                        closed_end = (4, 4) if symbol in "er" else (4, 8)
+                        entrance = (4, 8) if symbol in "ER" else (4, 4)
+                        closed_end = (4, 4) if symbol in "ER" else (4, 8)
                     options = GenerationOptions(width=len(rows[0]), height=len(rows), levels=2)
                     route = tuple((x, 4) if horizontal else (4, x) for x in range(1, 12))
                     passages, reserved, notes = _place_stairways(
@@ -1087,7 +1033,7 @@ class MultiLevelTests(unittest.TestCase):
                         self.assertIn(level.grid.tile(*cell), " .")
                 root = xml(level.grid)
                 symbols = [g for g in root.findall(".//s:g[@data-tile]", NS)
-                           if g.attrib["data-tile"] in "EeRr"]
+                           if g.attrib["data-tile"] in "EURI"]
                 self.assertEqual(len(symbols), len(passages))
 
     def test_linked_footprints_lengths_depths_and_feature_protection(self):
@@ -1107,9 +1053,9 @@ class MultiLevelTests(unittest.TestCase):
                     self.assertTrue(is_connected(level.grid))
                     self.assertEqual(parse_ascii(level.grid.to_ascii()), level.grid)
                     counts = Counter("".join(level.grid.rows))
-                    self.assertEqual({tile: counts[tile] for tile in "Tdxc"},
-                                     {"T": 5, "d": 2, "x": 1, "c": 1})
-                    self.assertEqual(counts["e"] + counts["r"],
+                    self.assertEqual({tile: counts[tile] for tile in "TPdxc"},
+                                     {"T": 3, "P": 2, "d": 2, "x": 1, "c": 1})
+                    self.assertEqual(counts["E"] + counts["R"],
                                      0 if index == 3 else 3 * length)
                     used = set()
                     for passage in level.stairways:
@@ -1132,15 +1078,15 @@ class MultiLevelTests(unittest.TestCase):
                             and level.grid.tile(x + dx, y + dy) != "#"
                         }
                         self.assertEqual(accessible, {passage.entrance})
-                    up = [s for s in level.stairways if s.tile in "ER"]
+                    up = [s for s in level.stairways if s.tile in "UI"]
                     if index == 0:
                         self.assertEqual(len(up), 1)
-                        self.assertEqual(up[0].tile, "E")
+                        self.assertEqual(up[0].tile, "U")
                     else:
-                        above = [replace(s, tile="E" if s.tile == "e" else "R")
-                                 for s in result.levels[index - 1].stairways if s.tile in "er"]
+                        above = [replace(s, tile="U" if s.tile == "E" else "I")
+                                 for s in result.levels[index - 1].stairways if s.tile in "ER"]
                         self.assertEqual(up, above)
-                        descents = [s for s in result.levels[index - 1].stairways if s.tile in "er"]
+                        descents = [s for s in result.levels[index - 1].stairways if s.tile in "ER"]
                         for descent, ascent in zip(descents, up):
                             self.assertEqual(descent.entrance, ascent.closed_end)
                             self.assertEqual(descent.closed_end, ascent.entrance)
@@ -1151,21 +1097,21 @@ class MultiLevelTests(unittest.TestCase):
                         self.assertTrue(all(g.attrib["data-length"] == str(length) for g in rendered))
 
     def test_ramp_percentage_endpoints_and_surface_stair(self):
-        for chance, down, up in ((0, "e", "E"), (100, "r", "R")):
+        for chance, down, up in ((0, "E", "U"), (100, "R", "I")):
             result = generate_dungeon(GenerationOptions(
                 seed=23, levels=3, stairs_down=2, ramp_probability=chance,
             ))
             for index, level in enumerate(result.levels):
                 counts = Counter(s.tile for s in level.stairways)
-                expected = Counter({"E": 1}) if index == 0 else Counter({up: 2})
+                expected = Counter({"U": 1}) if index == 0 else Counter({up: 2})
                 if index < 2:
                     expected[down] += 2
                 self.assertEqual(counts, expected)
         ramps_only = generate_dungeon(GenerationOptions(
             seed=23, levels=2, stairs_down=0, ramps_down=2,
         ))
-        self.assertEqual(Counter(s.tile for s in ramps_only.stairways), {"E": 1, "r": 2})
-        self.assertEqual(Counter(s.tile for s in ramps_only.levels[-1].stairways), {"R": 2})
+        self.assertEqual(Counter(s.tile for s in ramps_only.stairways), {"U": 1, "R": 2})
+        self.assertEqual(Counter(s.tile for s in ramps_only.levels[-1].stairways), {"I": 2})
 
     def test_defaults_random_seed_replay_and_single_level_compatibility(self):
         result = generate_dungeon(GenerationOptions(width=30, height=24, levels=3))
@@ -1173,7 +1119,7 @@ class MultiLevelTests(unittest.TestCase):
             width=30, height=24, levels=3, seed=result.seed,
         )))
         for level in result.levels[:-1]:
-            self.assertIn(sum(s.tile in "er" for s in level.stairways), (1, 2, 3))
+            self.assertIn(sum(s.tile in "ER" for s in level.stairways), (1, 2, 3))
             self.assertTrue(all(len(s.cells) == 3 for s in level.stairways))
         options = GenerationOptions(seed=31, stairs_down=2, stairs_up=2, ramps_up=1)
         original = generate_dungeon(options)
@@ -1612,39 +1558,53 @@ class EncounterTests(unittest.TestCase):
 
 
 class CommandLineTests(unittest.TestCase):
-    def test_shared_imports_preserve_api_identity_without_leaking_search_paths(self):
+    def test_campaign_imports_share_modules_without_leaking_search_paths(self):
         code = """
 import sys
 from pathlib import Path
 from unittest.mock import patch
 
 before = sys.path[:]
-import dungeon_map, dungeon_encounters, dungeon_geometry, dungeon_render
-assert dungeon_map.DungeonMap is dungeon_geometry.DungeonMap
-assert dungeon_map.svg_document is dungeon_render.svg_document
-assert dungeon_encounters.Cell is dungeon_geometry.Cell
-assert Path(dungeon_map.__file__).resolve().parent == Path.cwd()
+from campaigns.ur import dungeon_map, dungeon_encounters
+from campaigns.ur._dungeon_tools import load_module
+import dungeon_map as shared_map
+import dungeon_encounters as shared_encounters
+assert dungeon_map is shared_map
+assert dungeon_encounters is shared_encounters
+assert Path(dungeon_map.__file__).parent.name == "Tools_temp"
 assert sys.path == before
 with patch("dungeon_map._generate_level") as generate:
     dungeon_map.generate_dungeon(dungeon_map.GenerationOptions(seed=42))
     generate.assert_called_once()
+try:
+    load_module("missing_dungeon_module")
+except FileNotFoundError:
+    pass
+else:
+    raise AssertionError("missing shared module must raise")
+assert "missing_dungeon_module" not in sys.modules
 assert sys.path == before
 """
         result = subprocess.run(
-            [sys.executable, "-c", code], cwd=str(HERE),
+            [sys.executable, "-c", code], cwd=str(HERE.parent),
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_ascii_command_matches_shared_renderer(self):
+    def test_campaign_ascii_command_matches_shared_renderer(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "map.txt"
             source.write_text("#####\n#...#\n#####\n", encoding="ascii")
-            result = self.run_cli("ascii_map_to_svg.py", source, "--seed", 7)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            grid = parse_ascii(source.read_text(encoding="ascii"))
-            self.assertEqual(source.with_suffix(".svg").read_text(encoding="utf-8"),
-                             svg_document(grid, seed=7))
+            documents = []
+            for script in (HERE / "ascii_map_to_svg.py",
+                           HERE.parent / "campaigns" / "ur" / "ascii_map_to_svg.py"):
+                result = subprocess.run(
+                    [sys.executable, str(script), str(source), "--seed", "7"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                documents.append(source.with_suffix(".svg").read_bytes())
+            self.assertEqual(documents[0], documents[1])
 
     def run_cli(self, script, *args):
         if script == "generate_dungeon_map.py":
@@ -1746,25 +1706,12 @@ assert sys.path == before
             result = self.run_cli("generate_dungeon_map.py", "--output", output,
                                   "--seed", 42, "--generate-encounters")
             self.assertEqual(result.returncode, 0, result.stderr)
-            stocked_ascii = output.with_suffix(".txt").read_bytes()
-            self.assertEqual(len(original_ascii), len(stocked_ascii))
-            self.assertTrue(all(
-                old == new or chr(old) in " ." and chr(new) in "TC"
-                for old, new in zip(original_ascii, stocked_ascii)
-            ))
+            self.assertEqual(original_ascii, output.with_suffix(".txt").read_bytes())
             old_root = ET.fromstring(original_svg)
             new_root = ET.parse(str(output)).getroot()
-            self.assertEqual(ET.tostring(old_root.find("s:g[@id='walls']", NS)),
-                             ET.tostring(new_root.find("s:g[@id='walls']", NS)))
-            old_features = old_root.find("s:g[@id='features']", NS)
-            new_features = new_root.find("s:g[@id='features']", NS)
-            self.assertEqual(
-                [ET.tostring(feature) for feature in old_features],
-                [ET.tostring(feature) for feature in new_features
-                 if feature.attrib["data-tile"] not in "TC"],
-            )
-            self.assertTrue(new_root.findall(".//s:g[@data-tile='T']", NS))
-            self.assertTrue(new_root.findall(".//s:g[@data-tile='C']", NS))
+            for group in ("walls", "features"):
+                self.assertEqual(ET.tostring(old_root.find("s:g[@id='{}']".format(group), NS)),
+                                 ET.tostring(new_root.find("s:g[@id='{}']".format(group), NS)))
             self.assertTrue(markdown.exists())
             guide = markdown.read_bytes()
             debug_log = log_path.read_bytes()
@@ -1864,13 +1811,13 @@ assert sys.path == before
                 self.assertTrue(is_connected(grid))
                 counts = Counter(grid.to_ascii())
                 self.assertEqual(counts["T"], 2)
-                self.assertEqual(counts["r"], 8 if index < 3 else 0)
+                self.assertEqual(counts["R"], 8 if index < 3 else 0)
                 if previous:
                     self.assertEqual(
                         {(x, y) for y, row in enumerate(previous.rows)
-                         for x, tile in enumerate(row) if tile == "r"},
-                        {(x, y) for y, row in enumerate(grid.rows)
                          for x, tile in enumerate(row) if tile == "R"},
+                        {(x, y) for y, row in enumerate(grid.rows)
+                         for x, tile in enumerate(row) if tile == "I"},
                     )
                 previous = grid
                 rerendered = Path(directory) / "rerendered.svg"

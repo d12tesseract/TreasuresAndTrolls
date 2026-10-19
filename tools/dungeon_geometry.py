@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from typing import AbstractSet, Dict, List, Optional, Sequence, Set, Tuple
 
 
-TILES = frozenset("#~ .\\/|_LdxbCTEeRrclmnSsZ")
-FLOORS = frozenset(" .|_LdxbCTEeRrclmnSsZ")
+TILES = frozenset("#~ .\\/|_LdxcbCTEeRrlmnSsZ")
+FLOORS = frozenset(" .|_LdxcbCTEeRrlmnSsZ")
 DOORS = frozenset("dxc")
 DIAGONALS = frozenset("\\/")
-FEATURES = frozenset("dxbCTEeRrclmnSsZ")
+FEATURES = frozenset("dxcbCTEeRrlmnSsZ")
 DIRECTIONS = ((0, -1), (1, 0), (0, 1), (-1, 0))  # N, E, S, W
 Point = Tuple[float, float]
 Cell = Tuple[int, int]
@@ -91,7 +91,7 @@ def _diagonal_sides(tile: str, neighbors: Sequence[str]) -> Set[int]:
 
 
 def _paired_doors(grid: DungeonMap) -> Dict[Cell, Tuple[Cell, Cell]]:
-    """Index paired b tiles representing one door centered on their shared edge."""
+    """Index isolated b pairs representing one boundary-centered door."""
     remaining = {(x, y) for y, row in enumerate(grid.rows)
                  for x, tile in enumerate(row) if tile == "b"}
     result = {}
@@ -197,18 +197,6 @@ def _partition(grid: DungeonMap, x: int, y: int, side: int) -> bool:
     if side == 2:
         return grid.tile(x, y) in "_L"
     return grid.tile(x, y) in "|L"
-
-
-def _room_entrances(grid: DungeonMap, cells: AbstractSet[Cell]) -> Set[Cell]:
-    """Find room-side squares with a traversable connection outside the chamber."""
-    return {
-        (x, y) for x, y in cells
-        for side, (dx, dy) in enumerate(DIRECTIONS)
-        if (x + dx, y + dy) not in cells
-        and side in _open_sides(grid, x, y)
-        and (side + 2) % 4 in _open_sides(grid, x + dx, y + dy)
-        and not _partition(grid, x, y, side)
-    }
 
 
 def _walk_regions(grid: DungeonMap, cell: Cell):

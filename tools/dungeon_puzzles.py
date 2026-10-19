@@ -9,11 +9,11 @@ from typing import Dict, List, Optional, Tuple
 
 from dungeon_encounters import (
     EncounterArea, EncounterLevel, EncounterRules, basic_roll, generate_encounters,
-    monster_encounter, number_areas, place_encounter_features, puzzle_treasure, treasure_value,
+    monster_encounter, number_areas, puzzle_treasure, treasure_value,
 )
 from dungeon_games import field as game_field, validate_strategy_game
 from dungeon_geometry import (
-    Cell, DOORS, DungeonMap, Stairway, _open_sides, _route, clear_invalid_diagonals,
+    Cell, DungeonMap, Stairway, _open_sides, _route, clear_invalid_diagonals,
     is_connected, reachable_cells,
 )
 from dungeon_map import (
@@ -149,7 +149,7 @@ def _wing_connection(level, descending, blocked):
                      for dx, dy in ((0, 0), (0, -1), (1, 0), (0, 1), (-1, 0)))
     for y, row in enumerate(grid.rows):
         for x, tile in enumerate(row):
-            if tile in DOORS:
+            if tile in "dxc":
                 forbidden.update((x + dx, y + dy)
                                  for dx in (-1, 0, 1) for dy in (-1, 0, 1))
     targets = {
@@ -678,7 +678,7 @@ class _PuzzleNoteWriter:
         protected = [area.number for area in contents.areas if area.cell in protected_cells]
         destination = "an isolated section of this level, with no stairs or ramps"
         notes = [
-            "**Progression gate:** The d at column {}, row {} stays impassable until "
+            "**Progression gate:** The D at column {}, row {} stays impassable until "
             "this puzzle is solved, then latches open. It blocks {}. Protected areas: {}. "
             "This branch is independent: other puzzles need not be solved to enter this "
             "puzzle room, and solving this puzzle does not unlock their reward areas. "
@@ -708,7 +708,7 @@ class _PuzzleNoteWriter:
         return notes
 
     def stair_note(self, puzzle, depth, title):
-        """Describe the puzzle-room spiral and its return landing on the lower level."""
+        """Describe the in-room spiral and mirror its seal on a mapped lower level."""
         room = next(cells for cells in self.dungeon.levels[depth - 1].room_cells
                     if puzzle.cell in cells)
         stairs = next(p for p in self.dungeon.levels[depth - 1].stairways
@@ -728,19 +728,8 @@ class _PuzzleNoteWriter:
         )
         if puzzle.next_level <= len(self.keys):
             lower = self.keys[puzzle.next_level - 1]
-            return_seal = (
-                "**Linked stair seal:** A circular 2x2 spiral staircase at column {}, "
-                "row {} ascends counterclockwise to {}, where {} controls it. "
-                "This is the lower landing, not a puzzle chamber on this level. "
-                "Both ends stay sealed until that puzzle is solved; other exits "
-                "do not release it. Its corner landing remains open floor.".format(
-                    min(x for x, y in stairs.cells) + 1,
-                    min(y for x, y in stairs.cells) + 1,
-                    self.location(depth, puzzle.cell), title,
-                )
-            )
             self.keys[puzzle.next_level - 1] = replace(
-                lower, stair_notes=lower.stair_notes + (return_seal,),
+                lower, stair_notes=lower.stair_notes + (seal,),
             )
         return seal
 
@@ -1055,15 +1044,13 @@ def generate_adventure(
     rules = rules or EncounterRules()
     if puzzle_probability == 0 or max_puzzles_per_level == 0:
         dungeon = generate_dungeon(options)
-        return place_encounter_features(
-            dungeon, generate_encounters(dungeon, rules=rules, **encounter_options),
-        )
+        return dungeon, generate_encounters(dungeon, rules=rules, **encounter_options)
     builder = _AdventureBuilder(options, puzzle_probability, max_puzzles_per_level, rules, encounter_options)
     dungeon = generate_dungeon(options, level_transform=builder.finish_level)
     keys = builder.keys
     _finalize_rewards(keys, rules, dungeon.seed)
     _roll_puzzle_rewards(keys, rules, dungeon.seed)
     _write_puzzle_notes(keys, dungeon)
-    dungeon, result = place_encounter_features(dungeon, tuple(keys))
+    result = tuple(keys)
     validate_puzzle_dungeon(dungeon, result)
     return dungeon, result

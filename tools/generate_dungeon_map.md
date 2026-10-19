@@ -1,12 +1,12 @@
 # ASCII and procedural dungeon maps
 
-This document describes the Python modules in the repository root. They use
-Python 3.7+ and the standard library. The commands in `tools` have their own
-[implementation documentation](tools/generate_dungeon_map.md).
+This document describes the Python modules in `tools` and the standalone
+browser map editor. The Python commands use Python 3.7+ and the standard
+library; the browser editor needs neither Python nor a server.
 
 ```powershell
-python ascii_map_to_svg.py map.txt --output map.svg
-python generate_dungeon_map.py --width 60 --height 40 --seed 42 --puzzle-probability 0 --output dungeon.svg
+python tools\ascii_map_to_svg.py map.txt --output map.svg
+python tools\generate_dungeon_map.py --width 60 --height 40 --seed 42 --puzzle-probability 0 --output dungeon.svg
 ```
 
 The converter reads ASCII and writes SVG. The generator writes both formats.
@@ -31,11 +31,84 @@ Puzzles are enabled by default and imply encounter stocking. Use
 
 Keep `dungeon_puzzles.md` beside `dungeon_puzzles.py`: the module loads that
 catalog at runtime. `EncounterRules` reads `TreasuresAndTrollsBasicMD.md`.
-Its default `RULES_PATH` is the parent of the module's directory followed by
-that filename. For these root modules, that points **one directory above the
-repository**, not at the rulebook in the repository root. Python callers can
-pass an explicit `EncounterRules` instance, as shown below. The command-line
-stocking pipeline uses the default path.
+Its default `RULES_PATH` points to that file in the repository root. Python
+callers can also pass an explicit `EncounterRules` instance.
+
+## Offline browser editor
+
+Open [map_editor.html](map_editor.html) directly in a modern browser.
+JavaScript and CSS are embedded in this one HTML file, which can be copied
+and used on its own. There is no installation,
+build step, server, CDN, or network dependency. This is **only a map editor**:
+it does not generate procedural maps, puzzles, encounters, or treasure.
+
+Select a terrain type, choose a 1x1, 3x3, 5x5, or 7x7 square brush, and click
+or drag to paint. The graphical canvas is a simplified live preview; exported
+SVG adds full wall roughness, rounding, and feature drawings. One stroke is
+one undo operation. Undo/redo buttons and Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, and
+Ctrl+Y are available outside text fields.
+
+- **Load ASCII / Save ASCII:** preserve terrain cells, including literal spaces.
+  Loading or creating a map asks before discarding unsaved terrain changes.
+  Saving downloads a file; the browser does not overwrite the original file.
+- **Resize map:** preserves the top-left corner and adds stone on the
+  right/bottom when expanding. Shrinking asks before cropping non-stone cells.
+  Undo restores cropped cells and the previous dimensions.
+- **Move contents:** drag all terrain by whole squares within the current
+  map, filling vacated cells with stone. This moves the map data, not the
+  viewport. A move that would lose any non-stone cell is blocked: expand the
+  map first. A move is undoable; ordinary scrolling remains separate.
+- **Feet per square:** defaults to 10 and controls physical SVG size, not
+  pixel zoom. Export uses 50 feet per inch. ASCII contains no scale metadata;
+  loading retains the current scale. Use the same scale options in Python
+  when comparing printed SVG dimensions.
+- **Export SVG:** runs the complete renderer directly in JavaScript, without
+  invoking Python. Player SVG hides traps/chests and disguises secret and
+  concealed doors as walls.
+
+A single `b` is allowed while building a centered door. Add its adjacent `b`
+to complete the door. Spiral stairs can likewise be painted one cell at a
+time using `S`, `s`, or `Z`; their landings must be literal spaces. Incomplete
+structures show coordinate-specific validation errors and may be loaded/saved
+as **ASCII drafts**, but SVG export is blocked until they are complete.
+Impossible structures and other invalid geometry (for example a door in a
+junction or a malformed diagonal) are rejected atomically without changing
+the map. An unfinished structure does not hide other invalid inputs.
+
+Finished ASCII maps use the exact same terrain keys, geometry, and symbols
+in JavaScript and Python. Decorative rough-wall jitter is independently
+seeded and need not match between languages; repeated JavaScript exports with
+the same options are deterministic. SVG serialization is not byte-identical.
+Old `D/X/C` door maps are not automatically migrated: `C` now means chest and
+`d` is a single-square door, so guessing old meanings would change maps.
+
+Maps are limited to 16,384 squares and 256 per dimension; files to 128 KiB.
+The canvas supports ordinary scrolling, not viewport pan/zoom. Exported
+ASCII/SVG contains no editor grid or selection overlays. The editor does not
+author encounter metadata, and ASCII alone does not identify trapped chests.
+
+### Development checks
+
+Only development checks need Node.js 22+ and Python. No npm packages are used.
+From the repository root:
+
+```powershell
+node --test tools\map_editor\tests\editor.test.cjs
+node --test tools\map_editor\tests\browser.test.cjs
+python -m unittest discover -s tools -p test_dungeon_terrain.py -q
+```
+
+The HTML's content-security policy uses hashes for its embedded scripts and
+stylesheet. Update the corresponding SHA-256 hashes when editing those blocks;
+the model/renderer check verifies them.
+
+The browser check uses installed Microsoft Edge on Windows, or an explicit
+`BROWSER` environment variable pointing to a Chromium-based browser. It opens
+an isolated copy of `map_editor.html` through `file://`, disables page networking, exercises real pointer
+input/import/downloads, and removes its temporary browser profile afterward.
+The model/renderer check compares finished-map validation and normalized SVG
+geometry with Python using shared fixtures. Python is a test reference only,
+never an editor runtime dependency.
 
 ## ASCII format
 
@@ -52,10 +125,10 @@ does not add a row. Outside the map is solid stone.
 | `\` / `/` | Diagonal walls dividing a square into triangles |
 | `\|` / `_` / `L` | Floor with a left / bottom / both partition walls |
 | `d` / `x` / `c` | Normal / secret / concealed door |
-| `bb` | One normal-width door centered on the shared edge of two adjacent squares |
+| `b` | Half of one normal-width door centered between two squares; an isolated `bb` pair |
+| `C` | Chest |
 | `l` / `m` / `n` | Floor with a left / bottom / both edge doors |
 | `T` | Trap, including covered pits |
-| `C` | Chest |
 | `E` / `e` | Straight stairs up / down |
 | `R` / `r` | Ramp up / down |
 | `S` / `s` / `Z` | Spiral stairs up / down / both |
@@ -70,8 +143,8 @@ cannot cross it. Diagonal neighbors cannot be feature tiles.
 perpendicular sides. `|` and `L` require literal space on the left; `_`
 and `L` require literal space below. The same respective adjacency rules
 apply to `l`, `m`, and `n`, whose doors remain passable. Each `b` must have
-exactly one cardinal `b` neighbor. An isolated `bb` pair draws a single
-normal-width door, half in each square; `d` is centered within one square.
+exactly one cardinal `b` neighbor in a finished map, forming an isolated pair.
+That pair is one normal-width door on the shared boundary, not a double door.
 
 Straight runs of the same stair/ramp letter render as one full-length
 symbol. Bent or branching clusters render individual symbols. Spiral
@@ -97,9 +170,8 @@ feature groups. Walls and features use separate `walls` and `features`
 groups; numbered encounter labels use `encounters`. Void squares clip wall
 and feature drawing, and edges adjoining void are not outlined.
 
-Doors use rectangles; secret and concealed doors have large uppercase `S`/`C`
-labels independent of their ASCII keys. Traps use an X and `T`; chests use
-a lidded-box symbol. Trapped chests also show a `T` on generated TM maps.
+Doors use rectangles; secret and concealed doors include uppercase `S`/`C`.
+Chests use a lidded rectangle with a clasp. Traps use an X and `T`.
 Straight stairs use treads, ramps use tapering sides, and both
 have arrows and tile labels. Runs determine orientation; single squares
 infer it from surrounding passages. Spiral symbols show their direction.
@@ -113,7 +185,7 @@ infer it from surrounding passages. Spiral symbols show their direction.
 | `--roughness` | `0.12` | Wall deviation, `0` through `0.2` squares |
 | `--rough-segments` | `6` | Segments per rough edge, `2` through `32` |
 | `--corner-radius` | Automatic | Radius, `0` through `0.5` squares |
-| `--player-view` | Off | Hide trap/chest markers and draw secret/concealed doors as walls |
+| `--player-view` | Off | Hide traps and draw secret/concealed doors as walls |
 
 Automatic corner radius is three times roughness, capped at 0.35 squares.
 An explicit radius of zero disables rounding, not jitter; positive radius
@@ -121,7 +193,8 @@ with zero roughness gives clean rounded corners. Scale values must be finite
 and positive. Printed width/height is the square count times
 feet-per-square / feet-per-inch, plus one stroke width.
 
-Player view changes only SVG visibility. ASCII, encounter keys, and debug
+Player view hides traps and chests and changes hidden-door visibility only in
+SVG. ASCII, encounter keys, and debug
 logs remain **TM-only**. Encounter numbers remain visible in player view.
 
 ## Procedural generation
@@ -179,10 +252,8 @@ in `layout_notes`.
 Worked corners are chamfered probabilistically; eligible natural corners
 are chamfered automatically. Doors are placed at valid room entrances:
 exact counts first, then probabilities for unspecified types. Floor features
-avoid protected stair geometry and adjacent diagonals; traps may adjoin doors.
-`traps + pits` produces that many explicit `T` tiles, preferring chamber
-entrances; ASCII does not distinguish pits from other traps. Stocking can
-add further chamber traps.
+avoid protected stair geometry and adjacent doors/diagonals.
+`traps + pits` produces that many `T` tiles; ASCII does not distinguish them.
 
 Layout placement/routing failures are retried up to 12 times per level.
 Exhaustion raises an error with the placement problem and suggested option
@@ -252,7 +323,7 @@ both ends when the lower level is mapped. It has no separate reward room or
 passage gate.
 
 Other passage puzzles first seek an existing edge room for an outward
-six-square passage to an isolated 5x5 reward room. A normal `D` tile gates
+six-square passage to an isolated 5x5 reward room. A normal `d` tile gates
 the branch. Local puzzles reuse available rooms without an onward gate.
 Definitions that cannot use existing rooms are placed in an added wing off
 an ungated common corridor. A wing can increase width, and stair-puzzle wings
@@ -308,15 +379,6 @@ treasure uses a bag or pack. Chest trapping and locking are independent.
 Random chamber traps occur on a basic roll of at least 23 unless that room
 already has an explicit `T`.
 
-After puzzle placement and hoard relocation, stocked room traps are marked
-`T`, preferring the room side of a door or open entrance. Chests are marked
-`C` away from entrances and door squares, avoiding positions that would cut
-off access through the chamber. Stair footprints, landings, and the clear
-ring around room spirals are protected. The encounter key gives each
-trap/chest's one-based column and row. A trapped chest keeps its `C` tile;
-the generated TM SVG adds a small `T` to its chest symbol. ASCII alone does
-not encode whether a chest is trapped.
-
 Generated trap descriptions specify detection, disarming, avoidance saves,
 and damage/poison consequences. Hidden doors are keyed at DC 20 WIS for
 secret doors and DC 17 WIS for concealed doors. `RULINGS` in
@@ -363,10 +425,3 @@ and void. It is distinct from the room-placement budget.
 progression validation before returning. Calling it with puzzles disabled
 still stocks encounters; the CLI only stocks a puzzle-disabled map when
 `--generate-encounters` is supplied.
-
-For manual stocking with `generate_encounters`, call
-`place_encounter_features(dungeon, keys)` on the unmarked dungeon after
-stocking and any encounter relocation to obtain the marked dungeon and keys
-with `trap_cell`/`chest_cell` coordinates.
-Pass `trapped_chests=keys[index].trapped_chests` to `svg_document` to include
-chest-trap indicators when rendering a stocked level.
