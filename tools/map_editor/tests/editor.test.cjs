@@ -5,7 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { createHash } = require("node:crypto");
 const { spawnSync } = require("node:child_process");
-const html = fs.readFileSync(path.join(__dirname, "..", "..", "map_editor.html"), "utf8").replace(/\r\n?/g, "\n");
+const html = fs.readFileSync(path.join(__dirname, "..", "map_editor.html"), "utf8").replace(/\r\n?/g, "\n");
 const core = html.match(/<script id="map-core">([\s\S]*?)<\/script>/);
 assert.ok(core, "The standalone HTML must embed the map model, geometry, and renderer.");
 vm.runInThisContext(core[1], { filename: "map_editor.html:map-core" });

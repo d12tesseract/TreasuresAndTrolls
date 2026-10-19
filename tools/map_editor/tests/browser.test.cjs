@@ -57,7 +57,7 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
     const downloads = path.join(profile, "downloads");
     await fs.mkdir(downloads);
     const editor = path.join(profile, "map_editor.html");
-    await fs.copyFile(path.join(__dirname, "..", "..", "map_editor.html"), editor);
+    await fs.copyFile(path.join(__dirname, "..", "map_editor.html"), editor);
     const child = spawn(executable, [
         "--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
         "--disable-background-networking", "--disable-extensions", "--remote-debugging-port=0",
