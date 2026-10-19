@@ -540,12 +540,13 @@ class _SvgRenderer:
                 self.draw_feature(x, y, tile, run, paired_doors, player_view)
 
     def draw_encounters(self, encounter_labels):
-        """Append chamber numbers in supplied order, keeping trap labels legible."""
+        """Append map labels in supplied order, keeping trap labels legible."""
         grid = self.grid
         encounters = ET.SubElement(self.root, "g", {"id": "encounters"})
         for (x, y), number in encounter_labels.items():
-            if grid.tile(x, y) not in " .TC":
-                raise ValueError("encounter labels must be on chamber floor")
+            if (type(x) is not int or type(y) is not int
+                    or not 0 <= x < grid.width or not 0 <= y < grid.height):
+                raise ValueError("label coordinates must be integers inside the map")
             group = ET.SubElement(encounters, "g", {
                 "data-area": str(number), "data-column": str(x + 1), "data-row": str(y + 1),
                 "transform": "translate({} {})".format(x, y),
@@ -575,8 +576,11 @@ def svg_document(
     renderer = _SvgRenderer(grid, dimensions, roughness, rough_segments, seed)
     renderer.draw_walls()
     renderer.draw_features(player_view)
-    if encounter_labels:
-        renderer.draw_encounters(encounter_labels)
+    labels = dict(grid.labels)
+    if encounter_labels is not None:
+        labels.update(encounter_labels)
+    if labels:
+        renderer.draw_encounters(labels)
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(
         renderer.root, encoding="unicode"
     ) + "\n"

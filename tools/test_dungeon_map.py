@@ -1664,6 +1664,23 @@ assert sys.path == before
             self.assertIn("must be different", result.stderr)
             self.assertEqual(original, output.read_bytes())
 
+    def test_ascii_command_reads_utf8_labels_and_reports_invalid_annotations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "labels.txt"
+            text = "###\n# #\n###\n\n0,0: Stone: <&> \u00e9\n1,1: 17\n"
+            source.write_text(text, encoding="utf-8")
+            result = self.run_cli("ascii_map_to_svg.py", source)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            root = ET.parse(str(source.with_suffix(".svg"))).getroot()
+            labels = root.findall("s:g[@id='encounters']/s:g/s:text", NS)
+            self.assertEqual([label.text for label in labels], ["Stone: <&> \u00e9", "17"])
+            self.assertEqual(source.read_text(encoding="utf-8"), text)
+            source.write_text("###\n\n3,0: outside\n", encoding="utf-8")
+            result = self.run_cli("ascii_map_to_svg.py", source)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("inside the map", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
     def test_generator_errors_do_not_write_outputs(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "invalid.svg"
@@ -1706,7 +1723,9 @@ assert sys.path == before
             result = self.run_cli("generate_dungeon_map.py", "--output", output,
                                   "--seed", 42, "--generate-encounters")
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(original_ascii, output.with_suffix(".txt").read_bytes())
+            annotated = parse_ascii(output.with_suffix(".txt").read_text(encoding="utf-8"))
+            self.assertEqual(parse_ascii(original_ascii.decode("ascii")).rows, annotated.rows)
+            self.assertTrue(annotated.labels)
             old_root = ET.fromstring(original_svg)
             new_root = ET.parse(str(output)).getroot()
             for group in ("walls", "features"):
@@ -1789,6 +1808,18 @@ assert sys.path == before
                 positions = [(int(label.attrib["data-row"]), int(label.attrib["data-column"]))
                              for label in labels]
                 self.assertEqual(positions, sorted(positions))
+                source = Path(directory) / "dungeon-level-{}.txt".format(index)
+                grid = parse_ascii(source.read_text(encoding="utf-8"))
+                self.assertEqual(
+                    grid.labels,
+                    {(int(label.attrib["data-column"]) - 1, int(label.attrib["data-row"]) - 1):
+                     label.attrib["data-area"] for label in labels},
+                )
+                rerendered = Path(directory) / "rerendered.svg"
+                converted = self.run_cli("ascii_map_to_svg.py", source, "--output", rerendered, "--seed", 42)
+                self.assertEqual(converted.returncode, 0, converted.stderr)
+                self.assertEqual((Path(directory) / "dungeon-level-{}.svg".format(index)).read_bytes(),
+                                 rerendered.read_bytes())
 
     def test_multi_level_files_and_ascii_svg_roundtrip(self):
         with tempfile.TemporaryDirectory() as directory:

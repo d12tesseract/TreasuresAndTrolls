@@ -36,7 +36,7 @@ callers can also pass an explicit `EncounterRules` instance.
 
 ## Offline browser editor
 
-Open [map_editor.html](map_editor.html) directly in a modern browser.
+Open [map_editor.html](map_editor/map_editor.html) directly in a modern browser.
 JavaScript and CSS are embedded in this one HTML file, which can be copied
 and used on its own. There is no installation,
 build step, server, CDN, or network dependency. This is **only a map editor**:
@@ -48,15 +48,15 @@ SVG adds full wall roughness, rounding, and feature drawings. One stroke is
 one undo operation. Undo/redo buttons and Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, and
 Ctrl+Y are available outside text fields.
 
-- **Load ASCII / Save ASCII:** preserve terrain cells, including literal spaces.
+- **Load ASCII / Save ASCII:** preserve terrain cells, including literal spaces, and labels.
   Loading or creating a map asks before discarding unsaved terrain changes.
   Saving downloads a file; the browser does not overwrite the original file.
 - **Resize map:** preserves the top-left corner and adds stone on the
-  right/bottom when expanding. Shrinking asks before cropping non-stone cells.
+  right/bottom when expanding. Shrinking asks before cropping non-stone cells or labels.
   Undo restores cropped cells and the previous dimensions.
-- **Move contents:** drag all terrain by whole squares within the current
+- **Move contents:** drag all terrain and labels by whole squares within the current
   map, filling vacated cells with stone. This moves the map data, not the
-  viewport. A move that would lose any non-stone cell is blocked: expand the
+  viewport. A move that would lose any non-stone cell or label is blocked: expand the
   map first. A move is undoable; ordinary scrolling remains separate.
 - **Feet per square:** defaults to 10 and controls physical SVG size, not
   pixel zoom. Export uses 50 feet per inch. ASCII contains no scale metadata;
@@ -65,6 +65,10 @@ Ctrl+Y are available outside text fields.
 - **Export SVG:** runs the complete renderer directly in JavaScript, without
   invoking Python. Player SVG hides traps/chests and disguises secret and
   concealed doors as walls.
+- **Display labels:** enabled by default; controls labels in the preview and SVG,
+  without removing them from ASCII. Right-click any square, including stone,
+  to edit its label. Save an empty label or choose Remove label to delete it.
+  Label changes support undo/redo.
 
 A single `b` is allowed while building a centered door. Add its adjacent `b`
 to complete the door. Spiral stairs can likewise be painted one cell at a
@@ -84,8 +88,8 @@ Old `D/X/C` door maps are not automatically migrated: `C` now means chest and
 
 Maps are limited to 16,384 squares and 256 per dimension; files to 128 KiB.
 The canvas supports ordinary scrolling, not viewport pan/zoom. Exported
-ASCII/SVG contains no editor grid or selection overlays. The editor does not
-author encounter metadata, and ASCII alone does not identify trapped chests.
+ASCII/SVG contains no editor grid or selection overlays. The editor can edit
+encounter numbers and other map labels, but not encounter contents or trapped-chest metadata.
 
 ### Development checks
 
@@ -116,6 +120,26 @@ One character represents one square. Literal spaces are smooth floor,
 including leading and trailing spaces; tabs are invalid. Short rows are
 padded on the right with `#`. LF and CRLF are accepted, and a final newline
 does not add a row. Outside the map is solid stone.
+
+Optional labels follow the terrain after **exactly one empty line**, one per
+square, using zero-based `x,y: text` coordinates (`0,0` is the top-left).
+For example:
+
+```text
+#####
+#   #
+#####
+
+2,1: 12
+0,0: Secret entrance
+```
+
+Labels may be placed on any in-bounds square, including stone or void. Text
+may contain colons, spaces, and UTF-8 characters; surrounding whitespace is
+trimmed. Empty labels, duplicate locations, malformed annotations, control
+characters, and out-of-bounds coordinates are rejected. Files without labels
+retain the original terrain-only format. Labels use the generator's encounter
+label styling and remain visible in player SVGs unless hidden in the editor.
 
 | Character | Meaning |
 | --- | --- |
@@ -362,8 +386,9 @@ or progression. See [the catalog](dungeon_puzzles.md) for the actual rules.
 
 Stocking keys retained chamber footprints. Labels are chosen near each room's
 centroid on labelable floor, preferring non-trap squares; areas are numbered
-top-to-bottom, then left-to-right, restarting per level. ASCII contains no
-encounter numbers.
+top-to-bottom, then left-to-right, restarting per level. When encounters are
+generated, every level's ASCII file includes its numbered labels after the
+terrain. The converter and editor preserve these positions when rendering SVG.
 
 Generation basic rolls sum three independent integers from 0 through 11,
 without symbol rerolls. A presence roll meeting `--encounter-chance` (default

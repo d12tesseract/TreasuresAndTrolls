@@ -1,9 +1,11 @@
 """ASCII dungeon geometry, validation, connectivity, and stair footprints."""
 
 import math
+import re
 from collections import deque
-from dataclasses import dataclass
-from typing import AbstractSet, Dict, List, Optional, Sequence, Set, Tuple
+from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import AbstractSet, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 
 TILES = frozenset("#~ .\\/|_LdxcbCTEeRrlmnSsZ")
@@ -25,6 +27,7 @@ def _finite_positive(name: str, value: float) -> None:
 @dataclass(frozen=True)
 class DungeonMap:
     rows: Tuple[str, ...]
+    labels: Mapping[Cell, str] = field(default_factory=dict, hash=False)
 
     def __post_init__(self) -> None:
         """Validate tile characters and pad ragged rows with solid stone."""
@@ -43,6 +46,16 @@ class DungeonMap:
                         )
                     )
         object.__setattr__(self, "rows", tuple(row.ljust(width, "#") for row in rows))
+        labels = dict(self.labels)
+        for (x, y), label in labels.items():
+            if (type(x) is not int or type(y) is not int
+                    or not 0 <= x < width or not 0 <= y < len(rows)):
+                raise ValueError("label coordinates must be integers inside the map")
+            if (not isinstance(label, str) or not label.strip()
+                    or re.search(r"[\x00-\x1f\x7f]", label)):
+                raise ValueError("map labels must contain nonempty single-line text without control characters")
+            labels[(x, y)] = label.strip()
+        object.__setattr__(self, "labels", MappingProxyType(labels))
 
     @property
     def width(self) -> int:
@@ -61,16 +74,35 @@ class DungeonMap:
         return "#"
 
     def to_ascii(self) -> str:
-        """Serialize padded rows with a final newline."""
-        return "\n".join(self.rows) + "\n"
+        """Serialize terrain and optional zero-based labels with a final newline."""
+        text = "\n".join(self.rows) + "\n"
+        if self.labels:
+            text += "\n" + "".join(
+                "{},{}: {}\n".format(x, y, label) for (x, y), label in self.labels.items()
+            )
+        return text
 
 
 def parse_ascii(text: str) -> DungeonMap:
-    """Preserve spaces, accept LF/CRLF, and pad short rows with stone."""
+    """Read terrain and optional x,y: label annotations after one blank line."""
     rows = text.replace("\r\n", "\n").split("\n")
     if rows[-1] == "":
         rows.pop()
-    return DungeonMap(tuple(rows))
+    start = next((index for index, row in enumerate(rows) if ":" in row), None)
+    labels = {}
+    if start is not None:
+        if start < 2 or rows[start - 1] != "" or rows[start - 2] == "":
+            raise ValueError("map labels must follow the terrain after exactly one blank line")
+        for row in rows[start:]:
+            match = re.fullmatch(r"([0-9]+),([0-9]+):[ \t]*(.*)", row)
+            if not match:
+                raise ValueError("invalid map label annotation {!r}; expected x,y: label".format(row))
+            cell = (int(match[1]), int(match[2]))
+            if cell in labels:
+                raise ValueError("duplicate map label at {},{}".format(*cell))
+            labels[cell] = match[3].strip()
+        rows = rows[:start - 1]
+    return DungeonMap(tuple(rows), labels)
 
 
 def _neighbors(grid: DungeonMap, x: int, y: int) -> Tuple[str, ...]:
