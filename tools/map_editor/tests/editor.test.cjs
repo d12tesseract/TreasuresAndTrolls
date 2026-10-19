@@ -33,7 +33,7 @@ test("shared terrain fixtures match strict and editor-draft validation", () => {
             const grid = app.parseAscii(fixture.ascii);
             strict = app.diagnose(grid).length === 0;
             draft = !app.diagnose(grid).some(error => !error.draft);
-        } catch (error) { assert.match(error.message, /unsupported|Map/); }
+        } catch (error) { assert.match(error.message, /unsupported|map|label/i); }
         assert.equal(strict, fixture.valid, fixture.name);
         assert.equal(draft, fixture.valid || fixture.draft, fixture.name);
     }
@@ -65,7 +65,8 @@ test("Python accepts the same finished maps and draws matching SVG geometry/symb
         }
     }
     const reference = spawnSync(process.env.PYTHON || "python", [path.join(__dirname, "python_reference.py")], {
-        input: JSON.stringify(inputs), encoding: "utf8", maxBuffer: 32 * 1024 * 1024
+        input: JSON.stringify(inputs), encoding: "utf8", maxBuffer: 32 * 1024 * 1024,
+        env: { ...process.env, PYTHONUTF8: "1" }
     });
     assert.equal(reference.status, 0, reference.stderr || String(reference.error));
     const results = JSON.parse(reference.stdout);
@@ -214,4 +215,49 @@ test("metadata is escaped and editor limits are checked before allocation", () =
     assert.throws(() => app.Grid.stone(256, 256), /at most/);
     assert.throws(() => app.parseAscii("x".repeat(app.LIMITS.fileBytes + 1)), /smaller/);
     assert.throws(() => app.parseAscii("\n".repeat(1000)), /dimensions/);
+});
+
+test("labels roundtrip, edit atomically, survive painting, and follow undo, resize, and moves", () => {
+    const original = "#####\n# T##\n#####\n#####\n\n0,0: Stone: <&>\n2,1: 12\n";
+    const document = new app.Document(app.parseAscii(original));
+    assert.equal(document.grid.toAscii(), original);
+    document.setLabel(0, 0, "Updated");
+    assert.equal(document.dirty, true);
+    document.undo();
+    assert.equal(document.grid.toAscii(), original);
+    assert.equal(document.dirty, false);
+    document.redo();
+    document.beginStroke();
+    document.paint([[0, 0]], " ");
+    document.endStroke();
+    document.undo();
+    assert.equal(document.grid.tile(0, 0), "#");
+    assert.equal(document.grid.labels[0][1], "Updated");
+    document.redo();
+    assert.equal(document.grid.labels[0][1], "Updated");
+    const beforeMove = document.grid.toAscii();
+    assert.throws(() => document.move(-1, 0), /Expand the map first/);
+    assert.equal(document.grid.toAscii(), beforeMove);
+    document.move(1, 1);
+    assert.deepEqual(document.grid.labels, [[[1, 1], "Updated"], [[3, 2], "12"]]);
+    document.undo();
+    assert.equal(document.grid.toAscii(), beforeMove);
+    assert.ok(app.cropsContent(document.grid, 2, 2));
+    document.resize(2, 2);
+    assert.deepEqual(document.grid.labels, [[[0, 0], "Updated"]]);
+    document.undo();
+    assert.equal(document.grid.toAscii(), beforeMove);
+    document.setLabel(0, 0, "");
+    assert.deepEqual(document.grid.labels, [[[2, 1], "12"]]);
+    document.undo();
+    assert.equal(document.grid.toAscii(), beforeMove);
+    for (const [x, y, text] of [[5, 0, "outside"], [0.5, 0, "fraction"], [0, 0, "a\nb"]]) {
+        assert.throws(() => document.setLabel(x, y, text));
+        assert.equal(document.grid.toAscii(), beforeMove);
+    }
+    assert.match(app.renderSvg(document.grid), /Updated/);
+    assert.doesNotMatch(app.renderSvg(document.grid, { showLabels: false }), /id="encounters"/);
+    const stoneLabel = new app.Document(app.parseAscii("###\n\n0,0: Stone\n2,0: Cropped\n"));
+    assert.ok(app.cropsContent(stoneLabel.grid, 2, 1));
+    assert.throws(() => stoneLabel.move(-1, 0), /discard map labels/);
 });
