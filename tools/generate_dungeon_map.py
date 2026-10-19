@@ -4,9 +4,7 @@
 import argparse
 from pathlib import Path
 
-from dungeon_encounters import (
-    encounter_document, encounter_log, generate_encounters, place_encounter_features,
-)
+from dungeon_encounters import encounter_document, encounter_log, generate_encounters
 from dungeon_puzzles import PUZZLE_COUNT, generate_adventure
 from dungeon_cli import (
     add_render_arguments,
@@ -118,10 +116,6 @@ def _generate_from_arguments(args):
         )
     else:
         result = generate_dungeon(options)
-        if args.generate_encounters:
-            result, encounters = place_encounter_features(
-                result, generate_encounters(result, **encounter_options),
-            )
     return options, result, encounters, encounter_options
 
 
@@ -147,7 +141,9 @@ def _prepare_outputs(args, options, result, encounters, encounter_options, ascii
     paths = [path.resolve() for _, text_path, svg_path in destinations
              for path in (text_path, svg_path)]
     encounter_files = []
-    if encounters is not None:
+    if args.generate_encounters or encounters is not None:
+        if encounters is None:
+            encounters = generate_encounters(result, **encounter_options)
         encounter_path = args.output.with_name(args.output.stem + "-encounters.md")
         log_path = encounter_path.with_suffix(".log")
         paths.extend((encounter_path.resolve(), log_path.resolve()))
@@ -159,7 +155,6 @@ def _prepare_outputs(args, options, result, encounters, encounter_options, ascii
         raise ValueError("all ASCII, SVG, encounter and log output paths must be different")
     documents = [
         svg_document(level.grid, encounter_labels=encounters[index].labels if encounters else None,
-                     trapped_chests=encounters[index].trapped_chests if encounters else None,
                      **rendering)
         for index, (level, _, _) in enumerate(destinations)
     ]

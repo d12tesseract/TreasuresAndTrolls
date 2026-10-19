@@ -5,7 +5,7 @@ import random
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence
 
 from dungeon_geometry import (
     Cell, DIAGONALS, DIRECTIONS, DOORS, DungeonMap, FEATURES, FLOORS, Point,
@@ -433,10 +433,10 @@ class _SvgRenderer:
         self.line(group, (0.85, 0.5), (1, 0.5))
         self.rectangle(group, 0.15, 0.38, 0.7, 0.24)
         if tile != "d":
-            self.label(group, "S" if tile == "x" else "C", y=0.9, size=1.12)
+            self.label(group, "S" if tile == "x" else "C", y=0.61, size=0.28)
 
     def draw_edge_doors(self, group, x, y, tile, paired_doors):
-        """Draw partition doors and one normal-width door per pair of b tiles."""
+        """Draw partition doors and one normal-width symbol per b pair."""
         if tile == "b":
             first, second = paired_doors[(x, y)]
             if (x, y) != first:
@@ -497,7 +497,7 @@ class _SvgRenderer:
         self.label(group, tile, x=length - 0.14 if horizontal else 0.86,
                    y=0.6, size=0.26)
 
-    def draw_feature(self, x, y, tile, run, paired_doors, player_view, trapped_chests):
+    def draw_feature(self, x, y, tile, run, paired_doors, player_view):
         """Dispatch one visible feature without altering SVG element order."""
         if tile in DOORS:
             self.draw_door(x, y, tile, player_view)
@@ -519,17 +519,14 @@ class _SvgRenderer:
             self.line(group, (0.18, 0.82), (0.82, 0.18))
             self.label(group, "T", x=0.82, y=0.28, size=0.24)
         elif tile == "C":
-            self.rectangle(group, 0.18, 0.3, 0.64, 0.44)
-            self.line(group, (0.18, 0.43), (0.82, 0.43))
-            self.rectangle(group, 0.46, 0.39, 0.08, 0.14)
-            if (x, y) in trapped_chests:
-                group.set("data-trapped", "true")
-                self.label(group, "T", x=0.82, y=0.25, size=0.24)
+            self.rectangle(group, 0.2, 0.28, 0.6, 0.44)
+            self.line(group, (0.2, 0.44), (0.8, 0.44))
+            self.rectangle(group, 0.45, 0.4, 0.1, 0.12)
         else:
             horizontal = self.stair_horizontal(x, y, run)
             self.straight_symbol(group, tile, length, horizontal)
 
-    def draw_features(self, player_view, trapped_chests):
+    def draw_features(self, player_view):
         """Draw visible feature symbols in row order, once per recognized stair."""
         stair_runs = _stair_runs(self.grid)
         paired_doors = _paired_doors(self.grid)
@@ -540,7 +537,7 @@ class _SvgRenderer:
                 run = stair_runs.get((x, y))
                 if run and (x, y) != run.cells[0]:
                     continue
-                self.draw_feature(x, y, tile, run, paired_doors, player_view, trapped_chests)
+                self.draw_feature(x, y, tile, run, paired_doors, player_view)
 
     def draw_encounters(self, encounter_labels):
         """Append chamber numbers in supplied order, keeping trap labels legible."""
@@ -569,7 +566,6 @@ def svg_document(
     player_view: bool = False,
     corner_radius: Optional[float] = None,
     encounter_labels: Optional[Dict[Cell, str]] = None,
-    trapped_chests: Optional[Set[Cell]] = None,
 ) -> str:
     """Render a validated map with independently editable black wall segments."""
     dimensions = _render_dimensions(
@@ -578,7 +574,7 @@ def svg_document(
     )
     renderer = _SvgRenderer(grid, dimensions, roughness, rough_segments, seed)
     renderer.draw_walls()
-    renderer.draw_features(player_view, trapped_chests or set())
+    renderer.draw_features(player_view)
     if encounter_labels:
         renderer.draw_encounters(encounter_labels)
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(

@@ -6,12 +6,9 @@ from collections import Counter
 from dataclasses import dataclass, replace
 from decimal import Decimal
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Tuple
 
-from dungeon_geometry import (
-    Cell, DIAGONALS, DIRECTIONS, DOORS, DungeonMap, _open_sides,
-    _room_entrances, is_connected, reachable_cells, validate_map,
-)
+from dungeon_geometry import Cell
 
 if TYPE_CHECKING:
     from dungeon_map import GeneratedDungeon
@@ -54,7 +51,7 @@ RULINGS = (
     "effect because the healing tables end there.",
     "Random chamber traps occur on basic roll >= 23, independently of monsters "
     "and treasure, unless the chamber already has an explicit T trap. Random "
-    "traps are marked T near chamber entrances; chests are marked C away from entrances. Trap "
+    "traps are keyed by chamber number, not added to ASCII feature counts. Trap "
     "designs, triggers and DCs are improvised using the rules' saves and wound system.",
     "Secret doors require DC 20 (WIS, Medium); concealed doors require DC 17 "
     "(WIS, Easy). Roll basic + WIS modifier + applicable level/class bonus; "
@@ -439,8 +436,6 @@ class EncounterArea:
     notes: Tuple[str, ...] = ()
     puzzle_items: Tuple[str, ...] = ()
     puzzle_reward: Tuple[str, ...] = ()
-    trap_cell: Optional[Cell] = None
-    chest_cell: Optional[Cell] = None
 
 
 @dataclass(frozen=True)
@@ -455,12 +450,6 @@ class EncounterLevel:
     def labels(self) -> Dict[Cell, str]:
         """Map each stocked chamber's label cell to its printed encounter number."""
         return {area.cell: str(area.number) for area in self.areas}
-
-    @property
-    def trapped_chests(self) -> Set[Cell]:
-        """Identify chest markers whose traps should be shown on the TM map."""
-        return {area.chest_cell for area in self.areas
-                if area.chest_cell is not None and area.chest_trap}
 
 
 def number_areas(areas: Iterable[EncounterArea]) -> Tuple[EncounterArea, ...]:
@@ -493,7 +482,7 @@ def _chamber_cell(level, cells, number):
     """Choose labelable floor nearest the chamber centroid, preferring no trap."""
     cx = sum(x for x, y in cells) / len(cells)
     cy = sum(y for x, y in cells) / len(cells)
-    floor = [cell for cell in cells if level.grid.tile(*cell) in " .TC"]
+    floor = [cell for cell in cells if level.grid.tile(*cell) in " .T"]
     if not floor:
         raise ValueError("chamber {} has no labelable floor".format(number))
     return min(floor, key=lambda p: (
@@ -568,83 +557,6 @@ def generate_encounters(dungeon: "GeneratedDungeon", encounter_chance: int = 11,
     return tuple(levels)
 
 
-def _place_level_features(level, contents, depth):
-    """Locate final stocked features without obstructing entrances or stair landings."""
-    rng = random.Random("{}:encounter-features:{}".format(level.seed, depth))
-    rows = [list(row) for row in level.grid.rows]
-    reserved = set()
-    for passage in level.stairways:
-        reserved.update(passage.clearance)
-        if passage.spiral:
-            reserved.update((x + dx, y + dy) for x, y in passage.clearance
-                            for dx in (-1, 0, 1) for dy in (-1, 0, 1))
-    areas = []
-    for area in contents.areas:
-        room = next(set(cells) for cells in level.room_cells if area.cell in cells)
-        entrances = _room_entrances(level.grid, room)
-        free = [
-            (x, y) for x, y in sorted(room)
-            if level.grid.tile(x, y) in " ." and (x, y) not in reserved
-            and not any(level.grid.tile(x + dx, y + dy) in DIAGONALS
-                        for dx, dy in DIRECTIONS)
-            and level.grid.tile(x + 1, y) not in "|Lln"
-            and level.grid.tile(x, y - 1) not in "_Lmn"
-        ]
-        rng.shuffle(free)
-        trap_cell = chest_cell = None
-        if area.trap and area.trap != "None.":
-            explicit = sorted(cell for cell in room if level.grid.tile(*cell) == "T")
-            if explicit:
-                trap_cell = explicit[0]
-            else:
-                if not free:
-                    raise ValueError("no safe trap location in Level {}, Area {}".format(depth, area.number))
-                trap_cell = min(free, key=lambda cell: (
-                    min((abs(cell[0] - x) + abs(cell[1] - y) for x, y in entrances), default=0),
-                    cell == area.cell,
-                ))
-                rows[trap_cell[1]][trap_cell[0]] = "T"
-                free.remove(trap_cell)
-        if area.container == "chest":
-            choices = [
-                cell for cell in free if cell not in entrances
-                and not any(level.grid.tile(cell[0] + dx, cell[1] + dy) in DOORS
-                            for dx, dy in DIRECTIONS)
-            ]
-            choices.sort(key=lambda cell: cell == area.cell)
-            walkable = {cell for cell in room if _open_sides(level.grid, *cell)}
-            for cell in choices:
-                remaining = walkable - {cell}
-                if not remaining or remaining <= reachable_cells(level.grid, min(remaining), {cell}):
-                    chest_cell = cell
-                    rows[cell[1]][cell[0]] = "C"
-                    break
-            if chest_cell is None:
-                raise ValueError("no unobstructed chest location in Level {}, Area {}".format(
-                    depth, area.number,
-                ))
-        areas.append(replace(area, trap_cell=trap_cell, chest_cell=chest_cell))
-    grid = DungeonMap(tuple("".join(row) for row in rows))
-    validate_map(grid)
-    if not is_connected(grid):
-        raise ValueError("encounter features disconnected Level {}".format(depth))
-    return replace(level, grid=grid, additional_levels=()), replace(contents, areas=tuple(areas))
-
-
-def place_encounter_features(
-    dungeon: "GeneratedDungeon", contents: Tuple[EncounterLevel, ...],
-) -> Tuple["GeneratedDungeon", Tuple[EncounterLevel, ...]]:
-    """Paint T/C markers only after final stocking, puzzle placement, and hoard moves."""
-    if len(contents) != len(dungeon.levels):
-        raise ValueError("encounter features require a key for every dungeon level")
-    levels, keys = [], []
-    for depth, (level, key) in enumerate(zip(dungeon.levels, contents), 1):
-        marked, located = _place_level_features(level, key, depth)
-        levels.append(marked)
-        keys.append(located)
-    return replace(levels[0], additional_levels=tuple(levels[1:])), tuple(keys)
-
-
 def _area_document(area: EncounterArea) -> List[str]:
     """Format a chamber's occupants, physical loot, traps, puzzle prize, and notes."""
     loot = [item for item in area.treasure
@@ -673,11 +585,6 @@ def _area_document(area: EncounterArea) -> List[str]:
         lines.extend(["", "**Treasure:** None."])
     if has_trap:
         lines.extend(["", "**Trap:** " + area.trap])
-    for kind, cell in (("Trap", area.trap_cell), ("Chest", area.chest_cell)):
-        if cell is not None:
-            lines.extend(["", "**{} location:** Column {}, row {}.".format(
-                kind, cell[0] + 1, cell[1] + 1,
-            )])
     if area.chest_trap:
         lines.extend(["", "**Chest trap:** " + area.chest_trap])
     if area.puzzle_reward:
@@ -696,7 +603,7 @@ def encounter_document(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel
     lines = [
         "# Dungeon encounter key",
         "", "Chamber numbers restart on each level and match the SVG encounter labels.",
-        "Trap, chest, and door coordinates are one-based (column, row) from the upper-left square.",
+        "Unnumbered trap and door coordinates are one-based (column, row) from the upper-left square.",
     ]
     for index, (layout, contents) in enumerate(zip(dungeon.levels, levels), 1):
         lines.extend(["", "## Level {}".format(index), "",
@@ -750,11 +657,6 @@ def encounter_log(dungeon: "GeneratedDungeon", levels: Tuple[EncounterLevel, ...
             lines.extend("Puzzle reward: " + item for item in area.puzzle_reward)
             if area.container:
                 lines.append("Treasure container: " + area.container)
-            for kind, cell in (("Trap", area.trap_cell), ("Chest", area.chest_cell)):
-                if cell is not None:
-                    lines.append("{} location: column {}, row {}.".format(
-                        kind, cell[0] + 1, cell[1] + 1,
-                    ))
             if area.container == "chest":
                 if area.chest_locked is not None:
                     lines.append("Chest lock result: " + ("locked" if area.chest_locked else "unlocked"))

@@ -257,12 +257,7 @@ class StrategyPlacementTests(unittest.TestCase):
         validate_puzzle_dungeon(dungeon, keys)
         markdown = encounter_document(dungeon, keys, 11)
         for puzzle in catalog:
-            self.assertIn(puzzle.body.split("**Reward:**")[0].rstrip(), markdown)
-            if "**Source:**" in puzzle.body:
-                self.assertIn(puzzle.body.split("**Source:**", 1)[1].strip(), markdown)
-        self.assertEqual(markdown.count(
-            "**Reward:** Use the exact rolled puzzle reward listed above;",
-        ), len(catalog))
+            self.assertIn(puzzle.body, markdown)
         for puzzle in keys[-1].puzzles:
             self.assertIsNotNone(puzzle.gate)
             self.assertIsNone(puzzle.next_level)
