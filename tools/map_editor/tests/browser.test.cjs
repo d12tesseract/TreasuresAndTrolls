@@ -129,7 +129,7 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         };
         const load = async (name, text) => {
             const file = path.join(profile, name);
-            await fs.writeFile(file, text, "ascii");
+            await fs.writeFile(file, text, "utf8");
             const root = await page.call("DOM.getDocument");
             const node = await page.call("DOM.querySelector", { nodeId: root.root.nodeId, selector: "#load" });
             await page.call("DOM.setFileInputFiles", { nodeId: node.nodeId, files: [file] });
@@ -228,6 +228,65 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         await input("scale", 0, true);
         assert.equal(await evaluate("DungeonEditor.document.feetPerSquare"), 5);
         assert.match(await evaluate("document.getElementById('status').textContent"), /greater than zero/);
+
+        await evaluate(`globalThis.labelDraws = [];
+            const context = document.getElementById('map').getContext('2d'), fillText = context.fillText;
+            context.fillText = function(text, ...args) {
+                labelDraws.push(text);
+                return fillText.call(this, text, ...args);
+            };`);
+        await load("labels.txt", "####\n# T#\n####\n\n0,0: Stone\n2,1: 7\n");
+        assert.ok((await evaluate("labelDraws")).includes("Stone"));
+        const rightClick = async (x, y) => {
+            const location = await point(x, y);
+            await page.call("Input.dispatchMouseEvent", { type: "mousePressed", ...location,
+                button: "right", buttons: 2, clickCount: 1 });
+            await page.call("Input.dispatchMouseEvent", { type: "mouseReleased", ...location,
+                button: "right", buttons: 0, clickCount: 1 });
+            await until(() => evaluate("document.getElementById('label-editor').open"), "right-click label editor");
+        };
+        await rightClick(0, 0);
+        assert.equal(await evaluate("document.getElementById('label-text').value"), "Stone");
+        await input("label-text", 'Rock: <&> \u00e9');
+        await click("label-save");
+        assert.equal(await tile(0, 0), "#");
+        assert.match(await ascii(), /0,0: Rock: <&> \u00e9/);
+        await click("undo");
+        assert.match(await ascii(), /0,0: Stone/);
+        await click("redo");
+        await rightClick(1, 0);
+        await input("label-text", "New note");
+        await click("label-save");
+        assert.match(await ascii(), /1,0: New note/);
+        await rightClick(1, 0);
+        await input("label-text", "Cancelled");
+        await click("label-cancel");
+        assert.match(await ascii(), /1,0: New note/);
+        await rightClick(1, 0);
+        await click("label-remove");
+        assert.doesNotMatch(await ascii(), /1,0:/);
+        await click("undo");
+        assert.match(await ascii(), /1,0: New note/);
+        await rightClick(1, 0);
+        await input("label-text", "");
+        await click("label-save");
+        assert.doesNotMatch(await ascii(), /1,0:/);
+        await evaluate("labelDraws.length = 0");
+        await click("show-labels");
+        assert.ok(!(await evaluate("labelDraws")).includes("Rock: <&> \u00e9"));
+        await input("filename", "labels-hidden");
+        await click("save-svg");
+        assert.doesNotMatch(await downloaded("labels-hidden.svg"), /id="encounters"/);
+        await input("filename", "labels");
+        await click("save-ascii");
+        assert.equal(await downloaded("labels.txt"), await ascii());
+        await click("show-labels");
+        assert.ok((await evaluate("labelDraws")).includes("Rock: <&> \u00e9"));
+        await input("filename", "labels-visible");
+        await click("save-svg");
+        const labeledSvg = await downloaded("labels-visible.svg");
+        assert.match(labeledSvg, /data-area="Rock: &lt;&amp;&gt; \u00e9"/);
+        assert.match(labeledSvg, /transform="translate\(0 0\)"/);
 
         const dense = Array.from({ length: 128 }, (_, y) =>
             Array.from({ length: 128 }, (_, x) => (x + y) % 2 ? "." : "#").join("")).join("\n") + "\n";

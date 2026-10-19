@@ -2,6 +2,7 @@
 """Generate a connected dungeon as editable ASCII and SVG, using a shared renderer."""
 
 import argparse
+from dataclasses import replace
 from pathlib import Path
 
 from dungeon_encounters import encounter_document, encounter_log, generate_encounters
@@ -153,18 +154,17 @@ def _prepare_outputs(args, options, result, encounters, encounter_options, ascii
         ]
     if len(paths) != len(set(paths)):
         raise ValueError("all ASCII, SVG, encounter and log output paths must be different")
-    documents = [
-        svg_document(level.grid, encounter_labels=encounters[index].labels if encounters else None,
-                     **rendering)
-        for index, (level, _, _) in enumerate(destinations)
-    ]
+    documents = []
+    for index, (level, _, _) in enumerate(destinations):
+        grid = replace(level.grid, labels=encounters[index].labels) if encounters else level.grid
+        documents.append((grid.to_ascii(), svg_document(grid, **rendering)))
     return destinations, documents, encounter_files
 
 
 def _save_outputs(destinations, documents, encounter_files):
     """Write the prevalidated ASCII, SVG, encounter-key, and debug-log documents."""
-    for (level, text_path, svg_path), document in zip(destinations, documents):
-        text_path.write_text(level.grid.to_ascii(), encoding="ascii")
+    for (_, text_path, svg_path), (text, document) in zip(destinations, documents):
+        text_path.write_text(text, encoding="utf-8")
         svg_path.write_text(document, encoding="utf-8")
     for path, document in encounter_files:
         path.write_text(document, encoding="utf-8")

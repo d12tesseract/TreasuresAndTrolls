@@ -20,7 +20,7 @@ def main() -> None:
     if output.resolve() == args.input.resolve():
         parser.error("output must not overwrite the input map")
     try:
-        grid = parse_ascii(args.input.read_text(encoding="ascii"))
+        grid = parse_ascii(args.input.read_text(encoding="utf-8"))
         document = svg_document(grid, **render_options(args))
         output.write_text(document, encoding="utf-8")
     except (OSError, ValueError) as error:

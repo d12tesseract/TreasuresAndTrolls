@@ -1,4 +1,11 @@
 [
+    {"name":"labels on stone void and features","ascii":"####\r\n#TC~\r\n####\r\n\r\n0,0: Rock: <&> \u00e9\r\n1,1: 12\r\n2,1: 13\r\n3,1: Void\r\n","valid":true,"draft":false},
+    {"name":"label outside map","ascii":"###\n\n3,0: outside\n","valid":false,"draft":false},
+    {"name":"duplicate label","ascii":"###\n\n0,0: a\n0,0: b\n","valid":false,"draft":false},
+    {"name":"empty label","ascii":"###\n\n0,0: \n","valid":false,"draft":false},
+    {"name":"missing label separator","ascii":"###\n0,0: a\n","valid":false,"draft":false},
+    {"name":"extra label separator","ascii":"###\n\n\n0,0: a\n","valid":false,"draft":false},
+    {"name":"malformed annotation","ascii":"###\n\n0,0: a\n1,0 bad\n","valid":false,"draft":false},
     {"name":"smooth whitespace","ascii":"  # \r\n.\r\n\r\n###\r\n","valid":true,"draft":false},
     {"name":"single normal door","ascii":"#####\n## ##\n##d##\n## ##\n#####\n","valid":true,"draft":false},
     {"name":"secret door","ascii":"#####\n# x #\n#####\n","valid":true,"draft":false},

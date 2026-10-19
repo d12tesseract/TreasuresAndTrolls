@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wsL+Ix3Eue/MrK7FdNwfQ65bTq/7fa637JSiYbg1Y8k=' 'sha256-Jri3Dke7psEQa5OReKu7yV7tFF/0c6TN4tRZ/T7ZlNo='; style-src 'sha256-quFYgEJNuqbh55Awbx6wUOzGt23H6JXeWcY5pzAIwAw='; img-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KEDnlmo/iw6KniNGNDQJ7YqcTgRlDY65PaHOipQkrXk=' 'sha256-U2Wa4HwTuU4XNu4BRJ8bKeQm4Fsx9f0uZi7BanNekYE='; style-src 'sha256-quFYgEJNuqbh55Awbx6wUOzGt23H6JXeWcY5pzAIwAw='; img-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'">
     <title>Dungeon map editor</title>
     <style>
 :root { color-scheme: light; font: 15px/1.4 system-ui, sans-serif; color: #172331; background: #f3f5f7; }
@@ -51,7 +51,7 @@ details { max-width: 70rem; padding: .5rem 0; }
 <body>
     <header>
         <h1>Dungeon map editor</h1>
-        <p>Offline ASCII editing and native JavaScript SVG export. No generation, puzzles, or encounters.</p>
+        <p>Offline ASCII editing and native JavaScript SVG export. No dungeon or encounter generation.</p>
     </header>
     <section class="toolbar" aria-label="Map file and dimensions">
         <label>Load ASCII <input id="load" type="file" accept=".txt,text/plain"></label>
@@ -59,6 +59,7 @@ details { max-width: 70rem; padding: .5rem 0; }
         <button id="save-ascii" type="button">Save ASCII</button>
         <button id="save-svg" type="button">Export SVG</button>
         <label><input id="player-view" type="checkbox"> Player SVG (hide secrets, traps, chests)</label>
+        <label><input id="show-labels" type="checkbox" checked> Display labels</label>
         <label>Width <input id="width" type="number" min="1" max="256" step="1" value="60"></label>
         <label>Height <input id="height" type="number" min="1" max="256" step="1" value="40"></label>
         <button id="resize" type="button">Resize map</button>
@@ -103,6 +104,19 @@ details { max-width: 70rem; padding: .5rem 0; }
         <p id="status" role="status" aria-live="polite">Ready.</p>
         <div id="validation" aria-live="polite"></div>
     </section>
+    <dialog id="label-editor" aria-labelledby="label-heading">
+        <form id="label-form">
+            <h2 id="label-heading">Map label</h2>
+            <p id="label-location"></p>
+            <label>Label <input id="label-text" type="text" autocomplete="off"></label>
+            <p>Leave empty to remove the label.</p>
+            <div class="button-row">
+                <button id="label-save" type="submit">Save label</button>
+                <button id="label-remove" type="button">Remove label</button>
+                <button id="label-cancel" type="button">Cancel</button>
+            </div>
+        </form>
+    </dialog>
     <details>
         <summary>Editing help and format</summary>
         <p>Use d for a normal door, x for a secret door, c for a concealed door, and C for a chest.
@@ -115,9 +129,12 @@ details { max-width: 70rem; padding: .5rem 0; }
             Leave a literal-space corner landing (2 x 2 landing for a 4 x 4 spiral).
             A 3 x 3 center is space or stone. Paint the landing and center before completing the footprint.</p>
         <p>Resize keeps the top-left corner fixed; expansion adds stone. Move contents drags the map's actual
-            terrain by whole squares. If a move would lose any non-stone squares, expand the map first.
+            terrain and labels by whole squares. If a move would lose any non-stone squares or labels, expand the map first.
             Undo/redo also restores resized or moved maps. Shortcuts: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y.</p>
-        <p>Feet per square controls physical SVG scale, not screen zoom. ASCII stores terrain only;
+        <p>Right-click any square to add, edit, or remove its label, including on stone.
+            Display labels controls the preview and SVG export, not ASCII saving.
+            Labels follow one blank line after the terrain as x,y: text, with 0,0 at the top-left.</p>
+        <p>Feet per square controls physical SVG scale, not screen zoom. ASCII stores terrain and labels;
             keep or reselect the scale after loading. SVG export uses 50 feet per inch.
             Maps support up to 16,384 cells, with each dimension at most 256.</p>
     </details>
@@ -143,7 +160,7 @@ details { max-width: 70rem; padding: .5rem 0; }
     }
 
     class Grid {
-        constructor(rows) {
+        constructor(rows, labels = []) {
             if (!Array.isArray(rows) || !rows.length || rows.some(row => typeof row !== "string")) {
                 throw new Error("Map must contain string rows.");
             }
@@ -160,12 +177,26 @@ details { max-width: 70rem; padding: .5rem 0; }
             this.rows = Object.freeze(rows.map(row => row.padEnd(width, "#")));
             this.width = width;
             this.height = rows.length;
+            const seen = new Set();
+            this.labels = Object.freeze(labels.map(([[x, y], text]) => {
+                if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 ||
+                    x >= width || y >= rows.length) throw new Error("Label coordinates must be integers inside the map.");
+                if (typeof text !== "string" || !text.trim() || /[\x00-\x1f\x7f]/.test(text)) {
+                    throw new Error("Map labels must contain nonempty single-line text without control characters.");
+                }
+                if (seen.has(key(x, y))) throw new Error(`Duplicate map label at ${x},${y}.`);
+                seen.add(key(x, y));
+                return Object.freeze([Object.freeze([x, y]), text.trim()]);
+            }));
             Object.freeze(this);
         }
         tile(x, y) {
             return x >= 0 && y >= 0 && x < this.width && y < this.height ? this.rows[y][x] : "#";
         }
-        toAscii() { return this.rows.join("\n") + "\n"; }
+        toAscii() {
+            return this.rows.join("\n") + "\n" + (this.labels.length ?
+                "\n" + this.labels.map(([[x, y], text]) => `${x},${y}: ${text}\n`).join("") : "");
+        }
         static stone(width, height) {
             dimensions(width, height);
             return new Grid(Array(height).fill("#".repeat(width)));
@@ -178,7 +209,19 @@ details { max-width: 70rem; padding: .5rem 0; }
         }
         const rows = text.replace(/\r\n/g, "\n").split("\n");
         if (rows[rows.length - 1] === "") rows.pop();
-        return new Grid(rows);
+        const start = rows.findIndex(row => row.includes(":")), labels = [];
+        if (start !== -1) {
+            if (start < 2 || rows[start - 1] !== "" || rows[start - 2] === "") {
+                throw new Error("Map labels must follow the terrain after exactly one blank line.");
+            }
+            for (const row of rows.slice(start)) {
+                const match = row.match(/^([0-9]+),([0-9]+):[ \t]*(.*)$/);
+                if (!match) throw new Error(`Invalid map label annotation ${JSON.stringify(row)}; expected x,y: label.`);
+                labels.push([[Number(match[1]), Number(match[2])], match[3].trim()]);
+            }
+            rows.splice(start - 1);
+        }
+        return new Grid(rows, labels);
     }
 
     const neighbors = (grid, x, y) => DIRECTIONS.map(([dx, dy]) => grid.tile(x + dx, y + dy));
@@ -377,12 +420,14 @@ details { max-width: 70rem; padding: .5rem 0; }
     function resizeGrid(grid, width, height) {
         dimensions(width, height);
         return new Grid(Array.from({ length: height }, (_, y) =>
-            (grid.rows[y] || "").slice(0, width).padEnd(width, "#")));
+            (grid.rows[y] || "").slice(0, width).padEnd(width, "#")),
+            grid.labels.filter(([[x, y]]) => x < width && y < height));
     }
     function cropsContent(grid, width, height) {
         dimensions(width, height);
-        return grid.rows.some((row, y) => [...row].some((tile, x) =>
-            tile !== "#" && (x >= width || y >= height)));
+        return grid.labels.some(([[x, y]]) => x >= width || y >= height) ||
+            grid.rows.some((row, y) => [...row].some((tile, x) =>
+                tile !== "#" && (x >= width || y >= height)));
     }
     function translateGrid(grid, dx, dy) {
         if (!Number.isInteger(dx) || !Number.isInteger(dy)) throw new Error("Move offsets must be whole squares.");
@@ -394,7 +439,13 @@ details { max-width: 70rem; padding: .5rem 0; }
             }
             rows[y + dy][x + dx] = tile;
         }));
-        return new Grid(rows.map(row => row.join("")));
+        const labels = grid.labels.map(([[x, y], text]) => {
+            if (x + dx < 0 || y + dy < 0 || x + dx >= grid.width || y + dy >= grid.height) {
+                throw new Error("Move would discard map labels. Expand the map first.");
+            }
+            return [[x + dx, y + dy], text];
+        });
+        return new Grid(rows.map(row => row.join("")), labels);
     }
     function lineCells(first, last) {
         let [x, y] = first;
@@ -450,7 +501,7 @@ details { max-width: 70rem; padding: .5rem 0; }
                 }
             }
             for (const [y, row] of changed) rows[y] = row.join("");
-            const candidate = new Grid(rows);
+            const candidate = new Grid(rows, this.grid.labels);
             assertValid(candidate, true);
             this.grid = candidate;
         }
@@ -477,12 +528,24 @@ details { max-width: 70rem; padding: .5rem 0; }
         }
         resize(width, height) { this.replace(resizeGrid(this.grid, width, height)); }
         move(dx, dy) { this.replace(translateGrid(this.grid, dx, dy)); }
+        setLabel(x, y, text) {
+            if (typeof text !== "string") throw new Error("Map label must be text.");
+            const labels = this.grid.labels.filter(([[cx, cy]]) => cx !== x || cy !== y);
+            if (text.trim()) {
+                const index = this.grid.labels.findIndex(([[cx, cy]]) => cx === x && cy === y);
+                labels.splice(index < 0 ? labels.length : index, 0, [[x, y], text]);
+            } else if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 ||
+                x >= this.grid.width || y >= this.grid.height) {
+                throw new Error("Label coordinates must be integers inside the map.");
+            }
+            this.replace(new Grid(this.grid.rows, labels));
+        }
         setScale(value) { this.feetPerSquare = scaleValue(value); }
         restore(entry, redo) {
             if (entry.changes) {
                 const rows = this.grid.rows.map(row => [...row]);
                 for (const [x, y, before, after] of entry.changes) rows[y][x] = redo ? after : before;
-                this.grid = new Grid(rows.map(row => row.join("")));
+                this.grid = new Grid(rows.map(row => row.join("")), this.grid.labels);
             } else this.grid = redo ? entry.after : entry.before;
         }
         undo() {
@@ -526,7 +589,7 @@ details { max-width: 70rem; padding: .5rem 0; }
         const settings = {
             feetPerSquare: 10, feetPerInch: 50, lineWidth: 0.01, seed: 0,
             roughness: 0.12, roughSegments: 6, cornerRadius: null, playerView: false,
-            encounterLabels: [], ...options
+            encounterLabels: grid.labels, showLabels: true, ...options
         };
         for (const name of ["feetPerSquare", "feetPerInch", "lineWidth"]) positive(name, settings[name]);
         const { roughness, roughSegments, cornerRadius, seed } = settings;
@@ -822,14 +885,14 @@ details { max-width: 70rem; padding: .5rem 0; }
             const encounters = this.add(this.root, "g", { id: "encounters" });
             for (const [[x, y], number] of labels) {
                 if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 ||
-                    x >= this.grid.width || y >= this.grid.height || !" .TC".includes(this.grid.tile(x, y))) {
-                    throw new Error("Encounter labels must be on chamber floor.");
+                    x >= this.grid.width || y >= this.grid.height) {
+                    throw new Error("Label coordinates must be integers inside the map.");
                 }
                 const group = this.add(encounters, "g", { "data-area": number, "data-column": x + 1,
                     "data-row": y + 1, transform: `translate(${x} ${y})` });
                 const occupied = "TC".includes(this.grid.tile(x, y));
                 this.label(group, number, 0.5, occupied ? 0.14 : 0.66,
-                    Math.min(occupied ? 0.22 : 0.46, 0.8 / Math.max(1, String(number).length)));
+                    Math.min(occupied ? 0.22 : 0.46, 0.8 / Math.max(1, [...String(number)].length)));
             }
         }
     }
@@ -838,7 +901,7 @@ details { max-width: 70rem; padding: .5rem 0; }
         const settings = renderSettings(grid, options), renderer = new Renderer(grid, settings);
         renderer.drawWalls();
         renderer.drawFeatures();
-        renderer.drawEncounters(settings.encounterLabels);
+        if (settings.showLabels) renderer.drawEncounters(settings.encounterLabels);
         return '<?xml version="1.0" encoding="UTF-8"?>\n' + serialize(renderer.root) + "\n";
     }
     Object.assign(app, { renderSvg, wallEdges });
@@ -861,7 +924,7 @@ details { max-width: 70rem; padding: .5rem 0; }
         ["l", "Left edge door"], ["m", "Bottom edge door"], ["n", "Both edge doors"]
     ];
     let selected = " ", tool = "paint", active = null, hover = null, frame = null, movePreview = null;
-    let rejected = false;
+    let rejected = false, labelCell = null;
     app.document = model;
 
     function message(text, error = false) {
@@ -964,6 +1027,16 @@ details { max-width: 70rem; padding: .5rem 0; }
         for (let x = 0; x <= grid.width; x++) { context.moveTo(x * CELL, 0); context.lineTo(x * CELL, height); }
         for (let y = 0; y <= grid.height; y++) { context.moveTo(0, y * CELL); context.lineTo(width, y * CELL); }
         context.stroke();
+        if ($("show-labels").checked) {
+            for (const [[x, y], text] of grid.labels) {
+                const occupied = "TC".includes(grid.tile(x, y));
+                const size = Math.min(occupied ? 0.22 : 0.46, 0.8 / [...text].length);
+                context.font = `${size * CELL}px sans-serif`;
+                context.textBaseline = "alphabetic";
+                context.fillStyle = grid.tile(x, y) === "#" ? "white" : "black";
+                context.fillText(text, (x + 0.5) * CELL, (y + (occupied ? 0.14 : 0.66)) * CELL);
+            }
+        }
         for (const error of model.errors.slice(0, 100)) {
             context.strokeStyle = "#cf431f";
             context.lineWidth = 2;
@@ -1053,6 +1126,32 @@ details { max-width: 70rem; padding: .5rem 0; }
     canvas.addEventListener("pointercancel", () => finishPointer(true));
     canvas.addEventListener("lostpointercapture", () => finishPointer(true));
     canvas.addEventListener("pointerleave", () => { hover = null; scheduleDraw(); });
+    canvas.addEventListener("contextmenu", event => {
+        event.preventDefault();
+        finishPointer(true);
+        const [x, y] = position(event);
+        if (x < 0 || y < 0 || x >= model.grid.width || y >= model.grid.height) return;
+        labelCell = [x, y];
+        $("label-location").textContent = `Square ${x},${y} (zero-based x,y)`;
+        $("label-text").value = model.grid.labels.find(([[cx, cy]]) => cx === x && cy === y)?.[1] || "";
+        $("label-editor").showModal();
+        $("label-text").focus();
+        $("label-text").select();
+    });
+    $("label-form").addEventListener("submit", event => {
+        event.preventDefault();
+        run(() => {
+            model.setLabel(...labelCell, $("label-text").value);
+            $("label-editor").close();
+            message("Map label updated. Undo restores the previous label.");
+        });
+    });
+    $("label-remove").addEventListener("click", () => run(() => {
+        model.setLabel(...labelCell, "");
+        $("label-editor").close();
+        message("Map label removed.");
+    }));
+    $("label-cancel").addEventListener("click", () => $("label-editor").close());
     function selectTool(value) {
         finishPointer(true);
         tool = value;
@@ -1081,16 +1180,17 @@ details { max-width: 70rem; padding: .5rem 0; }
     $("paint-tool").addEventListener("click", () => selectTool("paint"));
     $("move-tool").addEventListener("click", () => selectTool("move"));
     $("brush").addEventListener("change", scheduleDraw);
+    $("show-labels").addEventListener("change", scheduleDraw);
     $("undo").addEventListener("click", () => run(() => { finishPointer(true); model.undo(); message("Undone."); }));
     $("redo").addEventListener("click", () => run(() => { finishPointer(true); model.redo(); message("Redone."); }));
     $("scale").addEventListener("change", () => run(() => {
         model.setScale(Number($("scale").value));
-        message("Export scale updated. ASCII files contain terrain only.");
+        message("Export scale updated. ASCII files contain terrain and labels, not scale.");
     }));
     $("resize").addEventListener("click", () => run(() => {
         const width = Number($("width").value), height = Number($("height").value);
         if (app.cropsContent(model.grid, width, height) &&
-            !window.confirm("Shrinking will crop non-stone squares. Continue? Undo can restore them.")) return;
+            !window.confirm("Shrinking will crop non-stone squares or labels. Continue? Undo can restore them.")) return;
         model.resize(width, height);
         message("Map resized, keeping its top-left corner fixed.");
     }));
@@ -1126,12 +1226,13 @@ details { max-width: 70rem; padding: .5rem 0; }
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
     $("save-ascii").addEventListener("click", () => run(() => {
-        download(model.grid.toAscii(), "txt", "text/plain;charset=us-ascii");
+        download(model.grid.toAscii(), "txt", "text/plain;charset=utf-8");
         model.markSaved();
         message(model.errors.length ? "ASCII draft downloaded. Complete its structures before SVG export." : "ASCII map downloaded.");
     }));
     $("save-svg").addEventListener("click", () => run(() => {
-        const svg = app.renderSvg(model.grid, { feetPerSquare: model.feetPerSquare, playerView: $("player-view").checked });
+        const svg = app.renderSvg(model.grid, { feetPerSquare: model.feetPerSquare,
+            playerView: $("player-view").checked, showLabels: $("show-labels").checked });
         download(svg, "svg", "image/svg+xml;charset=utf-8");
         message("SVG generated and downloaded entirely in JavaScript.");
     }));

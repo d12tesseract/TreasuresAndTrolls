@@ -12,6 +12,39 @@ NS = {"s": "http://www.w3.org/2000/svg"}
 
 
 class TerrainContractTests(unittest.TestCase):
+    def test_annotations_roundtrip_without_changing_terrain_or_blank_rows(self):
+        text = "####\r\n# T#\r\n####\r\n\r\n1,1: 12\r\n0,0: Stone: <&> \u00e9\r\n"
+        grid = parse_ascii(text)
+        self.assertEqual(grid.rows, ("####", "# T#", "####"))
+        self.assertEqual(grid.labels, {(1, 1): "12", (0, 0): "Stone: <&> \u00e9"})
+        self.assertEqual(parse_ascii(grid.to_ascii()), grid)
+        self.assertIn("\n\n1,1: 12\n0,0: Stone:", grid.to_ascii())
+        self.assertEqual(parse_ascii(" \n\n").rows, (" ", "#"))
+
+    def test_invalid_annotations_fail_explicitly(self):
+        for suffix in ("0,0: ", "0,0: first\n0,0: second", "3,0: outside",
+                       "-1,0: outside", "0.5,0: fractional", "0,0: a\nbad entry",
+                       "0,0: a\n\n1,0: b", "0,0: bad\x00text"):
+            with self.subTest(suffix=suffix), self.assertRaises(ValueError):
+                parse_ascii("###\n\n" + suffix + "\n")
+        for text in ("###\n0,0: missing blank\n", "###\n\n\n0,0: extra blank\n"):
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "exactly one blank"):
+                parse_ascii(text)
+
+    def test_annotations_render_on_stone_void_and_features_and_escape_text(self):
+        grid = parse_ascii("####\n#TC~\n####\n\n0,0: Rock <&>\n1,1: 1\n2,1: 2\n3,1: Void\n")
+        for player_view in (False, True):
+            root = ET.fromstring(svg_document(grid, player_view=player_view))
+            groups = root.findall("s:g[@id='encounters']/s:g", NS)
+            self.assertEqual([group.attrib["data-area"] for group in groups], list(grid.labels.values()))
+            self.assertEqual([group.attrib["transform"] for group in groups],
+                             ["translate(0 0)", "translate(1 1)", "translate(2 1)", "translate(3 1)"])
+            self.assertEqual(groups[0].find("s:text", NS).text, "Rock <&>")
+            self.assertEqual(groups[1].find("s:text", NS).attrib["font-size"], "0.22")
+            self.assertEqual(groups[2].find("s:text", NS).attrib["y"], "0.14")
+        with self.assertRaisesRegex(ValueError, "inside the map"):
+            svg_document(grid, encounter_labels={(4, 0): "outside"})
+
     def test_lowercase_doors_keep_uppercase_svg_labels_on_both_axes(self):
         self.assertEqual(DOORS, frozenset("dxc"))
         for tile, marker in (("d", None), ("x", "S"), ("c", "C")):
