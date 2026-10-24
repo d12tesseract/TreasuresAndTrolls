@@ -211,9 +211,9 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         await click("zoom-out");
         assert.equal(await evaluate("document.getElementById('zoom').value"), "3");
         await input("zoom", 1.5, true);
-        await input("brush", 1); await select("d"); await paint([6, 6]);
+        await input("brush", 1); await select("/"); await paint([6, 6]);
         assert.equal(await tile(6, 6), "#");
-        assert.match(await evaluate("document.getElementById('status').textContent"), /Door needs/);
+        assert.match(await evaluate("document.getElementById('status').textContent"), /Diagonal needs/);
 
         await load("draft.txt", "########\n# b  C##\n#......#\n########\n");
         assert.equal(await tile(2, 1), "b");
@@ -223,9 +223,9 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         await select("b"); await paint([3, 1]);
         assert.equal(await evaluate("document.getElementById('save-svg').disabled"), false);
         const finished = await ascii();
-        await load("invalid.txt", "#d#\n");
+        await load("invalid.txt", "dd\nd#\n");
         assert.equal(await ascii(), finished);
-        assert.match(await evaluate("document.getElementById('status').textContent"), /Door needs/);
+        assert.match(await evaluate("document.getElementById('status').textContent"), /straight horizontal or vertical/);
 
         await click("move-tool");
         await paint([0, 0], [1, 1]);
@@ -264,6 +264,8 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         const svg = await downloaded("finished.svg");
         assert.match(svg, /width="0.81in"/);
         assert.equal((svg.match(/data-tile="b"/g) || []).length, 1);
+        assert.match(svg, /x1="0" y1="0.5" x2="0.5" y2="0.5"/);
+        assert.match(svg, /x1="1.5" y1="0.5" x2="2" y2="0.5"/);
         assert.match(svg, /data-tile="C"/);
         await click("save-ascii");
         assert.equal(await downloaded("finished.txt"), finished);
@@ -363,6 +365,143 @@ test("offline browser painting, drafts, resize/move, ASCII files, scale, and nat
         assert.equal(await tile(249, 30), "#");
         await click("undo");
         assert.equal(await tile(250, 30), "#");
+
+        await input("zoom", 1, true);
+        await input("brush", 1, true);
+        for (const door of "dxc") {
+            for (const horizontal of [true, false]) {
+                const name = `door-${door}-${horizontal ? "horizontal" : "vertical"}`;
+                await load(`${name}.txt`, ("#".repeat(7) + "\n").repeat(7));
+                await select(door);
+                for (const step of [2, 3, 4]) {
+                    await paint(horizontal ? [step, 3] : [3, step]);
+                    assert.equal(await tile(...(horizontal ? [step, 3] : [3, step])), door);
+                    assert.equal(await evaluate("document.getElementById('save-svg').disabled"), false);
+                }
+                if (horizontal) assert.equal((await ascii()).split("\n")[3], `##${door.repeat(3)}##`);
+                await click("save-svg");
+                const exported = await downloaded(`${name}.svg`);
+                assert.equal((exported.match(new RegExp(`data-tile="${door}"`, "g")) || []).length, 1);
+                assert.match(exported, /width="2.7" height="0.24"/);
+                assert.match(exported, /x1="2.85" y1="0.5" x2="3" y2="0.5"/);
+                assert.equal(exported.includes("rotate(90 .5 .5)"), !horizontal);
+            }
+        }
+        for (const stair of "Ff") {
+            const name = stair === "f" ? "stairs-down" : "stairs-up";
+            await load(`${name}.txt`, (stair.repeat(4) + "\n").repeat(2));
+            await click("save-svg");
+            const exported = await downloaded(`${name}.svg`);
+            const feature = exported.slice(exported.indexOf('<g id="features"'));
+            assert.doesNotMatch(feature, /<text\b/);
+            const treads = [...feature.matchAll(/<line x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)"/g)]
+                .slice(0, 20).reverse().map(match => Number(match[3]) - Number(match[1]));
+            assert.equal(treads.length, 20);
+            assert.ok(Math.abs(treads[0] - 1.7) < 1e-9);
+            assert.ok(Math.abs(treads.at(-1) / treads[0] - (stair === "f" ? 0.5 : 1)) < 1e-9);
+            treads.slice(1).forEach((width, index) => {
+                if (stair === "f") assert.ok(width < treads[index]);
+                else assert.equal(width, treads[index]);
+            });
+            assert.match(feature, /x1="1" y1="3.82" x2="1" y2="0.18"/);
+        }
+        for (const tile of "Ss") {
+            const name = tile === "s" ? "spiral-down" : "spiral-up";
+            await load(`${name}.txt`, `#####\n# ${tile}${tile}#\n#${tile}#${tile}#\n#${tile.repeat(3)}#\n#####\n`);
+            await click("save-svg");
+            const exported = await downloaded(`${name}.svg`);
+            const spiral = await evaluate(`(() => {
+                const svg = new DOMParser().parseFromString(${JSON.stringify(exported)}, 'image/svg+xml').documentElement;
+                svg.setAttribute('visibility', 'hidden');
+                document.body.append(svg);
+                try {
+                    const drawing = svg.querySelector('[data-spiral="true"] > g');
+                    const treads = [...drawing.querySelectorAll('line')].slice(0, -2);
+                    const arrow = drawing.querySelector('path[data-direction]');
+                    return {widths: treads.map(line => line.getTotalLength()),
+                        direction: arrow.getAttribute('data-direction'), path: arrow.getAttribute('d')};
+                } finally { svg.remove(); }
+            })()`);
+            assert.equal(spiral.direction, tile === "s" ? "down" : "up");
+            assert.match(spiral.path, / A 1.125 1.125 /);
+            assert.ok(Math.abs(spiral.widths[0] - 1) < 1e-6);
+            assert.ok(Math.abs(spiral.widths.at(-1) - (tile === "s" ? 0.5 : 1)) < 1e-6);
+            spiral.widths.slice(1).forEach((width, index) => {
+                if (tile === "s") assert.ok(width < spiral.widths[index]);
+                else assert.ok(Math.abs(width - spiral.widths[index]) < 1e-6);
+            });
+        }
+        for (const [tile, name, length] of [["P", "ramp-up", 4], ["p", "ramp-down", 1]]) {
+            await load(`${name}.txt`, tile.repeat(length) + "\n");
+            await click("save-svg");
+            const exported = await downloaded(`${name}.svg`);
+            const annotation = await evaluate(`(() => {
+                const svg = new DOMParser().parseFromString(${JSON.stringify(exported)}, 'image/svg+xml').documentElement;
+                svg.setAttribute('visibility', 'hidden');
+                document.body.append(svg);
+                try {
+                    const text = [...svg.querySelectorAll('text')].find(node => node.textContent.startsWith('ramp '));
+                    return {text: text.textContent, width: text.getBBox().width, textCount: svg.querySelectorAll('text').length};
+                } finally { svg.remove(); }
+            })()`);
+            assert.equal(annotation.text, name.replace("-", " "));
+            assert.equal(annotation.textCount, 1);
+            assert.ok(annotation.width > 0 && annotation.width <= length - 0.4, JSON.stringify({annotation, length}));
+        }
+        await load("cavern-curves.txt", "##########\n#  ......#\n#  .##...#\n#  ......#\n##########\n");
+        await click("save-svg");
+        const cavernSvg = await downloaded("cavern-curves.svg");
+        const cavern = await evaluate(`(() => {
+            const svg = new DOMParser().parseFromString(${JSON.stringify(cavernSvg)}, 'image/svg+xml').documentElement;
+            const edges = DungeonEditor.wallEdges(DungeonEditor.document.grid).filter(edge => edge.rough);
+            const paths = [...svg.querySelectorAll('#walls path[data-texture="rough"]')];
+            let deviation = 0;
+            for (const path of paths) {
+                const length = path.getTotalLength();
+                for (let index = 0; index <= 80; index++) {
+                    const point = path.getPointAtLength(length * index / 80);
+                    let nearest = Infinity;
+                    for (const {start, end} of edges) {
+                        const dx = end[0] - start[0], dy = end[1] - start[1];
+                        const t = Math.max(0, Math.min(1, ((point.x - start[0]) * dx +
+                            (point.y - start[1]) * dy) / (dx * dx + dy * dy)));
+                        nearest = Math.min(nearest, Math.hypot(point.x - start[0] - t * dx,
+                            point.y - start[1] - t * dy));
+                    }
+                    deviation = Math.max(deviation, nearest);
+                }
+            }
+            return {paths: paths.length, curves: paths.every(path => path.getAttribute('d').includes(' C ')),
+                roughLines: svg.querySelectorAll('#walls line[data-texture="rough"]').length, deviation};
+        })()`);
+        assert.ok(cavern.paths >= 2);
+        assert.equal(cavern.curves, true);
+        assert.equal(cavern.roughLines, 0);
+        assert.ok(cavern.deviation <= 0.50001);
+        await load("void.txt", "~\n");
+        assert.deepEqual(await evaluate(`Array.from(document.getElementById('map').getContext('2d')
+            .getImageData(10, 10, 1, 1).data)`), [48, 16, 79, 255]);
+        await input("width", 512); await input("height", 512); await click("resize");
+        assert.deepEqual(await evaluate(`[
+            DungeonEditor.document.grid.width, DungeonEditor.document.grid.height,
+            document.getElementById('width').max, document.getElementById('height').max
+        ]`), [512, 512, "512", "512"]);
+        await input("brush", 1, true);
+        await select(" "); await paint([511, 511]);
+        assert.equal(await tile(511, 511), " ");
+        const maximumAscii = await ascii();
+        await input("filename", "maximum");
+        await click("save-ascii");
+        assert.equal(await downloaded("maximum.txt"), maximumAscii);
+        await load("maximum-roundtrip.txt", maximumAscii);
+        assert.equal(await tile(511, 511), " ");
+        await input("filename", "maximum");
+        await input("scale", 10, true);
+        await click("save-svg");
+        assert.match(await downloaded("maximum.svg"), /512\.05 512\.05/);
+        await click("zoom-in");
+        assert.ok(await evaluate("document.getElementById('map').width <= 8192"));
+
         assert.deepEqual(pageErrors, []);
         assert.deepEqual(dialogErrors, []);
         assert.deepEqual(requests.filter(url => /^https?:/.test(url)), []);
