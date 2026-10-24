@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8caRUhzbEVX18xBj7uzHTo2Bf85HUVknmVhSCj4PH2Q=' 'sha256-n98ZAYyx1ZCK4A0ldPW4vDatSHrtkmqk6xOdExLgUds='; style-src 'sha256-quFYgEJNuqbh55Awbx6wUOzGt23H6JXeWcY5pzAIwAw='; img-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/lg9q62uVmFwfZnLfE0SJJIhbTz3kHGY+dmHZND92L4=' 'sha256-n98ZAYyx1ZCK4A0ldPW4vDatSHrtkmqk6xOdExLgUds='; style-src 'sha256-quFYgEJNuqbh55Awbx6wUOzGt23H6JXeWcY5pzAIwAw='; img-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'">
     <title>Dungeon map editor</title>
     <style>
 :root { color-scheme: light; font: 15px/1.4 system-ui, sans-serif; color: #172331; background: #f3f5f7; }
@@ -60,11 +60,11 @@ details { max-width: 70rem; padding: .5rem 0; }
         <button id="save-svg" type="button">Export SVG</button>
         <label><input id="player-view" type="checkbox"> Player SVG (hide secrets, traps, chests)</label>
         <label><input id="show-labels" type="checkbox" checked> Display labels</label>
-        <label>Width <input id="width" type="number" min="1" max="512" step="1" value="60"></label>
-        <label>Height <input id="height" type="number" min="1" max="512" step="1" value="40"></label>
+        <label>Width <input id="width" type="number" min="1" max="512" step="1" value="120"></label>
+        <label>Height <input id="height" type="number" min="1" max="512" step="1" value="80"></label>
         <button id="resize" type="button">Resize map</button>
         <button id="new" type="button">New stone map</button>
-        <label>Feet per square <input id="scale" type="number" min="0" step="any" value="10"></label>
+        <label>Feet per square <input id="scale" type="number" min="0" step="any" value="5"></label>
     </section>
     <main>
         <aside>
@@ -149,8 +149,8 @@ details { max-width: 70rem; padding: .5rem 0; }
             square along its direction. Downward stair treads narrow toward the arrowhead to half their
             starting width; upward stair treads stay equal in width.
             Irregular groups are clipped to their painted footprint.</p>
-        <p>Spirals use S (up), s (down), or Z (both), in 2 x 2, 3 x 3, or 4 x 4 footprints.
-            Leave a literal-space corner landing (2 x 2 landing for a 4 x 4 spiral).
+        <p>Spirals use S (up), s (down), or Z (both), in 3 x 3 or even-sized square footprints.
+            Leave a literal-space corner landing half the footprint's size (2 x 2 for a 4 x 4 spiral).
             A 3 x 3 center is space or stone. Paint the landing and center before completing the footprint.</p>
         <p>Resize keeps the top-left corner fixed; expansion adds stone. Move contents drags the map's actual
             terrain and labels by whole squares. If a move would lose any non-stone squares or labels, expand the map first.
@@ -321,10 +321,11 @@ details { max-width: 70rem; padding: .5rem 0; }
         return groups;
     }
     function spiralAt(left, top, size = 3, tile = "S", corner = "NW") {
-        if (![2, 3, 4].includes(size) || !"SsZ".includes(tile) || !["NW", "NE", "SW", "SE"].includes(corner)) {
-            throw new Error("Spiral requires size 2, 3, or 4, tile S/s/Z, and a corner landing.");
+        if (!Number.isInteger(size) || size < 2 || size > LIMITS.dimension ||
+            (size !== 3 && size % 2 !== 0) || !"SsZ".includes(tile) || !["NW", "NE", "SW", "SE"].includes(corner)) {
+            throw new Error("Spiral requires size 3 or an even size, tile S/s/Z, and a corner landing.");
         }
-        const extent = size === 4 ? 2 : 1;
+        const extent = Math.floor(size / 2);
         const lx = left + (corner.includes("E") ? size - extent : 0);
         const ly = top + (corner.includes("S") ? size - extent : 0);
         const landing = [], cells = [], clearance = [];
@@ -340,7 +341,8 @@ details { max-width: 70rem; padding: .5rem 0; }
     function completeSpiral(grid, group) {
         const xs = group.cells.map(cell => cell[0]), ys = group.cells.map(cell => cell[1]);
         const left = Math.min(...xs), top = Math.min(...ys), size = Math.max(...xs) - left + 1;
-        if (![2, 3, 4].includes(size) || Math.max(...ys) - top + 1 !== size) return null;
+        if (size < 2 || (size !== 3 && size % 2 !== 0) ||
+            Math.max(...ys) - top + 1 !== size) return null;
         const ids = new Set(group.cells.map(cell => key(...cell)));
         for (const corner of ["NW", "NE", "SW", "SE"]) {
             const run = spiralAt(left, top, size, group.tile, corner);
@@ -353,7 +355,9 @@ details { max-width: 70rem; padding: .5rem 0; }
     function canCompleteSpiral(grid, group) {
         const xs = group.cells.map(cell => cell[0]), ys = group.cells.map(cell => cell[1]);
         const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-        for (const size of [2, 3, 4]) {
+        const extent = Math.max(maxX - minX + 1, maxY - minY + 1);
+        const sizes = extent > 4 ? [2 * Math.ceil(extent / 2), 2 * Math.ceil(extent / 2) + 2] : [2, 3, 4];
+        for (const size of sizes.filter(size => size <= LIMITS.dimension)) {
             for (let left = Math.max(0, maxX - size + 1); left <= minX && left + size <= grid.width; left++) {
                 for (let top = Math.max(0, maxY - size + 1); top <= minY && top + size <= grid.height; top++) {
                     for (const corner of ["NW", "NE", "SW", "SE"]) {
@@ -384,7 +388,7 @@ details { max-width: 70rem; padding: .5rem 0; }
                 const draft = canCompleteSpiral(grid, group);
                 add(...group.cells[0], draft ? "incomplete-spiral" : "spiral",
                     draft ? "Complete the spiral footprint and its literal-space landing." :
-                        "Spiral cannot form a supported 2x2, 3x3, or 4x4 footprint.", draft);
+                        "Spiral requires a 3x3 or even-sized square footprint.", draft);
             }
         }
         grid.rows.forEach((row, y) => [...row].forEach((tile, x) => {
@@ -516,10 +520,10 @@ details { max-width: 70rem; padding: .5rem 0; }
         };
     }
     class Document {
-        constructor(grid = Grid.stone(60, 40)) {
+        constructor(grid = Grid.stone(120, 80)) {
             assertValid(grid, true);
             this.grid = grid;
-            this.feetPerSquare = 10;
+            this.feetPerSquare = 5;
             this.undoStack = [];
             this.redoStack = [];
             this.stroke = null;
@@ -643,7 +647,7 @@ details { max-width: 70rem; padding: .5rem 0; }
     }
     function renderSettings(grid, options) {
         const settings = {
-            feetPerSquare: 10, feetPerInch: 50, lineWidth: 0.01, seed: 0,
+            feetPerSquare: 5, feetPerInch: 50, lineWidth: 0.01, seed: 0,
             roughness: 0.5, roughSegments: 4, cornerRadius: null, playerView: false,
             encounterLabels: grid.labels, showLabels: true, ...options
         };
