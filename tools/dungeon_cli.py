@@ -39,12 +39,12 @@ def add_render_arguments(parser: argparse.ArgumentParser, seed_default=0) -> Non
                         help="stroke width in inches (default: 0.01)")
     parser.add_argument("--seed", type=int, default=seed_default,
                         help="random seed (ASCII default: 0; generated maps: random)")
-    parser.add_argument("--roughness", type=float, default=0.12,
-                        help="rough-wall deviation, 0 to 0.2 squares (default: 0.12)")
-    parser.add_argument("--rough-segments", type=int, default=6,
-                        help="segments per rough tile edge, 2 to 32 (default: 6)")
+    parser.add_argument("--roughness", type=float, default=0.5,
+                        help="cavern-wall walk bound, 0 to 0.5 squares (default: 0.5)")
+    parser.add_argument("--rough-segments", type=int, default=4,
+                        help="walk intervals per cavern edge, 2 to 32 (default: 4)")
     parser.add_argument("--corner-radius", type=float,
-                        help="rough corner radius, 0 to 0.5 squares (default: automatic, up to 0.35)")
+                        help="corner-bisector walk bound, 0 to 0.5 squares (default: roughness)")
     parser.add_argument("--player-view", action="store_true",
                         help="hide traps/pits and show secret/concealed doors as walls")
 

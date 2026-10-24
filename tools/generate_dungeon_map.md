@@ -80,18 +80,19 @@ to complete the door. Spiral stairs can likewise be painted one cell at a
 time using `S`, `s`, or `Z`; their landings must be literal spaces. Incomplete
 structures show coordinate-specific validation errors and may be loaded/saved
 as **ASCII drafts**, but SVG export is blocked until they are complete.
-Impossible structures and other invalid geometry (for example a door in a
-junction or a malformed diagonal) are rejected atomically without changing
+Impossible structures and other invalid geometry (for example a bent door
+line or a malformed diagonal) are rejected atomically without changing
 the map. An unfinished structure does not hide other invalid inputs.
 
 Finished ASCII maps use the exact same terrain keys, geometry, and symbols
-in JavaScript and Python. Decorative rough-wall jitter is independently
-seeded and need not match between languages; repeated JavaScript exports with
-the same options are deterministic. SVG serialization is not byte-identical.
+in JavaScript and Python. The renderers share the same seeded wall-walk random
+number generator and produce matching cavern curves for matching options.
+SVG serialization is not byte-identical.
 Old `D/X/C` door maps are not automatically migrated: `C` now means chest and
 `d` is a single-square door, so guessing old meanings would change maps.
 
-Maps are limited to 16,384 squares and 256 per dimension; files to 128 KiB.
+Maps support 512 x 512 squares (262,144 cells); files may contain up to 16 MiB
+including labels. Void squares are deep violet in the editor preview only.
 The canvas supports view zoom and ordinary scrolling, not drag-to-pan. Exported
 ASCII/SVG contains no editor grid or selection overlays. The editor can edit
 encounter numbers and other map labels, but not encounter contents or trapped-chest metadata.
@@ -154,29 +155,46 @@ label styling and remain visible in player SVGs unless hidden in the editor.
 | `\` / `/` | Diagonal walls dividing a square into triangles |
 | `\|` / `_` / `L` | Floor with a left / bottom / both partition walls |
 | `d` / `x` / `c` | Normal / secret / concealed door |
-| `b` | Half of one normal-width door centered between two squares; an isolated `bb` pair |
+| `b` | Centered door line; at least two adjacent cells along its horizontal or vertical axis |
 | `C` | Chest |
 | `l` / `m` / `n` | Floor with a left / bottom / both edge doors |
 | `T` | Trap, including covered pits |
-| `E` / `e` | Straight stairs up / down |
-| `R` / `r` | Ramp up / down |
+| `E` / `e`, `F` / `f`, `G` / `g`, `H` / `h` | Stairs up / down toward north, east, south, west respectively |
+| `O` / `o`, `P` / `p`, `Q` / `q`, `R` / `r` | Ramps up / down toward north, east, south, west respectively |
 | `S` / `s` / `Z` | Spiral stairs up / down / both |
 
 For `\`, the neighbor pairs are north+east and south+west; for `/`, they
 are north+west and south+east. Each pair must be two open neighbors
-(spaces, periods, or voids) or two stone neighbors. At least one triangle
+(spaces, periods, voids, or wall-partition floor) or two stone neighbors. At least one triangle
 must be open. When both are open, the wall still separates them: movement
 cannot cross it. Diagonal neighbors cannot be feature tiles.
 
-`d`, `x`, and `c` require opposite floor/trap/chest neighbors and `#` on both
-perpendicular sides. `|` and `L` require literal space on the left; `_`
-and `L` require literal space below. The same respective adjacency rules
-apply to `l`, `m`, and `n`, whose doors remain passable. Each `b` must have
-exactly one cardinal `b` neighbor in a finished map, forming an isolated pair.
-That pair is one normal-width door on the shared boundary, not a double door.
+`d`, `x`, and `c` form contiguous doorways when identical cells touch in a
+straight line, without requiring floor beside the line or stone at its ends.
+For example, `##ddd##` renders as one horizontal doorway three squares wide;
+`##xxx##` and `##ccc##` behave the same way for secret and concealed doors.
+Door cells can be painted individually through solid stone. Single-cell doors
+infer orientation from neighboring passages and default to horizontal when
+ambiguous; adding adjacent identical doors determines the line's axis.
+Secret/concealed spans become single unbroken walls in player SVGs.
+Wall partitions (`|`, `_`, `L`) may touch any terrain and always count as
+smooth floor, including where they meet cavern stone. Edge doors (`l`, `m`, `n`)
+still require literal space to the left, below, or both, respectively.
+Centered `b` door lines follow the axis of their cells: horizontal cells draw
+a horizontal doorway and vertical cells a vertical doorway. Two cells draw one
+normal-width door centered between them; longer lines extend that same symbol.
+Half-square smooth wall sections connect both ends of the centered doorway to
+the terrain at the outer edges of its `b` cells.
 
-Straight runs of the same stair/ramp letter render as one full-length
-symbol. Bent or branching clusters render individual symbols. Spiral
+Cardinally connected cells with the same stair/ramp letter render as one symbol
+spanning the group's full length and width. Irregular groups are clipped to their
+painted cells. Uppercase means up and lowercase means down along the explicitly
+specified compass direction, regardless of nearby passages. Elevation change is
+the directional length times feet per square; for example, a 4-by-2 block of `F`
+at 5 feet per square is 20 feet long, 10 feet wide, and ascends 20 feet eastward.
+SVG groups record square length/width, facing, up/down direction, and signed
+elevation in feet. Existing `E/e` and `R/r` maps now explicitly mean north stairs
+and west ramps rather than inferring direction. Spiral
 footprints are square, size 2, 3, or 4, with a literal-space landing in any
 corner. The landing is one square for sizes 2 and 3 and 2x2 for size 4.
 A 3x3 spiral's center must be literal space or `#`.
@@ -189,8 +207,23 @@ search starting on a two-sided diagonal begins in its north-facing triangle.
 
 ## Rendering and symbols
 
-Smooth walls are straight. Rough walls have seeded edge jitter and rounded
-convex and concave corners. Corner radius and jitter can be set independently.
+Smooth walls remain straight and grid-aligned. Natural cavern boundaries are
+traced into continuous paths, not rendered as separate square-edge segments.
+The default random walk samples each edge at its start, quarter, midpoint,
+three-quarter, and endpoint, carrying its displacement across square borders.
+It can wander half a square to either side of the nominal boundary, including
+into stone. Each step changes lateral offset by at most its forward distance,
+limiting the walk to 45 degrees relative to a straight or diagonal edge.
+Smooth-wall joins stay exactly on the original grid; closed cavern boundaries
+close seamlessly without a forced grid anchor.
+
+At turns, displacement follows the corner bisector (a 45-degree ray for a
+right-angle corner). Crowded quarter-edge samples are removed on inside turns;
+outside turns retain the bisector sample to make a wider bend. Signed offsets
+allow the walk to cross the nominal boundary through a turn. The resulting
+points control a continuous B-spline rendered as cubic SVG Bezier curves.
+The convex-hull curve fit avoids the overshoot of unconstrained interpolation.
+Wall coordinates remain within the map and void clipping is unchanged.
 Feature groups inherit rough terrain only when they border rough floor and
 no smooth floor. Diagonals infer terrain from their open neighbors.
 
@@ -201,9 +234,20 @@ and feature drawing, and edges adjoining void are not outlined.
 
 Doors use rectangles; secret and concealed doors include uppercase `S`/`C`.
 Chests use a lidded rectangle with a clasp. Traps use an X and `T`.
-Straight stairs use treads, ramps use tapering sides, and both
-have arrows and tile labels. Runs determine orientation; single squares
-infer it from surrounding passages. Spiral symbols show their direction.
+Straight stairs going up use equal-width treads. Stairs going down narrow
+progressively along the arrow's direction: the bottom tread is exactly half
+the width of the top tread, regardless of the stairway's length or width.
+Ramps use side rails, with "ramp up" or "ramp down" beside the center-line
+arrow. These annotations follow the ramp's axis and remain upright for east/west
+ramps; short ramps use smaller text so the words fit within the footprint.
+Both stairs and ramps retain directional arrows, but their ASCII tile letters
+are not drawn on SVGs. The input letters still determine orientation even for
+single squares; editor preview letters and custom map labels are unchanged.
+Spiral direction arrows follow arcs at three-quarters of the outer stairway
+radius. Down-only spirals narrow their radial treads progressively clockwise
+from the landing, with the final tread half the width of the first. Up-only
+spirals retain equal-width treads. Bidirectional spirals retain uniform treads
+and show separate up/down arrow arcs at the same three-quarter radius.
 
 | Rendering option | Default | Meaning |
 | --- | --- | --- |
@@ -211,15 +255,16 @@ infer it from surrounding passages. Spiral symbols show their direction.
 | `--feet-per-inch` | `50` | Map feet per printed inch |
 | `--line-width` | `0.01` | Printed stroke width in inches |
 | `--seed` | Converter: `0`; generator: random | Seed for rendering and generation |
-| `--roughness` | `0.12` | Wall deviation, `0` through `0.2` squares |
-| `--rough-segments` | `6` | Segments per rough edge, `2` through `32` |
-| `--corner-radius` | Automatic | Radius, `0` through `0.5` squares |
+| `--roughness` | `0.5` | Maximum wall-walk displacement, `0` through `0.5` squares |
+| `--rough-segments` | `4` | Walk intervals per edge, `2` through `32`; four gives five sample points |
+| `--corner-radius` | Roughness | Maximum corner-bisector displacement, `0` through `0.5` squares |
 | `--player-view` | Off | Hide traps and draw secret/concealed doors as walls |
 
-Automatic corner radius is three times roughness, capped at 0.35 squares.
-An explicit radius of zero disables rounding, not jitter; positive radius
-with zero roughness gives clean rounded corners. Scale values must be finite
-and positive. Printed width/height is the square count times
+`--corner-radius` is retained as the bound on corner-bisector displacement,
+rather than the radius of the former circular corner approximation. Zero pins
+the corner's walk sample to the nominal vertex; cubic fitting still smooths
+the turn. Zero roughness disables random displacement, not curved fitting.
+Scale values must be finite and positive. Printed width/height is the square count times
 feet-per-square / feet-per-inch, plus one stroke width.
 
 Player view hides traps and chests and changes hidden-door visibility only in
