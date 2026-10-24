@@ -240,7 +240,11 @@ progressively along the arrow's direction: the bottom tread is exactly half
 the width of the top tread, regardless of the stairway's length or width.
 Ramps use side rails, with "ramp up" or "ramp down" beside the center-line
 arrow. These annotations follow the ramp's axis and remain upright for east/west
-ramps; short ramps use smaller text so the words fit within the footprint.
+ramps; short ramps fit the words horizontally without reducing their font size.
+
+All SVG text uses the same font size: 90% of a map square, including encounter
+numbers, secret/concealed-door markers, trap letters, and ramp annotations.
+Long map labels are fitted horizontally rather than reduced in height.
 Both stairs and ramps retain directional arrows, but their ASCII tile letters
 are not drawn on SVGs. The input letters still determine orientation even for
 single squares; editor preview letters and custom map labels are unchanged.
@@ -257,6 +261,7 @@ and show separate up/down arrow arcs at the same three-quarter radius.
 | `--line-width` | `0.01` | Printed stroke width in inches |
 | `--seed` | Converter: `0`; generator: random | Seed for rendering and generation |
 | `--roughness` | `0.5` | Maximum wall-walk displacement, `0` through `0.5` squares |
+| `--max-wall-deviation` | `0.5` | Hard limit on the complete cavern-wall SVG path's distance from its original square edges, `0` through `0.5` squares (0-50%) |
 | `--rough-segments` | `4` | Walk intervals per edge, `2` through `32`; four gives five sample points |
 | `--corner-radius` | Roughness | Maximum corner-bisector displacement, `0` through `0.5` squares |
 | `--player-view` | Off | Hide traps and draw secret/concealed doors as walls |
@@ -265,6 +270,16 @@ and show separate up/down arrow arcs at the same three-quarter radius.
 rather than the radius of the former circular corner approximation. Zero pins
 the corner's walk sample to the nominal vertex; cubic fitting still smooths
 the turn. Zero roughness disables random displacement, not curved fitting.
+`--max-wall-deviation` caps both displacement and curved fitting, including
+corners. Its default and maximum are `0.5` (50%, or half a square). For example,
+`--max-wall-deviation 0.25` keeps the entire wall path within a quarter square of
+the original edges; `--max-wall-deviation 0` draws the same straight wall geometry
+as smooth stone. This bounds the path itself, not the outer edge of its stroke.
+The offline editor exposes the same setting as **Cavern wall deviation (%)**
+for SVG export, using whole percentages (`0` through `50`, default `50`).
+Python's `svg_document(max_wall_deviation=...)` and the editor's
+`renderSvg(..., { maxWallDeviation: ... })` APIs use the same square fractions
+as the CLI (`0` through `0.5`, default `0.5`).
 Scale values must be finite and positive. Printed width/height is the square count times
 feet-per-square / feet-per-inch, plus one stroke width.
 

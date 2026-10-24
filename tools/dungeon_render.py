@@ -14,6 +14,7 @@ from dungeon_geometry import (
 
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
+_LABEL_SIZE = 0.9
 
 
 @dataclass(frozen=True)
@@ -79,7 +80,7 @@ def _wall_edges(grid: DungeonMap) -> List[_Edge]:
 
 def _render_dimensions(
     grid, feet_per_pixel, feet_per_inch, line_width, roughness, rough_segments,
-    corner_radius,
+    corner_radius, max_wall_deviation,
 ):
     """Validate rendering options and compute stroke, physical size, and radius."""
     validate_map(grid)
@@ -91,6 +92,8 @@ def _render_dimensions(
         _finite_positive(name, value)
     if not math.isfinite(roughness) or not 0 <= roughness <= 0.5:
         raise ValueError("roughness must be between zero and 0.5 map squares")
+    if not math.isfinite(max_wall_deviation) or not 0 <= max_wall_deviation <= 0.5:
+        raise ValueError("max_wall_deviation must be between zero and 0.5 map squares (0-50%)")
     if not isinstance(rough_segments, int) or not 2 <= rough_segments <= 32:
         raise ValueError("rough_segments must be an integer between 2 and 32")
     if corner_radius is not None and (
@@ -175,8 +178,27 @@ def _bounded_walk(distances, limits, closed, random):
     return offsets
 
 
-def _wall_walk(vertices, width, height, amplitude, segments, radius, random):
+def _corner_guard(point, neighbor, vertex, limit):
+    """Keep a corner's spline controls inside its deviation disk."""
+    middle = tuple((point[axis] + neighbor[axis]) / 2 for axis in (0, 1))
+    if math.hypot(middle[0] - vertex[0], middle[1] - vertex[1]) <= limit:
+        return None
+    delta = tuple(neighbor[axis] - point[axis] for axis in (0, 1))
+    offset = tuple(point[axis] - vertex[axis] for axis in (0, 1))
+    a = sum(value * value for value in delta)
+    if a == 0:
+        return None
+    b = sum(offset[axis] * delta[axis] for axis in (0, 1))
+    c = sum(value * value for value in offset) - limit * limit
+    t = min(1, max(0, (-b + math.sqrt(max(0, b * b - a * c))) / a))
+    return tuple(point[axis] + t * delta[axis] for axis in (0, 1))
+
+
+def _wall_walk(vertices, width, height, amplitude, segments, radius, random, max_deviation=None):
     """Sample edges and corner bisectors, carrying one walk across square borders."""
+    if max_deviation is not None:
+        amplitude = min(amplitude, max_deviation)
+        radius = min(radius, max_deviation)
     closed = vertices[0] == vertices[-1]
     count = len(vertices) - 1
     tangents, normals, lengths = [], [], []
@@ -229,12 +251,31 @@ def _wall_walk(vertices, width, height, amplitude, segments, radius, random):
                     skipped.add(neighbor % unique)
                 elif 0 < neighbor < len(samples) - 1:
                     skipped.add(neighbor)
-    points = []
+    points, retained = [], []
     for index, ((point, normal), offset) in enumerate(zip(samples, offsets)):
         if index in skipped or closed and index == len(samples) - 1:
             continue
         points.append((min(width, max(0, point[0] + normal[0] * offset)),
                        min(height, max(0, point[1] + normal[1] * offset))))
+        retained.append(index)
+    if max_deviation is not None:
+        corner_indices = {index for index, _ in corners}
+        bounded = []
+        for index, point in enumerate(points):
+            sample = retained[index]
+            if sample not in corner_indices:
+                bounded.append(point)
+                continue
+            vertex = samples[sample][0]
+            before = _corner_guard(point, points[index - 1], vertex, max_deviation)
+            after = _corner_guard(point, points[(index + 1) % len(points)], vertex, max_deviation)
+            # Each corner span lies in this disk; other spans stay in their edge's convex band.
+            if before is not None:
+                bounded.append(before)
+            bounded.append(point)
+            if after is not None:
+                bounded.append(after)
+        return bounded
     return points
 
 
@@ -260,7 +301,8 @@ def _wall_curve(points, closed):
 class _SvgRenderer:
     """Keep drawing primitives, wall state, and feature output on one SVG canvas."""
 
-    def __init__(self, grid, dimensions, roughness, rough_segments, seed, feet_per_square):
+    def __init__(self, grid, dimensions, roughness, rough_segments, seed, feet_per_square,
+                 max_wall_deviation):
         """Create ordered wall and feature groups with validated drawing settings."""
         stroke, physical_width, physical_height, radius = dimensions
         self.grid = grid
@@ -268,6 +310,7 @@ class _SvgRenderer:
         self.radius = radius
         self.roughness = roughness
         self.rough_segments = rough_segments
+        self.max_wall_deviation = max_wall_deviation
         self.seed = seed
         self.feet_per_square = feet_per_square
         self.root = ET.Element("svg", {
@@ -325,26 +368,34 @@ class _SvgRenderer:
         """Keep worked walls straight and draw whole cavern chains as cubic paths."""
         edges = _wall_edges(self.grid)
         for edge in edges:
-            if not edge.rough:
+            if not edge.rough or self.max_wall_deviation == 0:
                 self.line(self.walls, edge.start, edge.end)
+        if self.max_wall_deviation == 0:
+            return
         for vertices in _rough_wall_chains(edges):
             closed = vertices[0] == vertices[-1]
             points = _wall_walk(vertices, self.grid.width, self.grid.height,
-                                self.roughness, self.rough_segments, self.radius, self.random)
+                                self.roughness, self.rough_segments, self.radius, self.random,
+                                self.max_wall_deviation)
             ET.SubElement(self.walls, "path", {
                 "d": _wall_curve(points, closed), "fill": "none", "stroke": "black",
                 "stroke-width": _format(self.stroke), "stroke-linecap": "round",
                 "stroke-linejoin": "round", "data-texture": "rough",
             })
 
-    def label(self, parent, text, x=0.5, y=0.61, size=0.32):
-        """Append a centered sans-serif label at local symbol coordinates."""
+    def label(self, parent, text, x=0.5, y=0.82, max_width=None):
+        """Append 90%-square text, optionally fitting its width without shrinking its height."""
         fmt = _format
-        element = ET.SubElement(parent, "text", {
+        attributes = {
             "x": fmt(x), "y": fmt(y), "font-family": "sans-serif",
-            "font-size": fmt(size), "text-anchor": "middle", "fill": "black",
-        })
+            "font-size": fmt(_LABEL_SIZE), "text-anchor": "middle", "fill": "black",
+        }
+        if max_width is not None and _LABEL_SIZE * len(text) * 0.6 > max_width:
+            # Glyph ink can extend beyond the advance width controlled by textLength.
+            attributes.update({"textLength": fmt(max_width * 0.95), "lengthAdjust": "spacingAndGlyphs"})
+        element = ET.SubElement(parent, "text", attributes)
         element.text = text
+        return element
 
     def rectangle(self, parent, x, y, width, height, dashed=False):
         """Append an unfilled rectangle with optional dashed outline."""
@@ -502,7 +553,7 @@ class _SvgRenderer:
         self.line(group, (length - 0.15, 0.5), (length, 0.5))
         self.rectangle(group, 0.15, 0.38, length - 0.3, 0.24)
         if tile != "d":
-            self.label(group, "S" if tile == "x" else "C", x=length / 2, y=0.61, size=0.28)
+            self.label(group, "S" if tile == "x" else "C", x=length / 2)
 
     def draw_edge_doors(self, group, x, y, tile, paired_doors):
         """Draw partition doors and one correctly oriented centered door line."""
@@ -570,15 +621,16 @@ class _SvgRenderer:
         self.line(drawing, (center + 0.1, 0.3), (center, 0.18))
         if tile in "OoPpQqRr":
             text = "ramp " + direction
-            size = min(0.22, (length - 0.4) / (len(text) * 0.8))
             reverse = cardinal in ("south", "west")
             annotation = ET.SubElement(drawing, "g", {
                 "transform": "translate({} {}) rotate({})".format(
-                    _format(center + 0.12 + (0 if reverse else size)),
+                    _format(min(center + _LABEL_SIZE / 2, width - _LABEL_SIZE / 2 - 0.05)),
                     _format(length / 2), 90 if reverse else -90,
                 ),
             })
-            self.label(annotation, text, x=0, y=0, size=size)
+            self.label(annotation, text, x=0, y=0, max_width=length - 0.4).set(
+                "dominant-baseline", "central",
+            )
 
     def draw_feature(self, x, y, tile, run, paired_doors):
         """Dispatch one visible feature without altering SVG element order."""
@@ -594,7 +646,7 @@ class _SvgRenderer:
         if tile == "T":
             self.line(group, (0.18, 0.18), (0.82, 0.82))
             self.line(group, (0.18, 0.82), (0.82, 0.18))
-            self.label(group, "T", x=0.82, y=0.28, size=0.24)
+            self.label(group, "T", x=0.65, y=0.9)
         elif tile == "C":
             self.rectangle(group, 0.2, 0.28, 0.6, 0.44)
             self.line(group, (0.2, 0.44), (0.8, 0.44))
@@ -633,8 +685,7 @@ class _SvgRenderer:
                 "transform": "translate({} {})".format(x, y),
             })
             occupied = grid.tile(x, y) in "TC"
-            self.label(group, str(number), y=0.14 if occupied else 0.66,
-                       size=min(0.22 if occupied else 0.46, 0.8 / max(1, len(str(number)))))
+            self.label(group, str(number), y=0.75 if occupied else 0.82, max_width=0.8)
 
 
 def svg_document(
@@ -648,13 +699,16 @@ def svg_document(
     player_view: bool = False,
     corner_radius: Optional[float] = None,
     encounter_labels: Optional[Dict[Cell, str]] = None,
+    max_wall_deviation: float = 0.5,
 ) -> str:
     """Render a validated map with independently editable black wall segments."""
     dimensions = _render_dimensions(
         grid, feet_per_pixel, feet_per_inch, line_width, roughness, rough_segments,
-        corner_radius,
+        corner_radius, max_wall_deviation,
     )
-    renderer = _SvgRenderer(grid, dimensions, roughness, rough_segments, seed, feet_per_pixel)
+    renderer = _SvgRenderer(
+        grid, dimensions, roughness, rough_segments, seed, feet_per_pixel, max_wall_deviation,
+    )
     renderer.draw_walls()
     renderer.draw_features(player_view)
     labels = dict(grid.labels)

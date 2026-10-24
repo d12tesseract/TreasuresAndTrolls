@@ -54,7 +54,7 @@ class TerrainFeatureTests(unittest.TestCase):
                     self.assertIsNone(text)
                 else:
                     self.assertEqual(text.text, marker)
-                    self.assertEqual(float(text.attrib["font-size"]), 1.12)
+                    self.assertEqual(float(text.attrib["font-size"]), 0.9)
         chest = DungeonMap(("###", "#C#", "###"))
         validate_map(chest)
         root = ET.fromstring(svg_document(chest))
