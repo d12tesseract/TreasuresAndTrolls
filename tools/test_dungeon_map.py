@@ -48,6 +48,9 @@ from dungeon_map import (
     _rebuild_layout,
     _reroute_corridors,
     _room_shape,
+    _room_passage,
+    _validate_network,
+    _decorate,
     _terrain,
 )
 
@@ -198,10 +201,10 @@ class RenderingTests(unittest.TestCase):
         root = ET.fromstring(render_rows(["  "]))
         lines = walls(root)
         self.assertEqual(len(lines), 6)
-        self.assertEqual(root.attrib["width"], "0.41in")
-        self.assertEqual(root.attrib["height"], "0.21in")
-        self.assertEqual(root.attrib["viewBox"], "-0.025 -0.025 2.05 1.05")
-        self.assertTrue(all(float(line.attrib["stroke-width"]) == 0.05 for line in lines))
+        self.assertEqual(root.attrib["width"], "0.21in")
+        self.assertEqual(root.attrib["height"], "0.11in")
+        self.assertEqual(root.attrib["viewBox"], "-0.05 -0.05 2.1 1.1")
+        self.assertTrue(all(float(line.attrib["stroke-width"]) == 0.1 for line in lines))
         self.assertNotIn(((1, 0), (1, 1)), [endpoints(line) for line in lines])
         scaled = xml(DungeonMap((" ",)), feet_per_pixel=5, feet_per_inch=100, line_width=0.02)
         self.assertEqual(scaled.attrib["width"], "0.07in")
@@ -572,6 +575,64 @@ class MeanderingTests(unittest.TestCase):
 
 
 class GenerationTests(unittest.TestCase):
+    def test_passage_width_reserves_floor_and_doors_span_the_entire_opening(self):
+        for passage_width in (1, 2, 3):
+            for vertical in (False, True):
+                with self.subTest(width=passage_width, vertical=vertical):
+                    def orient(cell):
+                        return cell[::-1] if vertical else cell
+
+                    rooms = [
+                        _Room(orient((left + 2, 8)), {
+                            orient((x, y)) for x in range(left, left + 5)
+                            for y in range(4, 14)
+                        }, False)
+                        for left in (3, 21)
+                    ]
+                    options = GenerationOptions(
+                        width=20 if vertical else 30, height=30 if vertical else 20,
+                        passage_width=passage_width, doors=2, secret_doors=0,
+                        concealed_doors=0,
+                    )
+                    rng = random.Random(1)
+                    passage = _room_passage((0, 1), rooms, [], options, rng, set())
+                    self.assertIsNotNone(passage)
+                    _validate_network(rooms, [passage])
+                    middle = {cell for cell in passage.cells if orient(cell)[0] == 14}
+                    self.assertEqual(len(middle), passage_width)
+                    rows = [["#"] * options.width for _ in range(options.height)]
+                    _rebuild_layout(rows, rooms, [passage])
+                    grid = _decorate(rows, rooms, options, rng)
+                    validate_map(grid)
+                    doors = {(x, y) for y, row in enumerate(grid.rows)
+                             for x, tile in enumerate(row) if tile == "d"}
+                    self.assertEqual(len(doors), 2 * passage_width)
+                    self.assertTrue(is_connected(grid))
+                    self.assertFalse(rooms[1].cells & reachable_cells(
+                        grid, rooms[0].center, doors,
+                    ))
+
+    def test_wide_passage_bends_remain_connected_and_do_not_cross_reserved_cells(self):
+        for rough in (False, True):
+            options = GenerationOptions(
+                width=40, height=30, passage_width=3, rough_probability=int(rough),
+            )
+            rooms = [
+                _Room((5, 6), {(x, y) for x in range(3, 9) for y in range(3, 11)}, rough),
+                _Room((31, 22), {(x, y) for x in range(28, 36) for y in range(18, 27)}, rough),
+            ]
+            forbidden = {(19, y) for y in range(1, 18)}
+            passage = _room_passage(
+                (0, 1), rooms, [], options, random.Random(7), forbidden,
+            )
+            self.assertIsNotNone(passage)
+            self.assertFalse(forbidden.intersection(passage.cells))
+            self.assertTrue(all(1 <= x < 39 and 1 <= y < 29 for x, y in passage.cells))
+            _validate_network(rooms, [passage])
+            rows = [["#"] * options.width for _ in range(options.height)]
+            _rebuild_layout(rows, rooms, [passage])
+            self.assertTrue(is_connected(DungeonMap(tuple("".join(row) for row in rows))))
+
     def test_cavern_footprints_are_connected_bounded_and_repeatable(self):
         for width, height, size in ((7, 7, 4), (7, 20, 35), (20, 7, 35),
                                     (30, 24, 55), (30, 24, 500)):
@@ -794,7 +855,7 @@ class GenerationTests(unittest.TestCase):
                     meandering=seed % 2,
                 ))
                 grid = result.grid
-                self.assertEqual((grid.width, grid.height), (60, 40))
+                self.assertEqual((grid.width, grid.height), (120, 80))
                 self.assertTrue(is_connected(grid))
                 actual = Counter("".join(grid.rows))
                 self.assertEqual({tile: actual[tile] for tile in expected}, dict(expected))
@@ -894,6 +955,8 @@ class GenerationTests(unittest.TestCase):
             {"rough_probability": 1.1}, {"door_probability": 0.95},
             {"chamfer_probability": -1}, {"traps": -1}, {"secret_doors": 2.5},
             {"meandering": -0.1}, {"meandering": 1.1}, {"meandering": float("nan")},
+            {"passage_width": 0}, {"passage_width": -1}, {"passage_width": 1.5},
+            {"passage_width": True}, {"passage_width": 80},
         ):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 generate_dungeon(GenerationOptions(**values))
@@ -1558,6 +1621,21 @@ class EncounterTests(unittest.TestCase):
 
 
 class CommandLineTests(unittest.TestCase):
+    def test_scaled_generation_defaults_and_explicit_passage_width(self):
+        from generate_dungeon_map import _parse_arguments
+
+        with patch.object(sys, "argv", ["generate_dungeon_map.py"]):
+            _, args, _ = _parse_arguments()
+        options = GenerationOptions(**{
+            name: getattr(args, name) for name in GenerationOptions.__dataclass_fields__
+        })
+        self.assertEqual(options, GenerationOptions())
+        self.assertEqual((options.width, options.height, options.room_size,
+                          options.passage_width, args.feet_per_pixel), (120, 80, 140, 2, 5))
+        with patch.object(sys, "argv", ["generate_dungeon_map.py", "--passage-width", "3"]):
+            _, args, _ = _parse_arguments()
+        self.assertEqual(args.passage_width, 3)
+
     def test_campaign_imports_share_modules_without_leaking_search_paths(self):
         code = """
 import sys
@@ -1693,6 +1771,8 @@ assert sys.path == before
                          ("--chest-lock-dc", -1), ("--chest-lock-dc", 35),
                          ("--chest-lock-dc", "1.5"),
                          ("--width", 2), ("--roughness", "nan"),
+                         ("--passage-width", 0), ("--passage-width", -1),
+                         ("--passage-width", "1.5"), ("--passage-width", 80),
                          ("--meandering", "nan"), ("--meandering", "1.1"),
                          ("--corner-radius", "0.6"), ("--corner-radius", "nan"),
                          ("--levels", 0), ("--levels", "1.5"), ("--stair-length", 0),

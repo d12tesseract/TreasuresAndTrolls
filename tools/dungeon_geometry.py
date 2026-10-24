@@ -411,11 +411,12 @@ class Stairway:
     def spiral_at(cls, left: int, top: int, size: int = 3, tile: str = "S",
                   landing_corner: str = "NW") -> "Stairway":
         """Construct a spiral footprint with a literal-floor corner landing."""
-        if size not in (2, 3, 4) or tile not in "SsZ":
-            raise ValueError("spiral stair requires size 2, 3, or 4 and tile S, s, or Z")
+        if (not isinstance(size, int) or size < 2 or (size != 3 and size % 2)
+                or tile not in "SsZ"):
+            raise ValueError("spiral stair requires size 3 or a positive even size and tile S, s, or Z")
         if landing_corner not in ("NW", "NE", "SW", "SE"):
             raise ValueError("landing_corner must be NW, NE, SW, or SE")
-        extent = 2 if size == 4 else 1
+        extent = size // 2
         lx = left + (size - extent if "E" in landing_corner else 0)
         ly = top + (size - extent if "S" in landing_corner else 0)
         landing = tuple((x, y) for y in range(ly, ly + extent)
@@ -438,15 +439,55 @@ class Stairway:
         """Return spiral landing endpoints or the two straight-run end cells."""
         if self.spiral:
             return self.landing_cells[0], self.landing_cells[-1]
-        dx, dy = (1, 0) if self.horizontal else (0, 1)
-        first, last = self.cells[0], self.cells[-1]
-        return ((first[0] - dx, first[1] - dy), (last[0] + dx, last[1] + dy))
+        offset = (self.width - 1) // 2
+        first, last = self.landing_spans
+        return first[offset], last[offset]
+
+    @property
+    def width(self) -> int:
+        """Return the transverse width, or the spiral's corner-landing width."""
+        if self.spiral:
+            return self.size // 2
+        axis = 1 if self.horizontal else 0
+        values = [cell[axis] for cell in self.cells]
+        return max(values) - min(values) + 1
+
+    @property
+    def landing_spans(self) -> Tuple[Tuple[Cell, ...], Tuple[Cell, ...]]:
+        """Return both full-width straight landings, or the spiral landing."""
+        if self.spiral:
+            return self.landing_cells, self.landing_cells
+        left, right = min(x for x, y in self.cells), max(x for x, y in self.cells)
+        top, bottom = min(y for x, y in self.cells), max(y for x, y in self.cells)
+        if self.horizontal:
+            return (tuple((left - 1, y) for y in range(top, bottom + 1)),
+                    tuple((right + 1, y) for y in range(top, bottom + 1)))
+        return (tuple((x, top - 1) for x in range(left, right + 1)),
+                tuple((x, bottom + 1) for x in range(left, right + 1)))
+
+    @property
+    def entrance_cells(self) -> Tuple[Cell, ...]:
+        """Return the entire open landing rather than just its routing anchor."""
+        return self.landing_spans[1 if self.tile in "EeHhOoRr" else 0]
+
+    @property
+    def approach_cells(self) -> Tuple[Cell, ...]:
+        """Reserve the full-width stair approach, or the spiral's corner landing."""
+        if self.spiral:
+            return self.landing_cells
+        entrance, start = self.approach
+        dx, dy = start[0] - entrance[0], start[1] - entrance[1]
+        steps = max(abs(dx), abs(dy))
+        dx, dy = dx // steps, dy // steps
+        return tuple((x + step * dx, y + step * dy) for step in range(steps + 1)
+                     for x, y in self.entrance_cells)
 
     @property
     def entrance(self) -> Cell:
         """Return the landing used to approach this stair or ramp direction."""
         if self.spiral:
-            return self.landing_cells[0]
+            offset = (self.width - 1) // 2
+            return self.landing_cells[offset * (self.width + 1)]
         return self.landings[1 if self.tile in "EeHhOoRr" else 0]
 
     @property
@@ -463,8 +504,10 @@ class Stairway:
         if self.spiral:
             return self.entrance, self.entrance
         x, y = self.entrance
-        endpoint = self.cells[0] if self.entrance == self.landings[0] else self.cells[-1]
-        return self.entrance, (2 * x - endpoint[0], 2 * y - endpoint[1])
+        dx, dy = (1, 0) if self.horizontal else (0, 1)
+        sign = -1 if self.entrance == self.landings[0] else 1
+        distance = max(1, self.width // 2)
+        return self.entrance, (x + distance * sign * dx, y + distance * sign * dy)
 
     @property
     def walls(self) -> Set[Cell]:
@@ -474,7 +517,7 @@ class Stairway:
         return {
             (x + dx, y + dy) for x, y in self.cells
             for dx in (-1, 0, 1) for dy in (-1, 0, 1)
-        } - set(self.cells) - {self.entrance}
+        } - set(self.cells) - set(self.entrance_cells)
 
     @property
     def clearance(self) -> Set[Cell]:
@@ -485,10 +528,12 @@ class Stairway:
             return {(x, y) for y in range(top, top + self.size)
                     for x in range(left, left + self.size)}
         dx, dy = (1, 0) if self.horizontal else (0, 1)
-        first, last = self.landings
-        return self.walls | set(self.cells + self.landings) | {
-            (first[0] - dx, first[1] - dy), (last[0] + dx, last[1] + dy),
-        }
+        first, last = self.landing_spans
+        distance = max(1, self.width // 2)
+        return self.walls | set(self.cells + first + last) | {
+            (x - step * dx, y - step * dy) for x, y in first for step in range(1, distance + 1)
+        } | {(x + step * dx, y + step * dy)
+             for x, y in last for step in range(1, distance + 1)}
 
 
 def _spiral_runs(grid: DungeonMap) -> Dict[Cell, Stairway]:
@@ -513,7 +558,8 @@ def _spiral_runs(grid: DungeonMap) -> Dict[Cell, Stairway]:
         left, top = min(x for x, y in cells), min(y for x, y in cells)
         size = max(x for x, y in cells) - left + 1
         run = None
-        if size == max(y for x, y in cells) - top + 1 and size in (2, 3, 4):
+        if (size == max(y for x, y in cells) - top + 1
+                and (size == 3 or size >= 2 and size % 2 == 0)):
             for corner in ("NW", "NE", "SW", "SE"):
                 candidate = Stairway.spiral_at(left, top, size, tile, corner)
                 if (set(candidate.cells) == cells
@@ -522,8 +568,8 @@ def _spiral_runs(grid: DungeonMap) -> Dict[Cell, Stairway]:
                     run = candidate
                     break
         if run is None:
-            raise ValueError("row {}, column {}: spiral staircase needs a 2x2, 3x3, "
-                             "or 4x4 footprint and literal-floor corner landing".format(
+            raise ValueError("row {}, column {}: spiral staircase needs a 3x3 or even-sized "
+                             "square footprint and literal-floor corner landing".format(
                                  top + 1, left + 1))
         result.update((cell, run) for cell in cells)
     return result

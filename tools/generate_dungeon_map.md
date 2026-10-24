@@ -60,7 +60,7 @@ brushes are centered on it. Brushes clip at the map edges.
   map, filling vacated cells with stone. This moves the map data, not the
   viewport. A move that would lose any non-stone cell or label is blocked: expand the
   map first. A move is undoable; ordinary scrolling remains separate.
-- **Feet per square:** defaults to 10 and controls physical SVG size, not
+- **Feet per square:** defaults to 5 and controls physical SVG size, not
   pixel zoom. Export uses 50 feet per inch. ASCII contains no scale metadata;
   loading retains the current scale. Use the same scale options in Python
   when comparing printed SVG dimensions.
@@ -195,8 +195,9 @@ at 5 feet per square is 20 feet long, 10 feet wide, and ascends 20 feet eastward
 SVG groups record square length/width, facing, up/down direction, and signed
 elevation in feet. Existing `E/e` and `R/r` maps now explicitly mean north stairs
 and west ramps rather than inferring direction. Spiral
-footprints are square, size 2, 3, or 4, with a literal-space landing in any
-corner. The landing is one square for sizes 2 and 3 and 2x2 for size 4.
+footprints are square, size 3 or any positive even size, with a literal-space landing in any
+corner. The landing is one square for size 3 and half the side length for even
+sizes: 2x2 for size 4, 3x3 for size 6, and so on.
 A 3x3 spiral's center must be literal space or `#`.
 
 Authored maps are validated, not repaired. Generation calls
@@ -251,7 +252,7 @@ and show separate up/down arrow arcs at the same three-quarter radius.
 
 | Rendering option | Default | Meaning |
 | --- | --- | --- |
-| `--feet-per-pixel` / `--feet-per-square` | `10` | Map feet per square |
+| `--feet-per-pixel` / `--feet-per-square` | `5` | Map feet per square |
 | `--feet-per-inch` | `50` | Map feet per printed inch |
 | `--line-width` | `0.01` | Printed stroke width in inches |
 | `--seed` | Converter: `0`; generator: random | Seed for rendering and generation |
@@ -281,8 +282,8 @@ footprints around multiple offset lobes. Room area is sampled around `room_size`
 with varied aspect ratio and dimensions of at least three squares.
 
 Room positions are sampled inside a two-square border. Placement rejects
-reserved inherited-stair geometry and the three-square buffer around placed
-rooms. The room budget is
+reserved inherited-stair geometry and a three-square buffer around placed
+rooms, enlarged to `passage_width + 1` for wider passages. The room budget is
 `(width - 4) * (height - 4) * density`. Placement stops when that budget is
 met or after 80 consecutive unsuccessful room attempts; each sampled shape
 gets up to 24 position attempts. The budget is a target, not an exact area.
@@ -314,6 +315,15 @@ The route targets the exterior opening, and diagonal steps expand into
 connected floor footprints. `meandering` controls resistance-field strength:
 zero gives uniform costs; one gives the strongest variation.
 
+`--passage-width` sets the passage floor width in squares (default 2).
+Routing reserves clearance for the full footprint, including bends, and
+doorways span the passage rather than leaving an open gap alongside a door.
+Exact door counts count whole doorways, not the individual tiles in each span.
+Generated stairs, ramps, and their protected approaches use the same passage width.
+At the default 5 feet per square, passages are 10 feet wide. The default
+120-by-80 map and 140-square room target preserve the physical map dimensions
+and typical room area of the former 60-by-40, 35-square layout at 10 feet per square.
+
 ### Stairs, decoration, and failure handling
 
 Straight stairs and ramps are placed outside room footprints, reserving
@@ -336,8 +346,9 @@ returned. These are runtime checks in the generator.
 
 | Layout option | Default | Range or behavior |
 | --- | --- | --- |
-| `--width`, `--height` | `60`, `40` | Integers at least 7 |
-| `--room-size` | `35` | Finite area target, at least 4 |
+| `--width`, `--height` | `120`, `80` | Integers at least 7 |
+| `--room-size` | `140` | Finite area target, at least 4 |
+| `--passage-width` | `2` | Positive integer fitting inside the stone border |
 | `--density` | `0.3` | Room-budget fraction, greater than 0 and at most `0.4` |
 | `--corridor-length` | `8` | Finite positive soft length limit |
 | `--rough-probability` | `0.4` | Probability a room is rough |
@@ -361,18 +372,20 @@ level has a surface up staircase. Each non-final level gets `--stairs-down`
 passages, or a random 1-3 when unspecified, plus `--ramps-down`.
 Each sampled down staircase becomes a ramp with `--ramp-probability`
 percent chance (0-100, default 0). `--stair-length` defaults to 3 and must fit
-the map and its approaches.
+the map and its approaches. Stairs and ramps are `passage_width` squares wide,
+including their landings and protected approaches.
 
 Descending footprints are inherited at the same coordinates, with matching
 up symbols, on the next level. Base generation gives the final level no new
 down passages. Multi-level `stairs_up` accepts 0 or 1 and `ramps_up` must be
 zero; incoming up links are determined by the level above. Single-level
-explicit stairs/ramps use one-square footprints and default to zero.
+explicit stairs/ramps are one square long, retain the selected passage width,
+and default to zero.
 
 Multi-level depth is `level_number * stair_length * 10` feet; a single level
 has depth zero. Rendering scale does not alter that depth. A level transform
 runs before descending links are inherited, allowing puzzle-adjusted links
-and sufficient lower-level width.
+and sufficient lower-level width and height.
 
 ### Random puzzles and progression gates
 
@@ -388,8 +401,10 @@ level is generated. Placement reserves the first room from reuse to leave
 an accessible source encounter for prerequisites.
 
 Stair puzzles are catalog numbers **3, 8, 13, 15, 26, 30, and 39**. Placement
-first seeks an unused existing room with a complete clear 5x5 floor region.
-It puts a 2x2 down spiral **inside that room**, with clear surrounding floor
+first seeks an unused existing room with enough clear floor for the spiral and
+a surrounding floor ring. Spiral side length is twice `passage_width`: the
+default width 2 produces a 4x4 down spiral with a 2x2 landing; width 1 retains
+the 2x2 spiral. It puts the spiral **inside that room**, with clear surrounding floor
 and a separate label cell. Straight down stairs/ramps are removed when these
 spirals are placed. The staircase leads to the next level, including beyond
 the mapped dungeon when placed on the final level. Its seal is described at
@@ -401,7 +416,7 @@ six-square passage to an isolated 5x5 reward room. A normal `d` tile gates
 the branch. Local puzzles reuse available rooms without an onward gate.
 Definitions that cannot use existing rooms are placed in an added wing off
 an ungated common corridor. A wing can increase width, and stair-puzzle wings
-increase height to at least nine when needed.
+increase height as needed to fit the full-width spiral and its surrounding floor.
 
 Puzzle rooms are accessible without solving another puzzle. Same-level
 reward branches are independent, nonoverlapping, stair-free, and limited by

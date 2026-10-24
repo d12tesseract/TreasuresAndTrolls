@@ -24,16 +24,18 @@ def _add_layout_arguments(parser: argparse.ArgumentParser) -> None:
                         help="SVG destination (default: dungeon.svg)")
     parser.add_argument("--ascii-output", type=Path,
                         help="ASCII destination (default: SVG stem.txt; always includes hidden features)")
-    parser.add_argument("--width", type=int, default=60, help="width in squares, at least 7 (default: 60)")
-    parser.add_argument("--height", type=int, default=40, help="height in squares, at least 7 (default: 40)")
+    parser.add_argument("--width", type=int, default=120, help="width in squares, at least 7 (default: 120)")
+    parser.add_argument("--height", type=int, default=80, help="height in squares, at least 7 (default: 80)")
     parser.add_argument("--levels", type=int, default=1,
                         help="number of linked dungeon levels (default: 1)")
     parser.add_argument("--stair-length", type=int, default=3,
                         help="multi-level stair/ramp length in squares (default: 3)")
     parser.add_argument("--ramp-probability", type=float, default=0,
                         help="percentage chance each multi-level down stairway is a ramp, 0-100 (default: 0)")
-    parser.add_argument("--room-size", type=positive_number, default=35,
-                        help="target average room floor area in squares (default: 35)")
+    parser.add_argument("--room-size", type=positive_number, default=140,
+                        help="target average room floor area in squares (default: 140)")
+    parser.add_argument("--passage-width", type=int, default=2,
+                        help="passage width in squares, at least 1 (default: 2)")
     parser.add_argument("--corridor-length", type=positive_number, default=8,
                         help="soft passage-length limit; exceed only to connect rooms/components (default: 8)")
     parser.add_argument("--meandering", type=probability, default=0.6,

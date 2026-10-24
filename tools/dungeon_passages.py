@@ -44,8 +44,8 @@ def _segment_steps(start: Cell, end: Cell) -> Tuple[Cell, ...]:
     return (end,)
 
 
-def _passage_cells(path: List[Cell]) -> Tuple[Cell, ...]:
-    """Fill both elbows of diagonal steps, leaving legal half-square wall corners."""
+def _passage_cells(path: List[Cell], width: int = 1) -> Tuple[Cell, ...]:
+    """Fill diagonal elbows and sweep a square of the requested width along the path."""
     cells = dict.fromkeys(path[:1])
     for first, last in zip(path, path[1:]):
         for following in _segment_steps(first, last):
@@ -57,7 +57,14 @@ def _passage_cells(path: List[Cell]) -> Tuple[Cell, ...]:
     if path:
         cells.pop(path[-1])
         cells[path[-1]] = None
-    return tuple(cells)
+    if width == 1:
+        return tuple(cells)
+    offset = (width - 1) // 2
+    return tuple(dict.fromkeys(
+        (x + dx, y + dy) for x, y in cells
+        for dx in range(-offset, width - offset)
+        for dy in range(-offset, width - offset)
+    ))
 
 
 def _cavern_resistance(
