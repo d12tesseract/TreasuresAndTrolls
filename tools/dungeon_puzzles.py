@@ -167,37 +167,41 @@ def _wing_connection(level, descending, blocked):
     return rows, stairways, removed, min(candidates, key=lambda path: (len(path), path))
 
 
-def _wing_placements(definitions, depth, old_width, height, descending):
+def _wing_placements(definitions, depth, old_width, height, descending, passage_width):
     """Lay out independent puzzle rooms, reward rooms, and in-room spiral stairs."""
-    half_height = min(2, (height - 5) // 2)
+    radius = max(2, passage_width + 1) if descending else 2
+    half_height = min(radius, (height - 5) // 2)
     y, hall_y = half_height + 1, height - 2
     placements = []
     new_stairs = []
     centers = []
     cursor = old_width
     for definition in definitions:
-        center = (cursor + 4, y)
+        center = (cursor + radius + 2, y)
         has_exit = descending and definition.number in STAIR_PUZZLES
-        reward = (cursor + 15, y) if definition.passage and not has_exit else None
-        gate = (center[0] + 3, y) if reward else None
+        reward = (center[0] + 2 * radius + 7, y) if definition.passage and not has_exit else None
+        gate = (center[0] + radius + 1, y) if reward else None
         centers.append(center)
         end = center[0]
         if reward:
             centers.append(reward)
             end = reward[0]
         if has_exit:
-            stairs = Stairway.spiral_at(center[0] - 1, y - 1, size=2, tile="s")
+            stairs = Stairway.spiral_at(
+                center[0] - passage_width, y - passage_width,
+                size=2 * passage_width, tile="s",
+            )
             new_stairs.append(stairs)
-            center = (center[0] + 2, y)
+            center = (center[0] + radius, y)
         placements.append(PlacedPuzzle(
             definition, center, gate=gate, next_level=depth + 1 if has_exit else None,
             reward_cell=reward,
         ))
-        cursor = end + 4
+        cursor = end + radius + 2
     return placements, new_stairs, centers, cursor, half_height
 
 
-def _wing_corridors(route, placements, old_width, hall_y):
+def _wing_corridors(route, placements, old_width, hall_y, radius):
     """Build the common hall and each chamber's independent access corridor."""
     corridors = {(x, route[0][1]) for x in range(old_width - 2, old_width + 1)}
     corridors.update((old_width, cy) for cy in range(min(route[0][1], hall_y), hall_y + 1))
@@ -205,7 +209,7 @@ def _wing_corridors(route, placements, old_width, hall_y):
     for placement in placements:
         cx, cy = placement.cell
         if placement.next_level:
-            cx -= 2
+            cx -= radius
         corridors.update((cx, yy) for yy in range(cy, hall_y + 1))
         if placement.reward_cell:
             end = placement.reward_cell[0]
@@ -213,7 +217,7 @@ def _wing_corridors(route, placements, old_width, hall_y):
     return corridors
 
 
-def _carve_wing(rows, route, placements, new_stairs, centers, width, half_height):
+def _carve_wing(rows, route, placements, new_stairs, centers, width, half_height, radius):
     """Carve the wing's floor and paint gates and stairs, counting new passages."""
     old_width = len(rows[0])
     for row in rows:
@@ -223,10 +227,10 @@ def _carve_wing(rows, route, placements, new_stairs, centers, width, half_height
         if rows[cy][x] == "#":
             rows[cy][x] = " "
             added += 1
-    corridors = _wing_corridors(route, placements, old_width, len(rows) - 2)
+    corridors = _wing_corridors(route, placements, old_width, len(rows) - 2, radius)
     footprints = []
     for cx, cy in centers:
-        cells = tuple((x, yy) for x in range(cx - 2, cx + 3)
+        cells = tuple((x, yy) for x in range(cx - radius, cx + radius + 1)
                       for yy in range(cy - half_height, cy + half_height + 1))
         footprints.append(cells)
         for x, yy in cells:
@@ -263,15 +267,16 @@ def _attach_puzzle_wing(
     descending = any(definition.number in STAIR_PUZZLES for definition in definitions)
     old_width, height = level.grid.width, level.grid.height
     rows, stairways, removed, route = _wing_connection(level, descending, blocked)
-    # Short maps need extra height for five-square spiral-stair chambers.
-    if descending and height < 9:
-        rows.extend([["#"] * old_width for _ in range(9 - height)])
-        height = 9
+    radius = max(2, options.passage_width + 1) if descending else 2
+    minimum_height = 2 * radius + 5
+    if descending and height < minimum_height:
+        rows.extend([["#"] * old_width for _ in range(minimum_height - height)])
+        height = minimum_height
     placements, new_stairs, centers, width, half_height = _wing_placements(
-        definitions, depth, old_width, height, descending,
+        definitions, depth, old_width, height, descending, options.passage_width,
     )
     footprints, added = _carve_wing(
-        rows, route, placements, new_stairs, centers, width, half_height,
+        rows, route, placements, new_stairs, centers, width, half_height, radius,
     )
     stairways += tuple(new_stairs)
     clear_invalid_diagonals(rows)
@@ -284,8 +289,10 @@ def _attach_puzzle_wing(
                  "map width grew from {} to {} squares.".format(
         old_width, width))
     if descending:
-        notes.append("Removed {} old down stairways/ramps; {} new 2x2 spiral "
-                     "stairway(s) lie inside puzzle chambers.".format(len(removed), len(new_stairs)))
+        notes.append("Removed {} old down stairways/ramps; {} new {}x{} spiral "
+                     "stairway(s) lie inside puzzle chambers.".format(
+                         len(removed), len(new_stairs),
+                         2 * options.passage_width, 2 * options.passage_width))
     return replace(
         level, grid=grid, stairways=stairways,
         room_cells=level.room_cells + tuple(footprints),
@@ -361,8 +368,8 @@ def _carve_reward_branch(rows, room, corridor, gate):
     return tuple(sorted(set(room + corridor) - {gate}))
 
 
-def _room_spiral_candidates(level, occupied):
-    """Find existing five-square chambers with clear floor for an in-room spiral."""
+def _room_spiral_candidates(level, occupied, passage_width):
+    """Find existing chambers with a clear floor ring around a full-width spiral."""
     reserved = set().union(*(passage.clearance for passage in level.stairways))
     candidates = []
     for index, cells in enumerate(level.room_cells):
@@ -370,16 +377,16 @@ def _room_spiral_candidates(level, occupied):
             continue
         room = set(cells)
         for cx, cy in cells:
-            chamber = _buffer({(cx, cy)}, 2)
+            chamber = _buffer({(cx, cy)}, passage_width + 1)
             if (chamber <= room and not chamber & reserved
                     and all(level.grid.tile(*cell) in " ." for cell in chamber)):
                 candidates.append((index, (cx, cy)))
     return candidates
 
 
-def _place_room_spirals(level, definitions, depth, occupied, rng):
+def _place_room_spirals(level, definitions, depth, occupied, rng, passage_width):
     """Keep stair puzzles in existing chambers instead of sending them down a passage."""
-    candidates = _room_spiral_candidates(level, occupied)
+    candidates = _room_spiral_candidates(level, occupied, passage_width)
     placements, stairs, remaining = [], [], []
     for definition in definitions:
         if definition.number not in STAIR_PUZZLES:
@@ -391,8 +398,12 @@ def _place_room_spirals(level, definitions, depth, occupied, rng):
             continue
         index, (cx, cy) = rng.choice(choices)
         occupied.add(index)
-        stairs.append(Stairway.spiral_at(cx - 1, cy - 1, size=2, tile="s"))
-        placements.append(PlacedPuzzle(definition, (cx, cy + 2), next_level=depth + 1))
+        stairs.append(Stairway.spiral_at(
+            cx - passage_width, cy - passage_width, size=2 * passage_width, tile="s",
+        ))
+        placements.append(PlacedPuzzle(
+            definition, (cx, cy + passage_width + 1), next_level=depth + 1,
+        ))
     if not placements:
         return level, (), remaining
     rows = [list(row) for row in level.grid.rows]
@@ -403,8 +414,9 @@ def _place_room_spirals(level, definitions, depth, occupied, rng):
     for passage in stairs:
         passage.paint(rows)
     notes = level.layout_notes + (
-        "Removed {} old down stairways/ramps; {} new 2x2 spiral "
-        "stairway(s) lie inside existing puzzle chambers.".format(len(removed), len(stairs)),
+        "Removed {} old down stairways/ramps; {} new {}x{} spiral "
+        "stairway(s) lie inside existing puzzle chambers.".format(
+            len(removed), len(stairs), 2 * passage_width, 2 * passage_width),
     )
     return replace(
         level, grid=DungeonMap(tuple("".join(row) for row in rows)),
@@ -457,7 +469,9 @@ def _attach_puzzles(
     """Place stair gates in their own rooms and attach only same-level reward branches."""
     rng = random.Random("{}:puzzle-rooms:{}".format(level.seed, depth))
     occupied = {0}  # Keep an accessible encounter available for first-level puzzle items.
-    level, stairs, remaining = _place_room_spirals(level, definitions, depth, occupied, rng)
+    level, stairs, remaining = _place_room_spirals(
+        level, definitions, depth, occupied, rng, options.passage_width,
+    )
     level, other = _attach_existing_puzzles(level, remaining, options, depth, occupied, rng)
     return level, stairs + other
 
@@ -714,9 +728,9 @@ class _PuzzleNoteWriter:
         stairs = next(p for p in self.dungeon.levels[depth - 1].stairways
                       if p.tile == "s" and set(p.cells) <= set(room))
         seal = (
-            "**Linked stair seal:** A circular 2x2 spiral staircase IN THIS ROOM "
+            "**Linked stair seal:** A circular {size}x{size} spiral staircase IN THIS ROOM "
             "at column {}, row {} descends clockwise to Level {}{}. The chamber is "
-            "at least 5x5 squares. The stairway is sealed at both ends until "
+            "at least {chamber}x{chamber} squares. The stairway is sealed at both ends until "
             "{} in {} is solved; other exits do not release it. Its corner "
             "landing remains open floor. There is no separate treasure chamber "
             "or passage gate attached to these stairs.".format(
@@ -724,6 +738,7 @@ class _PuzzleNoteWriter:
                 min(y for x, y in stairs.cells) + 1, puzzle.next_level,
                 " (beyond the generated maps)" if puzzle.next_level > len(self.keys) else "",
                 title, self.location(depth, puzzle.cell),
+                size=stairs.size, chamber=max(5, stairs.size + 2),
             )
         )
         if puzzle.next_level <= len(self.keys):
@@ -825,13 +840,14 @@ def _validate_passage_puzzle(puzzle, layout, contents, gated, depth, keys):
 
 
 def _validate_stair_puzzle(puzzle, layout, downs, depth, keys):
-    """Require an in-room two-square spiral, a five-square chamber, and a linked seal."""
+    """Require an in-room spiral with a clear surrounding floor ring and linked seal."""
     room = next(cells for cells in layout.room_cells if puzzle.cell in cells)
     stairs = [p for p in downs if p.spiral and p.clearance <= set(room)]
     if (puzzle.next_level != depth + 1 or len(stairs) != 1
-            or stairs[0].size != 2
-            or len({x for x, y in room}) < 5 or len({y for x, y in room}) < 5):
-        raise ValueError("a stair puzzle requires a 2x2 spiral inside a 5x5 chamber")
+            or stairs[0].size < 2 or stairs[0].size % 2
+            or len({x for x, y in room}) < max(5, stairs[0].size + 2)
+            or len({y for x, y in room}) < max(5, stairs[0].size + 2)):
+        raise ValueError("a stair puzzle requires an even-sized spiral inside a larger chamber")
     chamber = _buffer(stairs[0].clearance)
     ring = chamber - stairs[0].clearance
     if not chamber <= set(room) or any(layout.grid.tile(*cell) not in " ." for cell in ring):

@@ -82,7 +82,8 @@ class PuzzleGenerationTests(unittest.TestCase):
 
     def test_entire_catalog_is_unique_and_playable_in_key(self):
         dungeon, keys = self.adventure(
-            GenerationOptions(seed=42, width=24, height=16, levels=4),
+            GenerationOptions(seed=42, width=24, height=16, levels=4,
+                              room_size=35, passage_width=1),
             puzzle_probability=1, max_puzzles_per_level=PUZZLE_COUNT,
         )
         puzzles = [p for key in keys for p in key.puzzles]
@@ -174,17 +175,17 @@ class PuzzleGenerationTests(unittest.TestCase):
                 stairs = [p for p in down if p.clearance <= room]
                 self.assertEqual(len(stairs), 1)
                 self.assertTrue(stairs[0].spiral)
-                self.assertEqual(stairs[0].size, 2)
-                self.assertGreaterEqual(len({x for x, y in room}), 5)
-                self.assertGreaterEqual(len({y for x, y in room}), 5)
+                self.assertEqual(stairs[0].size, 2 * options.passage_width)
+                self.assertGreaterEqual(len({x for x, y in room}), stairs[0].size + 2)
+                self.assertGreaterEqual(len({y for x, y in room}), stairs[0].size + 2)
                 self.assertIn(puzzle.cell, flood(level.grid, entrance))
             if depth < 3:
                 upstairs = [p for p in dungeon.levels[depth].stairways if p.tile in "EFGHOPQRS"]
                 self.assertEqual([p.cells for p in down], [p.cells for p in upstairs])
                 self.assertEqual([p.horizontal for p in down], [p.horizontal for p in upstairs])
                 for passage in down + upstairs:
-                    self.assertEqual(passage.size, 2)
-                    self.assertEqual(len(passage.clearance), 4)
+                    self.assertEqual(passage.size, 2 * options.passage_width)
+                    self.assertEqual(len(passage.clearance), (2 * options.passage_width) ** 2)
                 self.assertEqual(len(keys[depth].stair_notes), 2)
                 for puzzle in key.puzzles:
                     self.assertTrue(any("P{:02d}:".format(puzzle.definition.number) in note
@@ -225,7 +226,7 @@ class PuzzleGenerationTests(unittest.TestCase):
             self.assertEqual((dungeon, keys), self.adventure(
                 options, puzzle_probability=1, max_puzzles_per_level=3))
         puzzles = keys[0].puzzles
-        self.assertEqual([p.next_level for p in puzzles], [2, None, None])
+        self.assertCountEqual([p.next_level for p in puzzles], [2, None, None])
         entrance = next(area.cell for area in keys[0].areas if area.cell in dungeon.room_cells[0])
         gated = [p for p in puzzles if p.gate]
         for chosen in gated:
@@ -237,7 +238,7 @@ class PuzzleGenerationTests(unittest.TestCase):
             self.assertIsNotNone(reward.monster)
             self.assertGreaterEqual(treasure_value(reward), (0, 0, Decimal(1000)))
         self.assertEqual(len(keys[1].stair_notes), 1)
-        self.assertIn("2x2 spiral staircase IN THIS ROOM", keys[1].stair_notes[0])
+        self.assertIn("4x4 spiral staircase IN THIS ROOM", keys[1].stair_notes[0])
 
     def test_separate_branches_fit_minimum_height_without_a_corridor_bypass(self):
         options = GenerationOptions(seed=42, width=30, height=7, room_size=4)
@@ -260,7 +261,10 @@ class PuzzleGenerationTests(unittest.TestCase):
             return treasure
 
         with self.catalog_only(2, 6, 11), patch("dungeon_encounters.treasure", side_effect=loot):
-            dungeon, keys = self.adventure(puzzle_probability=1, max_puzzles_per_level=3)
+            dungeon, keys = self.adventure(
+                GenerationOptions(seed=42, width=40, height=30, room_size=35),
+                puzzle_probability=1, max_puzzles_per_level=3,
+            )
         actual = [area.treasure for area in keys[0].areas if area.treasure != ("None.",)]
         self.assertCountEqual(actual, awarded)
         ordered = sorted((treasure_value(area) for area in keys[0].areas), reverse=True)
@@ -451,21 +455,53 @@ class PuzzleGenerationTests(unittest.TestCase):
         self.assertEqual(gate, corridor[0])
         self.assertNotIn(reward, corridor)
 
-    def test_small_map_stair_puzzle_enlarges_chamber_for_two_square_spiral(self):
-        with self.catalog_only(3):
-            dungeon, keys = self.adventure(
-                GenerationOptions(seed=42, width=30, height=7, room_size=4),
-                puzzle_probability=1,
-            )
-        puzzle = keys[0].puzzles[0]
-        room = next(set(cells) for cells in dungeon.room_cells if puzzle.cell in cells)
-        stair = next(p for p in dungeon.stairways if p.tile == "s")
-        self.assertEqual(stair.size, 2)
-        self.assertEqual(len(stair.clearance), 4)
-        self.assertTrue(stair.clearance <= room)
-        self.assertGreaterEqual(len({x for x, y in room}), 5)
-        self.assertGreaterEqual(len({y for x, y in room}), 5)
-        validate_puzzle_dungeon(dungeon, keys)
+    def test_small_map_stair_puzzle_scales_spiral_and_chamber_with_passage_width(self):
+        for width in (1, 2, 3):
+            with self.subTest(width=width), self.catalog_only(3):
+                dungeon, keys = self.adventure(
+                    GenerationOptions(seed=42, width=30, height=7, room_size=4,
+                                      passage_width=width),
+                    puzzle_probability=1,
+                )
+                puzzle = keys[0].puzzles[0]
+                room = next(set(cells) for cells in dungeon.room_cells if puzzle.cell in cells)
+                stair = next(p for p in dungeon.stairways if p.tile == "s")
+                self.assertEqual(stair.size, 2 * width)
+                self.assertEqual(len(stair.landing_cells), width ** 2)
+                self.assertEqual(len(stair.clearance), (2 * width) ** 2)
+                self.assertTrue(stair.clearance <= room)
+                self.assertGreaterEqual(len({x for x, y in room}), max(5, 2 * width + 2))
+                self.assertGreaterEqual(len({y for x, y in room}), max(5, 2 * width + 2))
+                validate_map(dungeon.grid)
+                validate_puzzle_dungeon(dungeon, keys)
+
+    def test_full_width_spiral_reuses_an_existing_clear_chamber(self):
+        rooms = (
+            tuple((x, y) for x in range(2, 5) for y in range(3, 6)),
+            tuple((x, y) for x in range(8, 18) for y in range(2, 12)),
+        )
+        floor = set(rooms[0] + rooms[1]) | {(x, 4) for x in range(5, 8)}
+        grid = parse_ascii("\n".join(
+            "".join(" " if (x, y) in floor else "#" for x in range(20))
+            for y in range(14)
+        ))
+        level = dungeon_map.GeneratedDungeon(
+            grid, 42, tuple(map(len, rooms)), (3,), room_cells=rooms,
+        )
+        definition = next(p for p in self.catalog if p.number == 3)
+        result, placements, remaining = dungeon_puzzles._place_room_spirals(
+            level, [definition], 1, {0}, random.Random(42), 2,
+        )
+        self.assertFalse(remaining)
+        self.assertEqual(result.room_cells, rooms)
+        self.assertEqual((result.grid.width, result.grid.height), (20, 14))
+        stairs = result.stairways[0]
+        self.assertEqual(stairs.size, 4)
+        self.assertEqual(len(stairs.landing_cells), 4)
+        self.assertTrue(stairs.clearance <= set(rooms[1]))
+        self.assertNotIn(placements[0].cell, stairs.clearance)
+        validate_map(result.grid)
+        self.assertTrue(is_connected(result.grid))
 
     def test_malformed_catalog_fails_instead_of_silently_losing_puzzles(self):
         with tempfile.TemporaryDirectory() as directory:

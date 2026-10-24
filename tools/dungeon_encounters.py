@@ -8,7 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Tuple
 
-from dungeon_geometry import Cell
+from dungeon_geometry import Cell, _door_runs
 
 if TYPE_CHECKING:
     from dungeon_map import GeneratedDungeon
@@ -546,11 +546,12 @@ def generate_encounters(dungeon: "GeneratedDungeon", encounter_chance: int = 11,
             areas.append(EncounterArea(number, cell, presence, roll, monster, loot, trap,
                                        tuple(debug), container, chest_trap, chest_locked))
         traps, doors = [], []
+        door_runs = _door_runs(level.grid)
         for y, row in enumerate(level.grid.rows):
             for x, tile in enumerate(row):
                 if tile == "T":
                     traps.append(((x, y), trap_description(rng)))
-                elif tile in "xc":
+                elif tile in "xc" and (x, y) == door_runs[(x, y)][0][0]:
                     doors.append(((x, y), "Secret" if tile == "x" else "Concealed",
                                   20 if tile == "x" else 17))
         levels.append(EncounterLevel(number_areas(areas), tuple(traps), tuple(doors)))

@@ -57,7 +57,7 @@ test("Python accepts the same finished maps and draws matching SVG geometry/symb
             inputs.push({ ascii: grid.toAscii(), options, svg: app.renderSvg(grid, options) });
         }
     }
-    for (const size of [2, 3, 4]) {
+    for (const size of [2, 3, 4, 6]) {
         for (const tile of "SsZ") {
             for (const corner of ["NW", "NE", "SW", "SE"]) {
                 for (const center of [" ", "#"]) {
@@ -318,7 +318,7 @@ test("512x512 maps resize, paint the last square, roundtrip and export at full e
     document.endStroke();
     const ascii = document.grid.toAscii();
     assert.equal(app.parseAscii(ascii).toAscii(), ascii);
-    assert.match(app.renderSvg(document.grid), /viewBox="-0.025 -0.025 512.05 512.05"/);
+    assert.match(app.renderSvg(document.grid), /viewBox="-0.05 -0.05 512.1 512.1"/);
     document.undo();
     assert.equal(document.grid.tile(511, 511), "#");
     document.undo();

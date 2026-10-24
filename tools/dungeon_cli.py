@@ -31,8 +31,8 @@ def nonnegative_integer(value: str) -> int:
 
 def add_render_arguments(parser: argparse.ArgumentParser, seed_default=0) -> None:
     """Register the scale, wall appearance, seed, and player-view options."""
-    parser.add_argument("--feet-per-pixel", "--feet-per-square", type=positive_number, default=10,
-                        help="map feet per ASCII square (default: 10)")
+    parser.add_argument("--feet-per-pixel", "--feet-per-square", type=positive_number, default=5,
+                        help="map feet per ASCII square (default: 5)")
     parser.add_argument("--feet-per-inch", type=positive_number, default=50,
                         help="map feet per printed SVG inch (default: 50)")
     parser.add_argument("--line-width", type=positive_number, default=0.01,

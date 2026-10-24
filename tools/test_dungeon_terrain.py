@@ -12,7 +12,7 @@ from pathlib import Path
 from dungeon_encounters import generate_encounters
 from dungeon_geometry import (
     DOORS, STRAIGHT, STAIR_OPPOSITES, DungeonMap, Stairway, _stair_runs, parse_ascii,
-    reachable_cells, validate_map,
+    reachable_cells, validate_map, _tile_components,
 )
 from dungeon_map import GenerationOptions, generate_dungeon
 from dungeon_render import (
@@ -51,6 +51,53 @@ def boundary_distance(point, edges):
 
 
 class TerrainContractTests(unittest.TestCase):
+    def test_straight_stair_approaches_keep_the_full_width_in_every_direction(self):
+        for width in (1, 2, 3, 4):
+            for tile in STRAIGHT:
+                with self.subTest(width=width, tile=tile):
+                    horizontal = tile in "FfHhPpRr"
+                    cells = tuple((x, y) for x in range(6, 6 + (3 if horizontal else width))
+                                  for y in range(6, 6 + (width if horizontal else 3)))
+                    stairs = Stairway(cells, tile, horizontal)
+                    self.assertEqual(stairs.width, width)
+                    self.assertEqual(len(stairs.entrance_cells), width)
+                    self.assertEqual(len(stairs.approach_cells),
+                                     width * (1 + max(1, width // 2)))
+                    self.assertFalse(stairs.walls.intersection(stairs.approach_cells))
+                    self.assertTrue(set(stairs.approach_cells) <= stairs.clearance)
+                    opposite = stairs.landing_spans[
+                        0 if stairs.entrance == stairs.landings[1] else 1
+                    ]
+                    self.assertTrue(set(opposite) <= stairs.walls)
+
+    def test_generated_stairs_and_ramps_match_passage_width_and_linked_footprints(self):
+        for width, levels, ramp_probability in ((1, 2, 0), (2, 1, 0), (2, 2, 0),
+                                                 (2, 2, 100), (3, 2, 0)):
+            with self.subTest(width=width, levels=levels, ramps=ramp_probability):
+                dungeon = generate_dungeon(GenerationOptions(
+                    width=40, height=30, room_size=35, density=0.2, seed=42,
+                    passage_width=width, levels=levels, stairs_down=1,
+                    ramps_up=1 if levels == 1 else 0, ramp_probability=ramp_probability,
+                ))
+                for level in dungeon.levels:
+                    validate_map(level.grid)
+                    for stairs in level.stairways:
+                        self.assertEqual(stairs.width, width)
+                        axis = 0 if stairs.horizontal else 1
+                        length = max(p[axis] for p in stairs.cells) - min(
+                            p[axis] for p in stairs.cells
+                        ) + 1
+                        self.assertEqual(length, 3 if levels > 1 else 1)
+                        self.assertTrue(all(level.grid.tile(*p) in " ."
+                                            for p in stairs.approach_cells))
+                        self.assertTrue(all(level.grid.tile(*p) == "#"
+                                            for p in stairs.walls))
+                if levels > 1:
+                    down = next(p for p in dungeon.stairways if p.tile in "efghopqr")
+                    up = next(p for p in dungeon.levels[1].stairways
+                              if p.tile == STAIR_OPPOSITES[down.tile])
+                    self.assertEqual(down.cells, up.cells)
+
     def test_annotations_roundtrip_without_changing_terrain_or_blank_rows(self):
         text = "####\r\n# T#\r\n####\r\n\r\n1,1: 12\r\n0,0: Stone: <&> \u00e9\r\n"
         grid = parse_ascii(text)
@@ -429,7 +476,9 @@ class TerrainContractTests(unittest.TestCase):
                 rough_probability=rough,
             ))
             counts = Counter(dungeon.grid.to_ascii())
-            self.assertEqual({tile: counts[tile] for tile in "dxc"}, {"d": 3, "x": 2, "c": 2})
+            self.assertEqual(Counter(
+                tile for tile, _ in _tile_components(dungeon.grid, DOORS)
+            ), {"d": 3, "x": 2, "c": 2})
             self.assertFalse(set("DX") & set(counts))
             validate_map(dungeon.grid)
             key = generate_encounters(dungeon)[0]

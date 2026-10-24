@@ -639,7 +639,7 @@ class _SvgRenderer:
 
 def svg_document(
     grid: DungeonMap,
-    feet_per_pixel: float = 10,
+    feet_per_pixel: float = 5,
     feet_per_inch: float = 50,
     line_width: float = 0.01,
     seed: int = 0,

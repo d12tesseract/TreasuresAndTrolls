@@ -35,10 +35,10 @@ def _probability(name: str, value: float) -> None:
 
 @dataclass(frozen=True)
 class GenerationOptions:
-    width: int = 60
-    height: int = 40
+    width: int = 120
+    height: int = 80
     seed: Optional[int] = None
-    room_size: float = 35
+    room_size: float = 140
     corridor_length: float = 8
     density: float = 0.3
     rough_probability: float = 0.4
@@ -59,6 +59,7 @@ class GenerationOptions:
     levels: int = 1
     stair_length: int = 3
     ramp_probability: float = 0
+    passage_width: int = 2
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,7 @@ class _Corridor:
     room_pair: Optional[Tuple[int, int]] = None
     centerline: Tuple[Cell, ...] = ()
     junctions: Tuple[Cell, ...] = ()
+    width: int = 1
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,11 @@ def _validate_generation(options: GenerationOptions) -> None:
         value = getattr(options, name)
         if isinstance(value, bool) or not isinstance(value, int) or value < 1:
             raise ValueError("{} must be a positive integer".format(name))
+    if (isinstance(options.passage_width, bool)
+            or not isinstance(options.passage_width, int) or options.passage_width < 1):
+        raise ValueError("passage_width must be a positive integer")
+    if options.passage_width > min(options.width, options.height) - 2:
+        raise ValueError("passage_width must fit inside the map's stone border")
     if not math.isfinite(options.ramp_probability) or not 0 <= options.ramp_probability <= 100:
         raise ValueError("ramp_probability must be a percentage between 0 and 100")
     if options.room_size < 4:
@@ -265,7 +272,7 @@ def _place_rooms(options, rng, excluded):
         misses = 0
         rooms.append(room)
         area += len(room.cells)
-        exclusion.update(_buffer(room.cells, 3))
+        exclusion.update(_buffer(room.cells, max(3, options.passage_width + 1)))
     if not rooms:
         raise _PlacementError("not enough space for a room outside stairway clearances")
     return rooms
@@ -339,6 +346,39 @@ def _passage_state(rooms, corridors):
     )
 
 
+def _passage_obstacles(blocked, portals, options):
+    """Reserve enough clearance for the entire passage, except at its portals."""
+    if options.passage_width == 1:
+        return blocked - set(portals)
+    offset = (options.passage_width - 1) // 2
+    shifts = range(-offset, options.passage_width - offset)
+    blocked = blocked - _buffer(set(portals), options.passage_width)
+    obstacles = {
+        (x - dx, y - dy) for x, y in blocked for dx in shifts for dy in shifts
+    }
+    obstacles.update(
+        (x, y) for y in range(options.height) for x in range(options.width)
+        if x - offset < 1 or y - offset < 1
+        or x + options.passage_width - offset >= options.width
+        or y + options.passage_width - offset >= options.height
+    )
+    return obstacles
+
+
+def _new_corridor(centerline, tile, pair, junctions, rooms, corridors, options, forbidden):
+    """Accept a full-width footprint only if all physical contacts remain planned."""
+    footprint = _passage_cells(list(centerline), options.passage_width)
+    if any(not 1 <= x < options.width - 1 or not 1 <= y < options.height - 1
+           or (x, y) in forbidden for x, y in footprint):
+        return None
+    corridor = _Corridor(footprint, tile, pair, tuple(centerline), junctions, options.passage_width)
+    try:
+        _validate_network(rooms, corridors + [corridor])
+    except _PlacementError:
+        return None
+    return corridor
+
+
 def _room_passage(pair, rooms, corridors, options, rng, forbidden, max_length=None, state=None):
     """Route a unique direct link without touching unrelated floor."""
     pair = tuple(sorted(pair))
@@ -365,8 +405,13 @@ def _room_passage(pair, rooms, corridors, options, rng, forbidden, max_length=No
                     and not _buffer({outside}) & other_rooms):
                 shared.append((entrance, outside, next(iter(exits))))
     if shared and (max_length is None or max_length >= 1):
-        centerline = rng.choice(shared)
-        return _Corridor(centerline, tile, pair, centerline)
+        rng.shuffle(shared)
+        for centerline in shared:
+            passage = _new_corridor(
+                centerline, tile, pair, (), rooms, corridors, options, forbidden,
+            )
+            if passage is not None:
+                return passage
     blocked = state.room_clearance | state.corridor_clearance | set(forbidden)
     starts = _openings(first, room_floor, corridor_floor, options, state.corridor_clearance)
     ends = _openings(last, room_floor, corridor_floor, options, state.corridor_clearance)
@@ -384,7 +429,7 @@ def _room_passage(pair, rooms, corridors, options, rng, forbidden, max_length=No
     for (start, entrance), (end, exit_cell) in candidates[:16]:
         if start in forbidden or end in forbidden:
             continue
-        obstacles = blocked - {start, end}
+        obstacles = _passage_obstacles(blocked, (start, end), options)
         route = _route(start, {end}, options.width, options.height, obstacles)
         if route is None or (max_length is not None and len(route) > max_length):
             continue
@@ -402,11 +447,16 @@ def _room_passage(pair, rooms, corridors, options, rng, forbidden, max_length=No
         if max_length is not None and len(footprint) > max_length:
             continue
         centerline = (entrance,) + tuple(route) + (exit_cell,)
-        return _Corridor(_passage_cells(list(centerline)), tile, pair, centerline)
+        passage = _new_corridor(
+            centerline, tile, pair, (), rooms, corridors, options, forbidden,
+        )
+        if passage is not None:
+            return passage
     return None
 
 
-def _attachment_route(start, floor, options, forbidden, targets=None, max_length=None):
+def _attachment_route(start, floor, options, forbidden, targets=None, max_length=None,
+                      passage_width=1, footprint_forbidden=None):
     """Attach to one preselected floor contact, never crossing earlier floor."""
     targets = floor if targets is None else targets
     if start in floor:
@@ -437,6 +487,13 @@ def _attachment_route(start, floor, options, forbidden, targets=None, max_length
     if not landings:
         return None
     obstacles = set(forbidden) | (_buffer(floor) - set(landings) - {start})
+    obstacles = _passage_obstacles(
+        obstacles, (start,) + tuple(landings), replace(options, passage_width=passage_width),
+    )
+    if passage_width > 1 and footprint_forbidden is not None:
+        obstacles.update(_passage_obstacles(
+            footprint_forbidden, (), replace(options, passage_width=passage_width),
+        ))
     route = _route(start, set(landings), options.width, options.height, obstacles)
     if route is None or (max_length is not None and len(route) > max_length):
         return None
@@ -478,6 +535,7 @@ def _room_branch(source, target, rooms, corridors, options, rng, forbidden, max_
         obstacles = set(forbidden) | (room_clearance - {start})
         result = _attachment_route(
             start, floor - rooms[source].cells, options, obstacles, targets, max_length,
+            options.passage_width,
         )
         if result is None:
             continue
@@ -494,12 +552,14 @@ def _room_branch(source, target, rooms, corridors, options, rng, forbidden, max_
             if set(_passage_cells(list(route[:-1]))) & blocked:
                 continue
         centerline = (entrance,) + route
-        footprint = _passage_cells(list(centerline))
-        if max_length is not None and len(set(footprint) - floor) > max_length:
+        footprint = _passage_cells(list(centerline), options.passage_width)
+        if max_length is not None and len(set(footprint) - floor) > max_length * options.passage_width:
             continue
-        return _Corridor(
-            footprint, tile, pair, centerline, (junction,),
+        passage = _new_corridor(
+            centerline, tile, pair, (junction,), rooms, corridors, options, forbidden,
         )
+        if passage is not None:
+            return passage
     return None
 
 
@@ -629,24 +689,39 @@ def _validate_network(rooms, corridors):
         cells = set(corridor.cells)
         outside = cells - room_floor
         endpoints = {corridor.centerline[0], corridor.centerline[-1]}
-        if cells & room_floor != endpoints & room_floor:
+        portals = {
+            cell for endpoint in endpoints if endpoint in room_owners
+            for cell in _passage_cells([endpoint], corridor.width)
+            if cell in rooms[room_owners[endpoint]].cells
+        }
+        if (cells & room_floor) - portals:
             raise _PlacementError("a passage crosses an unrelated room")
         room_contacts = set()
         for first, last in zip(corridor.centerline, corridor.centerline[1:]):
             if first in room_floor and last not in room_floor:
-                room_contacts.update(_buffer({last}) & rooms[room_owners[first]].cells)
+                room_contacts.update(_buffer(set(_passage_cells([last], corridor.width)))
+                                     & rooms[room_owners[first]].cells)
             elif last in room_floor and first not in room_floor:
-                room_contacts.update(_buffer({first}) & rooms[room_owners[last]].cells)
-        if (_cardinal_contacts(outside, room_floor) != endpoints & room_floor
+                room_contacts.update(_buffer(set(_passage_cells([first], corridor.width)))
+                                     & rooms[room_owners[last]].cells)
+        cardinal = _cardinal_contacts(outside, room_floor)
+        if (not (endpoints & room_floor) <= cardinal
+                or cardinal - (room_contacts if corridor.width > 1 else endpoints)
                 or (_buffer(outside) & room_floor) - room_contacts):
             raise _PlacementError("a passage opens an unplanned room entrance")
         added = outside - previous
         contacts = _cardinal_contacts(added, previous)
-        allowed = set(corridor.junctions)
-        if (contacts != allowed - room_floor or (outside & previous) - allowed
+        allowed = {cell for junction in corridor.junctions
+                   for cell in _passage_cells([junction], corridor.width)}
+        contact_zone = allowed if corridor.width == 1 else _buffer(allowed)
+        valid_contacts = (
+            contacts == allowed - room_floor if corridor.width == 1
+            else bool(contacts) == bool(allowed & previous) and contacts <= contact_zone
+        )
+        if (not valid_contacts or (outside & previous) - contact_zone
                 or (_buffer(added) & previous) - _buffer(allowed - room_floor)):
             raise _PlacementError("a passage makes an unplanned corridor contact")
-        if len(contacts) > 1:
+        if corridor.width == 1 and len(contacts) > 1:
             raise _PlacementError("a passage rejoins the existing network more than once")
         previous.update(outside)
     direct = set()
@@ -694,21 +769,39 @@ def _door_candidates(rooms, options, rng, reserved, tile, neighbors):
     """Shuffle valid room entrances and retain nonadjacent door candidates."""
     width, height = options.width, options.height
     room_cells = set().union(*(room.cells for room in rooms))
-    candidates = [
-        (x, y) for y in range(1, height - 1) for x in range(1, width - 1)
-        if tile(x, y) in " ." and (x, y) not in room_cells
-        and (x, y) not in reserved
-        and _door_axis(neighbors(x, y))
-        and any((x + dx, y + dy) in room_cells for dx, dy in DIRECTIONS)
-    ]
+    unavailable = room_cells | reserved
+    candidates = set()
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            if tile(x, y) not in " ." or (x, y) in unavailable:
+                continue
+            for dx, dy in DIRECTIONS:
+                if (x + dx, y + dy) not in room_cells:
+                    continue
+                sx, sy = -dy, dx
+                start = (x, y)
+                while tile(start[0] - sx, start[1] - sy) in " .":
+                    start = (start[0] - sx, start[1] - sy)
+                span = []
+                cell = start
+                while tile(*cell) in " .":
+                    span.append(cell)
+                    cell = (cell[0] + sx, cell[1] + sy)
+                if (len(span) <= options.passage_width
+                        and tile(start[0] - sx, start[1] - sy) == "#" and tile(*cell) == "#"
+                        and all(point not in room_cells and point not in reserved
+                                and (point[0] + dx, point[1] + dy) in room_cells
+                                and tile(point[0] - dx, point[1] - dy) in " ."
+                                for point in span)):
+                    candidates.add(tuple(sorted(span)))
+    candidates = sorted(candidates)
     rng.shuffle(candidates)
     available = []
     blocked = set()
-    for cell in candidates:
-        if cell not in blocked:
-            available.append(cell)
-            blocked.add(cell)
-            blocked.update((cell[0] + dx, cell[1] + dy) for dx, dy in DIRECTIONS)
+    for span in candidates:
+        if not blocked.intersection(span):
+            available.append(span)
+            blocked.update(_buffer(set(span)))
     return available
 
 
@@ -728,16 +821,17 @@ def _decorate_doors(rows, available, options, rng):
         )
     for symbol, count, _ in specifications:
         for _ in range(count or 0):
-            x, y = available.pop()
-            rows[y][x] = symbol
-    for x, y in available:
+            for x, y in available.pop():
+                rows[y][x] = symbol
+    for span in available:
         choice = rng.random()
         cumulative = 0
         for symbol, count, probability in specifications:
             if count is None:
                 cumulative += probability
                 if choice < cumulative:
-                    rows[y][x] = symbol
+                    for x, y in span:
+                        rows[y][x] = symbol
                     break
 
 
@@ -908,8 +1002,8 @@ def _stair_walls(passage):
     """Keep inherited spirals isolated except at their corner landing."""
     if not passage.spiral:
         return passage.walls
-    x, y = passage.entrance
-    approaches = {(x + dx, y + dy) for dx, dy in DIRECTIONS} - passage.clearance
+    approaches = {(x + dx, y + dy) for x, y in passage.entrance_cells
+                  for dx, dy in DIRECTIONS} - passage.clearance
     return _buffer(passage.clearance) - passage.clearance - approaches
 
 
@@ -919,14 +1013,19 @@ def _stairway_candidates(symbol, length, blocked, room_cells, floor, distances, 
     unavailable = blocked | room_cells
     for horizontal in (True, False):
         dx, dy = (1, 0) if horizontal else (0, 1)
-        template = Stairway(tuple((step * dx, step * dy) for step in range(length)),
+        template = Stairway(tuple(sorted(
+            (step * dx + across * dy, step * dy + across * dx)
+            for step in range(length) for across in range(options.passage_width)
+        )),
                             _directed_stair_tile(symbol, horizontal), horizontal)
         clearance = template.clearance
         solid = set(template.cells) | template.walls
         ax, ay = template.approach[-1]
         # Leave side walls and two-square approaches inside the stone border.
-        for y in range(2 + dy, options.height - 2 - length * dy):
-            for x in range(2 + dx, options.width - 2 - length * dx):
+        for y in range(1 - min(cy for cx, cy in clearance),
+                       options.height - 1 - max(cy for cx, cy in clearance)):
+            for x in range(1 - min(cx for cx, cy in clearance),
+                           options.width - 1 - max(cx for cx, cy in clearance)):
                 if any((x + ox, y + oy) in unavailable for ox, oy in clearance):
                     continue
                 collisions = sum((x + ox, y + oy) in floor for ox, oy in solid)
@@ -945,11 +1044,13 @@ def _directed_stair_tile(symbol, horizontal):
 
 def _choose_stairway(candidates, symbol, length, passages, floor, options):
     """Choose the first ranked footprint whose entrance can reach existing floor."""
-    forbidden = set().union(*(_stair_walls(p) | set(p.cells + p.approach) for p in passages))
+    forbidden = set().union(*(_stair_walls(p) | set(p.cells + p.approach_cells) for p in passages))
     for _, (x, y, horizontal) in candidates:
         dx, dy = (1, 0) if horizontal else (0, 1)
-        candidate = Stairway(tuple((x + step * dx, y + step * dy)
-                                  for step in range(length)),
+        candidate = Stairway(tuple(sorted(
+            (x + step * dx + across * dy, y + step * dy + across * dx)
+            for step in range(length) for across in range(options.passage_width)
+        )),
                              _directed_stair_tile(symbol, horizontal), horizontal)
         exclusion = forbidden | candidate.walls | set(candidate.cells)
         if _stair_access(candidate, floor - exclusion, options, exclusion) is not None:
@@ -964,7 +1065,7 @@ def _reserve_stairways(rows, options, rng, incoming, down_count, rooms):
     room_cells = set().union(*(room.cells for room in rooms))
     floor, distances = _floor_distances(rows, options)
     for passage in passages:
-        if room_cells & (set(passage.cells + passage.approach) | _stair_walls(passage)):
+        if room_cells & (set(passage.cells + passage.approach_cells) | _stair_walls(passage)):
             raise _PlacementError("an inherited stairway overlaps a room")
         blocked.update(passage.clearance | _stair_walls(passage))
     symbols, length = _stairway_symbols(options, rng, incoming, down_count)
@@ -979,31 +1080,47 @@ def _reserve_stairways(rows, options, rng, incoming, down_count, rooms):
 
 
 def _stair_access(passage, floor, options, forbidden):
-    """Connect a protected two-cell stair approach to one existing floor contact."""
+    """Connect a full-width protected stair approach to one existing floor junction."""
     entrance, start = passage.approach
-    if set(passage.approach) & forbidden:
+    if set(passage.approach_cells) & forbidden:
         return None
     if entrance in floor:
         if start in floor:
-            return (entrance, start), start
-        access, junction = (start, entrance), entrance
+            access, junction = (entrance, start), start
+        else:
+            access, junction = (start, entrance), entrance
     else:
         if entrance != start and _cardinal_contacts({entrance}, floor) - {start}:
             return None
         prefix = {entrance} | {
             (entrance[0] + dx, entrance[1] + dy) for dx, dy in DIRECTIONS
         }
-        obstacles = forbidden | (prefix - {start} if entrance != start else set())
-        result = _attachment_route(start, floor, options, obstacles)
+        obstacles = forbidden | (
+            prefix - {start} if entrance != start and passage.width == 1 else set()
+        )
+        result = _attachment_route(
+            start, floor, options, obstacles, passage_width=passage.width,
+            footprint_forbidden=forbidden,
+        )
         if result is None:
             return None
         route, junction = result
         access = route if entrance == start else (entrance,) + route
-    added = set(access) - floor
-    if (_cardinal_contacts(added, floor) != {junction}
-            or (_buffer(added) & floor) - _buffer({junction})):
+    footprint = set(_passage_cells(list(access), passage.width)) - set(passage.cells)
+    footprint.update(passage.approach_cells)
+    if (footprint & forbidden or any(
+        not 1 <= x < options.width - 1 or not 1 <= y < options.height - 1
+        for x, y in footprint
+    )):
         return None
-    return access, junction
+    added = footprint - floor
+    junction_cells = set(_passage_cells([junction], passage.width))
+    contacts = _cardinal_contacts(added, floor)
+    if (added and (not contacts or contacts - _buffer(junction_cells)
+                   or (_buffer(added) & floor) - _buffer(junction_cells))):
+        return None
+    return _Corridor(tuple(sorted(footprint)), " ", centerline=tuple(access),
+                     junctions=(junction,), width=passage.width)
 
 
 def _connect_stairways(rows, options, passages, rooms, corridors, forbidden, rng):
@@ -1016,7 +1133,7 @@ def _connect_stairways(rows, options, passages, rooms, corridors, forbidden, rng
     if generated and removed:
         corridors[:] = _connect_rooms(
             rooms, options, rng,
-            forbidden | {cell for passage in passages for cell in passage.approach},
+            forbidden | {cell for passage in passages for cell in passage.approach_cells},
             existing=corridors,
         )
     _rebuild_layout(rows, rooms, corridors)
@@ -1027,16 +1144,15 @@ def _connect_stairways(rows, options, passages, rooms, corridors, forbidden, rng
     for passage in passages:
         blocked = forbidden | {
             cell for other in passages if other is not passage
-            for cell in other.approach if cell not in floor
+            for cell in other.approach_cells if cell not in floor
         }
         result = _stair_access(passage, floor, options, blocked)
         if result is None:
             raise _PlacementError("could not route a collision-free entry corridor to a stairway")
-        access, junction = result
-        if set(access) <= floor:
+        if set(result.cells) <= floor:
             continue
-        corridors.append(_Corridor(access, " ", centerline=access, junctions=(junction,)))
-        for x, y in access:
+        corridors.append(result)
+        for x, y in result.cells:
             if rows[y][x] == "#":
                 rows[y][x] = " "
             floor.add((x, y))
@@ -1059,7 +1175,7 @@ def _place_stairways(
     """Place stairways, reconnect their approaches, and report layout repairs."""
     passages = _reserve_stairways(rows, options, rng, incoming, down_count, rooms)
     footprints = {cell for passage in passages for cell in passage.cells}
-    approaches = {cell for passage in passages for cell in passage.approach}
+    approaches = {cell for passage in passages for cell in passage.approach_cells}
     walls = set().union(*(_stair_walls(passage) for passage in passages))
     if walls & (footprints | approaches):
         raise _PlacementError("stairway walls overlap another passage or its entrance")
@@ -1141,6 +1257,8 @@ def generate_dungeon(
         if incoming:
             level_options = replace(level_options, width=max(
                 options.width, max(x for passage in incoming for x, y in passage.clearance) + 2,
+            ), height=max(
+                options.height, max(y for passage in incoming for x, y in passage.clearance) + 2,
             ))
         level = _generate_level(
             level_options, rng, seed, incoming, count,
