@@ -12,7 +12,7 @@ from typing import Callable, List, Optional, Sequence, Set, Tuple
 
 from dungeon_geometry import (
     Cell, DIAGONALS, DIRECTIONS, DOORS, DungeonMap, FEATURES, FLOORS, Point,
-    Stairway, TILES, _diagonal_sides, _door_axis, _finite_positive, _neighbors,
+    STAIR_OPPOSITES, Stairway, TILES, _diagonal_sides, _door_axis, _finite_positive, _neighbors,
     _open_sides, _partition, _rough_cells, _route, _stair_runs,
     clear_invalid_diagonals, is_connected, parse_ascii, validate_map,
 )
@@ -920,7 +920,7 @@ def _stairway_candidates(symbol, length, blocked, room_cells, floor, distances, 
     for horizontal in (True, False):
         dx, dy = (1, 0) if horizontal else (0, 1)
         template = Stairway(tuple((step * dx, step * dy) for step in range(length)),
-                            symbol, horizontal)
+                            _directed_stair_tile(symbol, horizontal), horizontal)
         clearance = template.clearance
         solid = set(template.cells) | template.walls
         ax, ay = template.approach[-1]
@@ -937,13 +937,20 @@ def _stairway_candidates(symbol, length, blocked, room_cells, floor, distances, 
     return candidates
 
 
+def _directed_stair_tile(symbol, horizontal):
+    """Preserve generated approaches using the explicit compass-direction labels."""
+    return ({"E": "H", "e": "f", "R": "R", "r": "p"} if horizontal else
+            {"E": "G", "e": "e", "R": "Q", "r": "o"})[symbol]
+
+
 def _choose_stairway(candidates, symbol, length, passages, floor, options):
     """Choose the first ranked footprint whose entrance can reach existing floor."""
     forbidden = set().union(*(_stair_walls(p) | set(p.cells + p.approach) for p in passages))
     for _, (x, y, horizontal) in candidates:
         dx, dy = (1, 0) if horizontal else (0, 1)
         candidate = Stairway(tuple((x + step * dx, y + step * dy)
-                                  for step in range(length)), symbol, horizontal)
+                                  for step in range(length)),
+                             _directed_stair_tile(symbol, horizontal), horizontal)
         exclusion = forbidden | candidate.walls | set(candidate.cells)
         if _stair_access(candidate, floor - exclusion, options, exclusion) is not None:
             return candidate
@@ -1143,7 +1150,7 @@ def generate_dungeon(
             level = level_transform(level, index + 1)
         levels.append(level)
         incoming = tuple(
-            replace(passage, tile={"e": "E", "r": "R", "s": "S", "Z": "Z"}[passage.tile])
-            for passage in level.stairways if passage.tile in "ersZ"
+            replace(passage, tile=STAIR_OPPOSITES[passage.tile])
+            for passage in level.stairways if passage.tile in "efghopqrsZ"
         )
     return replace(levels[0], additional_levels=tuple(levels[1:]))

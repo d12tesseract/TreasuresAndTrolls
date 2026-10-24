@@ -163,8 +163,8 @@ class PuzzleGenerationTests(unittest.TestCase):
         for depth, (level, key) in enumerate(zip(dungeon.levels, keys), 1):
             validate_map(level.grid)
             self.assertTrue(is_connected(level.grid))
-            entrance = next(p.entrance for p in level.stairways if p.tile in "ERS")
-            down = [p for p in level.stairways if p.tile in "ers"]
+            entrance = next(p.entrance for p in level.stairways if p.tile in "EFGHOPQRS")
+            down = [p for p in level.stairways if p.tile in "efghopqrs"]
             self.assertEqual(len(down), 2)
             for puzzle in key.puzzles:
                 self.assertIsNone(puzzle.gate)
@@ -179,7 +179,7 @@ class PuzzleGenerationTests(unittest.TestCase):
                 self.assertGreaterEqual(len({y for x, y in room}), 5)
                 self.assertIn(puzzle.cell, flood(level.grid, entrance))
             if depth < 3:
-                upstairs = [p for p in dungeon.levels[depth].stairways if p.tile in "ERS"]
+                upstairs = [p for p in dungeon.levels[depth].stairways if p.tile in "EFGHOPQRS"]
                 self.assertEqual([p.cells for p in down], [p.cells for p in upstairs])
                 self.assertEqual([p.horizontal for p in down], [p.horizontal for p in upstairs])
                 for passage in down + upstairs:

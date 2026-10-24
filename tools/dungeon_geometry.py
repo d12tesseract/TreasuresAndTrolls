@@ -8,11 +8,13 @@ from types import MappingProxyType
 from typing import AbstractSet, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 
-TILES = frozenset("#~ .\\/|_LdxcbCTEeRrlmnSsZ")
-FLOORS = frozenset(" .|_LdxcbCTEeRrlmnSsZ")
+STRAIGHT = frozenset("EeFfGgHhOoPpQqRr")
+STAIR_OPPOSITES = dict(zip("EFGHOPQRefghopqrSsZ", "ghefqropGHEFQROPsSZ"))
+TILES = frozenset("#~ .\\/|_LdxcbCTlmnSsZ") | STRAIGHT
+FLOORS = frozenset(" .|_LdxcbCTlmnSsZ") | STRAIGHT
 DOORS = frozenset("dxc")
 DIAGONALS = frozenset("\\/")
-FEATURES = frozenset("dxcbCTEeRrlmnSsZ")
+FEATURES = frozenset("dxcbCTlmnSsZ") | STRAIGHT
 DIRECTIONS = ((0, -1), (1, 0), (0, 1), (-1, 0))  # N, E, S, W
 Point = Tuple[float, float]
 Cell = Tuple[int, int]
@@ -115,39 +117,74 @@ def _diagonal_sides(tile: str, neighbors: Sequence[str]) -> Set[int]:
     pairs = ((0, 1), (2, 3)) if tile == "\\" else ((0, 3), (1, 2))
     opened = set()
     for pair in pairs:
-        if all(neighbors[side] in " .~" for side in pair):
+        if all(neighbors[side] in " .~|_L" for side in pair):
             opened.update(pair)
         elif not all(neighbors[side] == "#" for side in pair):
             return set()
     return opened
 
 
-def _paired_doors(grid: DungeonMap) -> Dict[Cell, Tuple[Cell, Cell]]:
-    """Index isolated b pairs representing one boundary-centered door."""
+def _tile_components(grid: DungeonMap, letters):
+    """Yield cardinally connected groups of identical feature tiles."""
     remaining = {(x, y) for y, row in enumerate(grid.rows)
-                 for x, tile in enumerate(row) if tile == "b"}
+                 for x, tile in enumerate(row) if tile in letters}
+    for start in sorted(remaining):
+        if start not in remaining:
+            continue
+        remaining.remove(start)
+        cells, pending = {start}, [start]
+        tile = grid.tile(*start)
+        while pending:
+            x, y = pending.pop()
+            for dx, dy in DIRECTIONS:
+                other = (x + dx, y + dy)
+                if other in remaining and grid.tile(*other) == tile:
+                    remaining.remove(other)
+                    cells.add(other)
+                    pending.append(other)
+        yield tile, tuple(sorted(cells))
+
+
+def _door_runs(grid: DungeonMap):
+    """Index straight door lines, retaining the wall axis for each cell."""
     result = {}
-    for cell in sorted(remaining):
-        adjacent = [(cell[0] + dx, cell[1] + dy) for dx, dy in DIRECTIONS
-                    if grid.tile(cell[0] + dx, cell[1] + dy) == "b"]
-        if len(adjacent) != 1:
-            raise ValueError("row {}, column {}: b door requires exactly one adjacent b".format(
-                cell[1] + 1, cell[0] + 1))
-        other = adjacent[0]
-        if sum(grid.tile(other[0] + dx, other[1] + dy) == "b"
-               for dx, dy in DIRECTIONS) != 1:
-            raise ValueError("b door requires an isolated horizontal or vertical pair")
-        result[cell] = tuple(sorted((cell, other)))
+    for tile, cells in _tile_components(grid, DOORS | {"b"}):
+        horizontal = len({y for x, y in cells}) == 1
+        vertical = len({x for x, y in cells}) == 1
+        axis = None
+        if len(cells) == 1 and tile != "b":
+            neighbors = _neighbors(grid, *cells[0])
+            axis = _door_axis(neighbors) or (
+                "EW" if (neighbors[1] in FLOORS or neighbors[3] in FLOORS)
+                and neighbors[0] not in FLOORS and neighbors[2] not in FLOORS else "NS"
+            )
+        elif len(cells) > 1 and (horizontal or vertical):
+            axis = "NS" if horizontal else "EW"
+        result.update((cell, (cells, axis)) for cell in cells)
+    return result
+
+
+def _paired_doors(grid: DungeonMap) -> Dict[Cell, Tuple[Cell, ...]]:
+    """Index centered door lines, rejecting incomplete or bent footprints."""
+    result = {}
+    for cell, (cells, axis) in _door_runs(grid).items():
+        if grid.tile(*cell) != "b":
+            continue
+        if len(cells) == 1:
+            raise ValueError("b door requires at least one adjacent b cell")
+        if axis is None:
+            raise ValueError("b door requires a straight horizontal or vertical line")
+        result[cell] = cells
     return result
 
 
 def _door_axis(neighbors: Sequence[str]) -> Optional[str]:
     """Identify a door's opposing floor neighbors and perpendicular stone."""
-    if neighbors[0] in " .TC" and neighbors[2] in " .TC" and (
+    if neighbors[0] in FLOORS and neighbors[2] in FLOORS and (
         neighbors[1] == neighbors[3] == "#"
     ):
         return "NS"
-    if neighbors[1] in " .TC" and neighbors[3] in " .TC" and (
+    if neighbors[1] in FLOORS and neighbors[3] in FLOORS and (
         neighbors[0] == neighbors[2] == "#"
     ):
         return "EW"
@@ -180,6 +217,7 @@ def validate_map(grid: DungeonMap) -> None:
     """Reject malformed diagonals, doors, partitions, and spiral footprints."""
     _paired_doors(grid)
     _spiral_runs(grid)
+    doors = _door_runs(grid)
     for y, row in enumerate(grid.rows):
         for x, tile in enumerate(row):
             if tile not in "\\/dxc|_Llmn":
@@ -191,15 +229,10 @@ def validate_map(grid: DungeonMap) -> None:
                     "diagonal needs paired space/period/void neighbors or paired "
                     "stone neighbors on each side, with at least one open side"
                 )
-            elif tile in DOORS and _door_axis(neighbors) is None:
+            elif tile in DOORS and doors[(x, y)][1] is None:
                 problem = (
-                    "door needs opposite floor/trap/chest neighbors and "
-                    "'#' on both perpendicular sides"
+                    "door tiles must form a straight horizontal or vertical line"
                 )
-            elif tile in "|L" and neighbors[3] != " ":
-                problem = "left partition requires a literal space to its left"
-            elif tile in "_L" and neighbors[2] != " ":
-                problem = "bottom partition requires a literal space below it"
             elif tile in "ln" and neighbors[3] != " ":
                 problem = "left door requires a literal space to its left"
             elif tile in "mn" and neighbors[2] != " ":
@@ -354,7 +387,7 @@ def _rough_cells(grid: DungeonMap) -> Set[Cell]:
 
 @dataclass(frozen=True)
 class Stairway:
-    """A straight footprint, ordered west-to-east or north-to-south."""
+    """A directional footprint with cells ordered by column, then row."""
 
     cells: Tuple[Cell, ...]
     tile: str
@@ -414,8 +447,7 @@ class Stairway:
         """Return the landing used to approach this stair or ramp direction."""
         if self.spiral:
             return self.landing_cells[0]
-        index = 0 if self.tile in "er" else 1
-        return self.landings[index if self.horizontal else 1 - index]
+        return self.landings[1 if self.tile in "EeHhOoRr" else 0]
 
     @property
     def closed_end(self) -> Cell:
@@ -498,30 +530,9 @@ def _spiral_runs(grid: DungeonMap) -> Dict[Cell, Stairway]:
 
 
 def _stair_runs(grid: DungeonMap) -> Dict[Cell, Stairway]:
-    """Recognize straight ASCII runs; ambiguous clusters retain per-tile symbols."""
-    remaining = {
-        (x, y) for y, row in enumerate(grid.rows)
-        for x, tile in enumerate(row) if tile in "EeRr"
-    }
+    """Index whole directional stair/ramp footprints, including wide groups."""
     result = _spiral_runs(grid)
-    for start in sorted(remaining):
-        if start not in remaining:
-            continue
-        remaining.remove(start)
-        cells = {start}
-        pending = [start]
-        tile = grid.tile(*start)
-        while pending:
-            x, y = pending.pop()
-            for dx, dy in DIRECTIONS:
-                neighbor = (x + dx, y + dy)
-                if neighbor in remaining and grid.tile(*neighbor) == tile:
-                    remaining.remove(neighbor)
-                    cells.add(neighbor)
-                    pending.append(neighbor)
-        horizontal = len({y for x, y in cells}) == 1
-        vertical = len({x for x, y in cells}) == 1
-        if len(cells) > 1 and (horizontal or vertical):
-            run = Stairway(tuple(sorted(cells)), tile, horizontal)
-            result.update((cell, run) for cell in cells)
+    for tile, cells in _tile_components(grid, STRAIGHT):
+        run = Stairway(cells, tile, tile in "FfHhPpRr")
+        result.update((cell, run) for cell in cells)
     return result

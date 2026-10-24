@@ -1,7 +1,6 @@
 """Editable SVG walls and feature symbols for ASCII dungeon maps."""
 
 import math
-import random
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
@@ -9,8 +8,8 @@ from typing import Dict, List, Optional, Sequence
 
 from dungeon_geometry import (
     Cell, DIAGONALS, DIRECTIONS, DOORS, DungeonMap, FEATURES, FLOORS, Point,
-    _door_axis, _finite_positive, _neighbors, _open_sides, _partition,
-    _paired_doors, _rough_cells, _spiral_runs, _stair_runs, validate_map,
+    _finite_positive, _open_sides,
+    _door_runs, _paired_doors, _rough_cells, _spiral_runs, _stair_runs, validate_map,
 )
 
 
@@ -90,15 +89,15 @@ def _render_dimensions(
         ("line_width", line_width),
     ):
         _finite_positive(name, value)
-    if not math.isfinite(roughness) or not 0 <= roughness <= 0.2:
-        raise ValueError("roughness must be between zero and 0.2 map squares")
+    if not math.isfinite(roughness) or not 0 <= roughness <= 0.5:
+        raise ValueError("roughness must be between zero and 0.5 map squares")
     if not isinstance(rough_segments, int) or not 2 <= rough_segments <= 32:
         raise ValueError("rough_segments must be an integer between 2 and 32")
     if corner_radius is not None and (
         not math.isfinite(corner_radius) or not 0 <= corner_radius <= 0.5
     ):
         raise ValueError("corner_radius must be between zero and 0.5 map squares")
-    radius = min(0.35, roughness * 3) if corner_radius is None else corner_radius
+    radius = roughness if corner_radius is None else corner_radius
     inches_per_square = feet_per_pixel / feet_per_inch
     _finite_positive("map scale", inches_per_square)
     stroke = line_width / inches_per_square
@@ -115,10 +114,153 @@ def _format(value):
     return format(value, ".12g")
 
 
+def _rough_wall_chains(edges):
+    """Trace rough edges once, stopping at smooth joins or topology junctions."""
+    incident = defaultdict(list)
+    remaining = set()
+    for index, edge in enumerate(edges):
+        incident[edge.start].append(index)
+        incident[edge.end].append(index)
+        if edge.rough:
+            remaining.add(index)
+
+    def terminal(point):
+        touching = incident[point]
+        return len(touching) != 2 or any(not edges[index].rough for index in touching)
+
+    def trace(index, start):
+        vertices = [start]
+        while index in remaining:
+            remaining.remove(index)
+            edge = edges[index]
+            end = edge.end if edge.start == vertices[-1] else edge.start
+            vertices.append(end)
+            if end == start or terminal(end):
+                break
+            index = next(other for other in incident[end] if other != index)
+        return vertices
+
+    chains = []
+    for index, edge in enumerate(edges):
+        if index not in remaining:
+            continue
+        for point in (edge.start, edge.end):
+            if terminal(point):
+                chains.append(trace(index, point))
+                break
+    for index in sorted(remaining):
+        if index in remaining:
+            chains.append(trace(index, edges[index].start))
+    return chains
+
+
+def _bounded_walk(distances, limits, closed, random):
+    """Choose offsets with bounded lateral slope and a reachable exact endpoint."""
+    total = distances[-1]
+    cap = min(limit + min(distance, total - distance)
+              for distance, limit in zip(distances, limits))
+    target = (2 * random() - 1) * cap if closed else 0
+    lower, upper = [0.0] * len(limits), [0.0] * len(limits)
+    lower[-1] = upper[-1] = target
+    for index in range(len(limits) - 2, -1, -1):
+        step = distances[index + 1] - distances[index]
+        lower[index] = max(-limits[index], lower[index + 1] - step)
+        upper[index] = min(limits[index], upper[index + 1] + step)
+    offsets = [target]
+    for index in range(1, len(limits)):
+        step = distances[index] - distances[index - 1]
+        low = max(lower[index], offsets[-1] - step)
+        high = min(upper[index], offsets[-1] + step)
+        offsets.append(low + (high - low) * random())
+    return offsets
+
+
+def _wall_walk(vertices, width, height, amplitude, segments, radius, random):
+    """Sample edges and corner bisectors, carrying one walk across square borders."""
+    closed = vertices[0] == vertices[-1]
+    count = len(vertices) - 1
+    tangents, normals, lengths = [], [], []
+    for start, end in zip(vertices, vertices[1:]):
+        length = math.hypot(end[0] - start[0], end[1] - start[1])
+        tangent = ((end[0] - start[0]) / length, (end[1] - start[1]) / length)
+        tangents.append(tangent)
+        normals.append((-tangent[1], tangent[0]))
+        lengths.append(length)
+    samples, distances, limits, corners = [], [], [], []
+    distance = 0
+    for index in range(count + 1):
+        incoming = (index - 1) % count
+        outgoing = index % count
+        corner = closed or 0 < index < count
+        turn = (tangents[incoming][0] * tangents[outgoing][1] -
+                tangents[incoming][1] * tangents[outgoing][0]) if corner else 0
+        normal = normals[outgoing if index < count else incoming]
+        if abs(turn) > 1e-12:
+            nx = normals[incoming][0] + normals[outgoing][0]
+            ny = normals[incoming][1] + normals[outgoing][1]
+            extent = math.hypot(nx, ny)
+            normal = (nx / extent, ny / extent)
+        samples.append((vertices[index], normal))
+        distances.append(distance)
+        limits.append(min(amplitude, radius) if abs(turn) > 1e-12 else amplitude)
+        if abs(turn) > 1e-12:
+            corners.append((len(samples) - 1, turn))
+        if index == count:
+            break
+        for step in range(1, segments):
+            t = step / segments
+            samples.append(((vertices[index][0] + tangents[index][0] * lengths[index] * t,
+                             vertices[index][1] + tangents[index][1] * lengths[index] * t),
+                            normals[index]))
+            distances.append(distance + lengths[index] * t)
+            limits.append(amplitude)
+        distance += lengths[index]
+    if not closed:
+        limits[0] = limits[-1] = 0
+        if len(limits) > 3:
+            limits[1] = limits[-2] = 0
+    offsets = _bounded_walk(distances, limits, closed, random)
+    skipped = set()
+    unique = len(samples) - 1 if closed else len(samples)
+    for index, turn in corners:
+        if turn * offsets[index] > 0:
+            for neighbor in (index - 1, index + 1):
+                if closed:
+                    skipped.add(neighbor % unique)
+                elif 0 < neighbor < len(samples) - 1:
+                    skipped.add(neighbor)
+    points = []
+    for index, ((point, normal), offset) in enumerate(zip(samples, offsets)):
+        if index in skipped or closed and index == len(samples) - 1:
+            continue
+        points.append((min(width, max(0, point[0] + normal[0] * offset)),
+                       min(height, max(0, point[1] + normal[1] * offset))))
+    return points
+
+
+def _wall_curve(points, closed):
+    """Convert a corner-cutting quadratic B-spline to C1-continuous cubic SVG."""
+    def middle(first, last):
+        return ((first[0] + last[0]) / 2, (first[1] + last[1]) / 2)
+
+    start = middle(points[-1], points[0]) if closed else points[0]
+    commands = ["M {} {}".format(*map(_format, start))]
+    for index, point in enumerate(points):
+        end = (middle(point, points[(index + 1) % len(points)])
+               if closed or index + 1 < len(points) else point)
+        first = tuple(start[axis] + (point[axis] - start[axis]) * 2 / 3 for axis in (0, 1))
+        second = tuple(end[axis] + (point[axis] - end[axis]) * 2 / 3 for axis in (0, 1))
+        commands.append("C " + " ".join(map(_format, first + second + end)))
+        start = end
+    if closed:
+        commands.append("Z")
+    return " ".join(commands)
+
+
 class _SvgRenderer:
     """Keep drawing primitives, wall state, and feature output on one SVG canvas."""
 
-    def __init__(self, grid, dimensions, roughness, rough_segments, seed):
+    def __init__(self, grid, dimensions, roughness, rough_segments, seed, feet_per_square):
         """Create ordered wall and feature groups with validated drawing settings."""
         stroke, physical_width, physical_height, radius = dimensions
         self.grid = grid
@@ -127,6 +269,7 @@ class _SvgRenderer:
         self.roughness = roughness
         self.rough_segments = rough_segments
         self.seed = seed
+        self.feet_per_square = feet_per_square
         self.root = ET.Element("svg", {
             "xmlns": SVG_NAMESPACE,
             "width": _format(physical_width) + "in",
@@ -137,6 +280,14 @@ class _SvgRenderer:
         })
         self.walls = ET.SubElement(self.root, "g", {"id": "walls"})
         self.symbols = ET.SubElement(self.root, "g", {"id": "features"})
+        state = seed & 0xffffffff
+
+        def random():
+            nonlocal state
+            state = (state * 1664525 + 1013904223) & 0xffffffff
+            return state / 4294967296
+
+        self.random = random
         self.clip_voids()
 
     def clip_voids(self):
@@ -170,116 +321,21 @@ class _SvgRenderer:
             "stroke-linecap": "round", "data-texture": texture,
         })
 
-    def wall_joins(self, edges):
-        """Draw transitions and rounded corners in incident-edge insertion order."""
-        incident = defaultdict(list)
-        for edge in edges:
-            incident[edge.start].append(edge)
-            incident[edge.end].append(edge)
-        joins = {}
-        rounded_ends = {}
-        self.rng = random.Random(self.seed)
-        for point, touching in incident.items():
-            if self.roughness and len(touching) == 2 and touching[0].rough != touching[1].rough:
-                smooth = next(edge for edge in touching if not edge.rough)
-                shifted = (
-                    point[0] + self.roughness * smooth.inward[0],
-                    point[1] + self.roughness * smooth.inward[1],
-                )
-                joins[point] = shifted
-                self.line(self.walls, point, shifted, "transition")
-            elif self.radius and len(touching) == 2 and all(edge.rough for edge in touching):
-                self.round_corner(point, touching, rounded_ends)
-        return joins, rounded_ends
-
-    def round_corner(self, point, touching, rounded_ends):
-        """Trim perpendicular rough edges and draw their connecting quarter circle."""
-        radius = self.radius
-        directions = []
-        for edge in touching:
-            other = edge.end if edge.start == point else edge.start
-            directions.append((other[0] - point[0], other[1] - point[1]))
-        if directions[0][0] * directions[1][1] == directions[0][1] * directions[1][0]:
-            return
-        if directions[0][0] * directions[1][0] + directions[0][1] * directions[1][1]:
-            return
-        # At radius 0.5, neighboring quarter circles meet at tile-edge midpoints.
-        first, last = [
-            (point[0] + radius * dx, point[1] + radius * dy)
-            for dx, dy in directions
-        ]
-        rounded_ends[(touching[0], point)] = first
-        rounded_ends[(touching[1], point)] = last
-        center = (
-            point[0] + radius * (directions[0][0] + directions[1][0]),
-            point[1] + radius * (directions[0][1] + directions[1][1]),
-        )
-        self.corner_arc(first, last, center, directions)
-
-    def corner_arc(self, first, last, center, directions):
-        """Draw bounded radial jitter along one quarter-circle corner."""
-        radius, roughness = self.radius, self.roughness
-        previous = first
-        steps = max(6, self.rough_segments)
-        for step in range(1, steps + 1):
-            angle = math.pi * step / (2 * steps)
-            radial = radius
-            if step < steps and roughness:
-                offset = self.rng.uniform(-roughness, roughness) * math.sin(2 * angle) ** 2
-                # Bound radial jitter to this corner's square.
-                radial = min(
-                    radius / max(math.cos(angle), math.sin(angle)),
-                    max(radius * 0.65, radius + offset),
-                )
-            following = last if step == steps else (
-                center[0] - radial * (
-                    directions[1][0] * math.cos(angle) + directions[0][0] * math.sin(angle)
-                ),
-                center[1] - radial * (
-                    directions[1][1] * math.cos(angle) + directions[0][1] * math.sin(angle)
-                ),
-            )
-            self.line(self.walls, previous, following, "rough")
-            previous = following
-
-    def rough_edge(self, edge, joins, rounded_ends):
-        """Draw a trimmed rough boundary with jitter fading near rounded ends."""
-        grid, roughness = self.grid, self.roughness
-        rough_segments = self.rough_segments
-        start = rounded_ends.get((edge, edge.start), joins.get(edge.start, edge.start))
-        end = rounded_ends.get((edge, edge.end), joins.get(edge.end, edge.end))
-        length = math.hypot(end[0] - start[0], end[1] - start[1])
-        if not length:
-            return
-        if not roughness:
-            self.line(self.walls, start, end, "rough")
-            return
-        # Fade jitter on the shrinking straight remainder near maximum
-        # rounding, rather than leaving spikes between almost-touching arcs.
-        amplitude = roughness * min(1, length / 0.3)
-        points = [start]
-        for step in range(1, rough_segments):
-            t = step / rough_segments
-            offset = self.rng.uniform(-amplitude, amplitude) * math.sin(math.pi * t) ** 2
-            points.append((
-                min(grid.width, max(0, start[0] * (1 - t) + end[0] * t
-                                    + edge.inward[0] * offset)),
-                min(grid.height, max(0, start[1] * (1 - t) + end[1] * t
-                                     + edge.inward[1] * offset)),
-            ))
-        points.append(end)
-        for first, second in zip(points, points[1:]):
-            self.line(self.walls, first, second, "rough")
-
     def draw_walls(self):
-        """Draw corner joins before the ordered smooth and rough edge segments."""
+        """Keep worked walls straight and draw whole cavern chains as cubic paths."""
         edges = _wall_edges(self.grid)
-        joins, rounded_ends = self.wall_joins(edges)
         for edge in edges:
             if not edge.rough:
                 self.line(self.walls, edge.start, edge.end)
-            else:
-                self.rough_edge(edge, joins, rounded_ends)
+        for vertices in _rough_wall_chains(edges):
+            closed = vertices[0] == vertices[-1]
+            points = _wall_walk(vertices, self.grid.width, self.grid.height,
+                                self.roughness, self.rough_segments, self.radius, self.random)
+            ET.SubElement(self.walls, "path", {
+                "d": _wall_curve(points, closed), "fill": "none", "stroke": "black",
+                "stroke-width": _format(self.stroke), "stroke-linecap": "round",
+                "stroke-linejoin": "round", "data-texture": "rough",
+            })
 
     def label(self, parent, text, x=0.5, y=0.61, size=0.32):
         """Append a centered sans-serif label at local symbol coordinates."""
@@ -305,13 +361,14 @@ class _SvgRenderer:
         """Draw a door centered on a horizontal or vertical shared tile edge."""
         fmt = _format
         dx, dy = end[0] - start[0], end[1] - start[1]
+        length = math.hypot(dx, dy)
         group = ET.SubElement(parent, "g", {
             "transform": "translate({} {}){}".format(
                 fmt(start[0]), fmt(start[1]), " rotate(90)" if dy else ""),
         })
         self.line(group, (0, 0), (0.15, 0))
-        self.line(group, (0.85, 0), (1, 0))
-        self.rectangle(group, 0.15, -0.12, 0.7, 0.24)
+        self.line(group, (length - 0.15, 0), (length, 0))
+        self.rectangle(group, 0.15, -0.12, length - 0.3, 0.24)
 
     def spiral_symbol(self, group, run):
         """Clip a circular spiral and its treads to the recognized footprint."""
@@ -337,13 +394,25 @@ class _SvgRenderer:
             "fill": "none", "stroke": "black", "stroke-width": fmt(stroke),
         })
         inner_radius = 0.5 if size == 3 else 0.12
-        for index in range(12 * size):
+        landing_x = sum(cx + 0.5 for cx, cy in run.landing_cells) / len(run.landing_cells)
+        landing_y = sum(cy + 0.5 for cx, cy in run.landing_cells) / len(run.landing_cells)
+        opposite_landing = math.atan2(
+            top + center - landing_y, left + center - landing_x,
+        )
+        descending = run.tile == "s"
+        # Descending treads run clockwise between the two edges of the landing quadrant.
+        count = 9 * size + 1 if descending else 12 * size
+        for index in range(count):
             angle = index * 2 * math.pi / (12 * size)
+            if descending:
+                angle += opposite_landing - 3 * math.pi / 4
+            inset = (center - inner_radius) * index / (4 * (count - 1)) if descending else 0
             self.line(drawing,
-                      (center + inner_radius * math.cos(angle),
-                       center + inner_radius * math.sin(angle)),
-                      (center + center * math.cos(angle), center + center * math.sin(angle)))
-        self.spiral_arrows(drawing, run, left, top, center)
+                      (center + (inner_radius + inset) * math.cos(angle),
+                       center + (inner_radius + inset) * math.sin(angle)),
+                      (center + (center - inset) * math.cos(angle),
+                       center + (center - inset) * math.sin(angle)))
+        self.spiral_arrows(drawing, run, center, opposite_landing)
         self.spiral_center(group, run, left, top)
 
     def spiral_center(self, group, run, left, top):
@@ -373,26 +442,25 @@ class _SvgRenderer:
         })
         ET.SubElement(group, "path", attributes)
 
-    def spiral_arrows(self, drawing, run, left, top, center):
+    def spiral_arrows(self, drawing, run, center, opposite_landing):
         """Draw the spiral's up/down arcs opposite its landing corner."""
-        size = run.size
         directions = ("up", "down") if run.tile == "Z" else (
             "up" if run.tile == "S" else "down",
         )
-        landing_x = sum(cx + 0.5 for cx, cy in run.landing_cells) / len(run.landing_cells)
-        landing_y = sum(cy + 0.5 for cx, cy in run.landing_cells) / len(run.landing_cells)
-        opposite_landing = math.atan2(
-            top + center - landing_y, left + center - landing_x,
-        )
-        for index, direction in enumerate(directions):
-            radius = size * (0.28 + index * 0.12)
-            self.spiral_arrow(drawing, direction, radius, opposite_landing, center)
+        for direction in directions:
+            self.spiral_arrow(drawing, direction, center * 0.75, opposite_landing, center,
+                              run.tile == "Z")
 
-    def spiral_arrow(self, drawing, direction, radius, opposite_landing, center):
+    def spiral_arrow(self, drawing, direction, radius, opposite_landing, center, bidirectional):
         """Append one directional spiral arc followed by its two arrowhead lines."""
         fmt, stroke = _format, self.stroke
         clockwise = direction == "down"
         first, last = opposite_landing - 1.2, opposite_landing + 1.2
+        if bidirectional:
+            if clockwise:
+                first = opposite_landing + 0.15
+            else:
+                last = opposite_landing - 0.15
         if not clockwise:
             first, last = last, first
         start = (center + radius * math.cos(first), center + radius * math.sin(first))
@@ -413,13 +481,14 @@ class _SvgRenderer:
                 end[1] - 0.18 * tangent[1] + side * 0.1 * radial[1],
             ))
 
-    def draw_door(self, x, y, tile, player_view):
+    def draw_door(self, x, y, tile, player_view, run):
         """Draw a centered door, or hide a secret/concealed door as a wall."""
-        axis = _door_axis(_neighbors(self.grid, x, y))
+        cells, axis = run
+        length = len(cells)
         if player_view and tile in "xc":
             endpoints = (
-                ((x, y + 0.5), (x + 1, y + 0.5)) if axis == "NS"
-                else ((x + 0.5, y), (x + 0.5, y + 1))
+                ((x, y + 0.5), (x + length, y + 0.5)) if axis == "NS"
+                else ((x + 0.5, y), (x + 0.5, y + length))
             )
             self.line(self.walls, *endpoints)
             return
@@ -430,78 +499,89 @@ class _SvgRenderer:
             ),
         })
         self.line(group, (0, 0.5), (0.15, 0.5))
-        self.line(group, (0.85, 0.5), (1, 0.5))
-        self.rectangle(group, 0.15, 0.38, 0.7, 0.24)
+        self.line(group, (length - 0.15, 0.5), (length, 0.5))
+        self.rectangle(group, 0.15, 0.38, length - 0.3, 0.24)
         if tile != "d":
-            self.label(group, "S" if tile == "x" else "C", y=0.61, size=0.28)
+            self.label(group, "S" if tile == "x" else "C", x=length / 2, y=0.61, size=0.28)
 
     def draw_edge_doors(self, group, x, y, tile, paired_doors):
-        """Draw partition doors and one normal-width symbol per b pair."""
+        """Draw partition doors and one correctly oriented centered door line."""
         if tile == "b":
-            first, second = paired_doors[(x, y)]
+            cells = paired_doors[(x, y)]
+            first, second = cells[0], cells[-1]
             if (x, y) != first:
                 self.symbols.remove(group)
                 return
-            if first[0] == second[0]:
-                self.edge_door(group, (0, 1), (1, 1))
-            else:
-                self.edge_door(group, (1, 0), (1, 1))
+            dx, dy = second[0] - first[0], second[1] - first[1]
+            self.edge_door(group, (0.5, 0.5), (dx + 0.5, dy + 0.5))
+            self.line(group, (0, 0.5) if dy == 0 else (0.5, 0), (0.5, 0.5))
+            self.line(group, (dx + 0.5, dy + 0.5),
+                      (dx + 1, 0.5) if dy == 0 else (0.5, dy + 1))
         else:
             if tile in "ln":
                 self.edge_door(group, (0, 0), (0, 1))
             if tile in "mn":
                 self.edge_door(group, (0, 1), (1, 1))
 
-    def stair_horizontal(self, x, y, run):
-        """Infer a stair symbol's orientation, preferring a recognized run."""
-        grid = self.grid
-        open_neighbors = [
-            (side + 2) % 4 in _open_sides(
-                grid, x + DIRECTIONS[side][0], y + DIRECTIONS[side][1]
-            ) and not _partition(grid, x, y, side)
-            for side in range(4)
-        ]
-        horizontal = (
-            open_neighbors[1] and open_neighbors[3]
-            and not (open_neighbors[0] and open_neighbors[2])
-        ) or (
-            (open_neighbors[1] or open_neighbors[3])
-            and not (open_neighbors[0] or open_neighbors[2])
-        )
-        if run:
-            horizontal = run.horizontal
-        return horizontal
-
-    def straight_symbol(self, group, tile, length, horizontal):
-        """Draw the full-length treads or ramp sides and their directional arrow."""
-        transform = "rotate(90 .5 .5)" if horizontal else "rotate(0)"
-        if horizontal and length > 1:
-            transform = "translate({} 0) rotate(90)".format(length)
-        drawing = ET.SubElement(group, "g", {
-            "transform": transform,
+    def straight_symbol(self, group, run):
+        """Draw one explicitly directed symbol clipped to its entire footprint."""
+        tile, cells, horizontal = run.tile, run.cells, run.horizontal
+        left, top = min(x for x, y in cells), min(y for x, y in cells)
+        right, bottom = max(x for x, y in cells) + 1, max(y for x, y in cells) + 1
+        length = right - left if horizontal else bottom - top
+        width = bottom - top if horizontal else right - left
+        direction = "up" if tile.isupper() else "down"
+        cardinal = ("north" if tile in "EeOo" else "east" if tile in "FfPp"
+                    else "south" if tile in "GgQq" else "west")
+        group.attrib.update({
+            "transform": "translate({} {})".format(left, top),
+            "data-length": str(length), "data-width": str(width),
+            "data-direction": direction, "data-facing": cardinal,
+            "data-elevation": _format(length * self.feet_per_square *
+                                      (1 if direction == "up" else -1)),
         })
-        if tile in "Ee":
+        identifier = "straight-{}-{}".format(*cells[0])
+        clip = ET.SubElement(group, "clipPath", {"id": identifier})
+        for x, y in cells:
+            ET.SubElement(clip, "rect", {
+                "x": str(x - left), "y": str(y - top), "width": "1", "height": "1",
+            })
+        footprint = ET.SubElement(group, "g", {"clip-path": "url(#{})".format(identifier)})
+        transform = {
+            "north": "rotate(0)",
+            "east": "translate({} 0) rotate(90)".format(length),
+            "south": "translate({} {}) rotate(180)".format(width, length),
+            "west": "translate(0 {}) rotate(270)".format(width),
+        }[cardinal]
+        drawing = ET.SubElement(footprint, "g", {"transform": transform})
+        if tile in "EeFfGgHh":
             for index in range(5 * length):
-                half_width = 0.14 + index * 0.18 / (5 * length - 1)
                 ordinate = 0.2 + index * (length - 0.44) / (5 * length - 1)
-                self.line(drawing, (0.42 - half_width, ordinate),
-                          (0.42 + half_width, ordinate))
+                inset = ((width - 0.3) * (1 - index / (5 * length - 1)) / 4
+                         if direction == "down" else 0)
+                self.line(drawing, (0.15 + inset, ordinate),
+                          (width - 0.15 - inset, ordinate))
         else:
-            self.line(drawing, (0.28, 0.18), (0.12, length - 0.18))
-            self.line(drawing, (0.56, 0.18), (0.72, length - 0.18))
-        tip, tail = (0.18, length - 0.18) if tile in "er" else (length - 0.18, 0.18)
-        self.line(drawing, (0.42, tail), (0.42, tip))
-        back = tip + (0.12 if tip < tail else -0.12)
-        self.line(drawing, (0.32, back), (0.42, tip))
-        self.line(drawing, (0.52, back), (0.42, tip))
-        self.label(group, tile, x=length - 0.14 if horizontal else 0.86,
-                   y=0.6, size=0.26)
+            self.line(drawing, (0.15, 0.18), (0.15, length - 0.18))
+            self.line(drawing, (width - 0.15, 0.18), (width - 0.15, length - 0.18))
+        center = width / 2
+        self.line(drawing, (center, length - 0.18), (center, 0.18))
+        self.line(drawing, (center - 0.1, 0.3), (center, 0.18))
+        self.line(drawing, (center + 0.1, 0.3), (center, 0.18))
+        if tile in "OoPpQqRr":
+            text = "ramp " + direction
+            size = min(0.22, (length - 0.4) / (len(text) * 0.8))
+            reverse = cardinal in ("south", "west")
+            annotation = ET.SubElement(drawing, "g", {
+                "transform": "translate({} {}) rotate({})".format(
+                    _format(center + 0.12 + (0 if reverse else size)),
+                    _format(length / 2), 90 if reverse else -90,
+                ),
+            })
+            self.label(annotation, text, x=0, y=0, size=size)
 
-    def draw_feature(self, x, y, tile, run, paired_doors, player_view):
+    def draw_feature(self, x, y, tile, run, paired_doors):
         """Dispatch one visible feature without altering SVG element order."""
-        if tile in DOORS:
-            self.draw_door(x, y, tile, player_view)
-            return
         group = ET.SubElement(self.symbols, "g", {
             "data-tile": tile, "transform": "translate({} {})".format(x, y),
         })
@@ -511,9 +591,6 @@ class _SvgRenderer:
         if tile in "blmn":
             self.draw_edge_doors(group, x, y, tile, paired_doors)
             return
-        length = len(run.cells) if run else 1
-        if length > 1:
-            group.set("data-length", str(length))
         if tile == "T":
             self.line(group, (0.18, 0.18), (0.82, 0.82))
             self.line(group, (0.18, 0.82), (0.82, 0.18))
@@ -523,13 +600,13 @@ class _SvgRenderer:
             self.line(group, (0.2, 0.44), (0.8, 0.44))
             self.rectangle(group, 0.45, 0.4, 0.1, 0.12)
         else:
-            horizontal = self.stair_horizontal(x, y, run)
-            self.straight_symbol(group, tile, length, horizontal)
+            self.straight_symbol(group, run)
 
     def draw_features(self, player_view):
         """Draw visible feature symbols in row order, once per recognized stair."""
         stair_runs = _stair_runs(self.grid)
         paired_doors = _paired_doors(self.grid)
+        doors = _door_runs(self.grid)
         for y, row in enumerate(self.grid.rows):
             for x, tile in enumerate(row):
                 if tile not in FEATURES or (player_view and tile in "TC"):
@@ -537,7 +614,11 @@ class _SvgRenderer:
                 run = stair_runs.get((x, y))
                 if run and (x, y) != run.cells[0]:
                     continue
-                self.draw_feature(x, y, tile, run, paired_doors, player_view)
+                if tile in DOORS:
+                    if (x, y) == doors[(x, y)][0][0]:
+                        self.draw_door(x, y, tile, player_view, doors[(x, y)])
+                    continue
+                self.draw_feature(x, y, tile, run, paired_doors)
 
     def draw_encounters(self, encounter_labels):
         """Append map labels in supplied order, keeping trap labels legible."""
@@ -562,8 +643,8 @@ def svg_document(
     feet_per_inch: float = 50,
     line_width: float = 0.01,
     seed: int = 0,
-    roughness: float = 0.12,
-    rough_segments: int = 6,
+    roughness: float = 0.5,
+    rough_segments: int = 4,
     player_view: bool = False,
     corner_radius: Optional[float] = None,
     encounter_labels: Optional[Dict[Cell, str]] = None,
@@ -573,7 +654,7 @@ def svg_document(
         grid, feet_per_pixel, feet_per_inch, line_width, roughness, rough_segments,
         corner_radius,
     )
-    renderer = _SvgRenderer(grid, dimensions, roughness, rough_segments, seed)
+    renderer = _SvgRenderer(grid, dimensions, roughness, rough_segments, seed, feet_per_pixel)
     renderer.draw_walls()
     renderer.draw_features(player_view)
     labels = dict(grid.labels)

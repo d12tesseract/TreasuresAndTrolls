@@ -13,7 +13,7 @@ from dungeon_encounters import (
 )
 from dungeon_games import field as game_field, validate_strategy_game
 from dungeon_geometry import (
-    Cell, DungeonMap, Stairway, _open_sides, _route, clear_invalid_diagonals,
+    Cell, DungeonMap, STAIR_OPPOSITES, Stairway, _open_sides, _route, clear_invalid_diagonals,
     is_connected, reachable_cells,
 )
 from dungeon_map import (
@@ -138,7 +138,7 @@ def _wing_connection(level, descending, blocked):
     old_width, height = level.grid.width, level.grid.height
     rows = [list(row) for row in level.grid.rows]
     removed = tuple(passage for passage in level.stairways
-                    if descending and passage.tile in "er")
+                    if descending and passage.tile in "efghopqr")
     for passage in removed:
         for x, y in passage.cells:
             rows[y][x] = "#"
@@ -396,7 +396,7 @@ def _place_room_spirals(level, definitions, depth, occupied, rng):
     if not placements:
         return level, (), remaining
     rows = [list(row) for row in level.grid.rows]
-    removed = tuple(p for p in level.stairways if p.tile in "er")
+    removed = tuple(p for p in level.stairways if p.tile in "efghopqr")
     for passage in removed:
         for x, y in passage.cells:
             rows[y][x] = "#"
@@ -868,7 +868,7 @@ def _validate_required_item(dungeon, keys, depth, puzzle, puzzle_area, item, gat
         layout, contents = dungeon.levels[depth - 1], keys[depth - 1]
         if accessible is None:
             start = next((passage.entrance for passage in layout.stairways
-                          if passage.tile in "ERS"), next(
+                          if passage.tile in "EFGHOPQRS"), next(
                               area.cell for area in contents.areas if area.cell in layout.room_cells[0]
                           ))
             accessible = reachable_cells(layout.grid, start, gates)
@@ -893,9 +893,9 @@ def _validate_reward_order(contents, gated):
 def _validate_linked_stairs(layout, next_layout):
     """Match each descending footprint to the corresponding up passage below."""
     down = {(passage.cells, passage.tile, passage.horizontal)
-            for passage in layout.stairways if passage.tile in "ers"}
-    up = {(passage.cells, {"E": "e", "R": "r", "S": "s"}[passage.tile], passage.horizontal)
-          for passage in next_layout.stairways if passage.tile in "ERS"}
+            for passage in layout.stairways if passage.tile in "efghopqrs"}
+    up = {(passage.cells, STAIR_OPPOSITES[passage.tile], passage.horizontal)
+          for passage in next_layout.stairways if passage.tile in "EFGHOPQRS"}
     if down != up:
         raise ValueError("puzzle-adjusted stairs do not match the next level")
 
@@ -911,7 +911,7 @@ def validate_puzzle_dungeon(dungeon: GeneratedDungeon, keys: Tuple[EncounterLeve
         gates = {puzzle.gate for puzzle in contents.puzzles if puzzle.gate is not None}
         gated = [puzzle for puzzle in contents.puzzles if puzzle.gate]
         item_accessible = None
-        downs = [passage for passage in layout.stairways if passage.tile in "ers"]
+        downs = [passage for passage in layout.stairways if passage.tile in "efghopqrs"]
         _validate_gate_layout(layout, contents, gates, gated)
         for puzzle in contents.puzzles:
             area = _validate_puzzle_identity(puzzle, depth, contents, seen)
