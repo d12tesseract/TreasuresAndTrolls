@@ -29,6 +29,14 @@ def nonnegative_integer(value: str) -> int:
     return number
 
 
+def wall_deviation(value: str) -> float:
+    """Parse a finite wall deviation as a fraction of one square."""
+    number = float(value)
+    if not math.isfinite(number) or not 0 <= number <= 0.5:
+        raise argparse.ArgumentTypeError("must be between 0 and 0.5 (0-50%)")
+    return number
+
+
 def add_render_arguments(parser: argparse.ArgumentParser, seed_default=0) -> None:
     """Register the scale, wall appearance, seed, and player-view options."""
     parser.add_argument("--feet-per-pixel", "--feet-per-square", type=positive_number, default=5,
@@ -41,6 +49,9 @@ def add_render_arguments(parser: argparse.ArgumentParser, seed_default=0) -> Non
                         help="random seed (ASCII default: 0; generated maps: random)")
     parser.add_argument("--roughness", type=float, default=0.5,
                         help="cavern-wall walk bound, 0 to 0.5 squares (default: 0.5)")
+    parser.add_argument("--max-wall-deviation", type=wall_deviation, default=0.5,
+                        help="maximum cavern SVG wall deviation, 0 to 0.5 squares (0-50%%); "
+                             "0 gives smooth stone walls (default: 0.5)")
     parser.add_argument("--rough-segments", type=int, default=4,
                         help="walk intervals per cavern edge, 2 to 32 (default: 4)")
     parser.add_argument("--corner-radius", type=float,
@@ -54,6 +65,6 @@ def render_options(args: argparse.Namespace) -> Dict:
     return {
         name: getattr(args, name) for name in (
             "feet_per_pixel", "feet_per_inch", "line_width", "seed",
-            "roughness", "rough_segments", "player_view", "corner_radius",
+            "roughness", "rough_segments", "player_view", "corner_radius", "max_wall_deviation",
         )
     }

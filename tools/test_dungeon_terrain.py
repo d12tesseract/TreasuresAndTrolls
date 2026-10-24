@@ -16,7 +16,7 @@ from dungeon_geometry import (
 )
 from dungeon_map import GenerationOptions, generate_dungeon
 from dungeon_render import (
-    _bounded_walk, _rough_wall_chains, _wall_curve, _wall_edges, _wall_walk, svg_document,
+    _Edge, _bounded_walk, _rough_wall_chains, _wall_curve, _wall_edges, _wall_walk, svg_document,
 )
 
 
@@ -126,10 +126,31 @@ class TerrainContractTests(unittest.TestCase):
             self.assertEqual([group.attrib["transform"] for group in groups],
                              ["translate(0 0)", "translate(1 1)", "translate(2 1)", "translate(3 1)"])
             self.assertEqual(groups[0].find("s:text", NS).text, "Rock <&>")
-            self.assertEqual(groups[1].find("s:text", NS).attrib["font-size"], "0.22")
-            self.assertEqual(groups[2].find("s:text", NS).attrib["y"], "0.14")
+            self.assertEqual(groups[1].find("s:text", NS).attrib["font-size"], "0.9")
+            self.assertEqual(groups[2].find("s:text", NS).attrib["y"], "0.75")
         with self.assertRaisesRegex(ValueError, "inside the map"):
             svg_document(grid, encounter_labels={(4, 0): "outside"})
+
+    def test_all_svg_text_uses_90_percent_of_a_square_including_long_and_occupied_labels(self):
+        grid = parse_ascii(
+            "#########\n#xcTOC  #\n#########\n\n"
+            "6,1: 123\n5,1: Chest label\n3,1: 12\n7,1: Longer area label\n"
+        )
+        for player_view in (False, True):
+            for feet in (5, 10):
+                with self.subTest(player_view=player_view, feet=feet):
+                    root = ET.fromstring(svg_document(
+                        grid, player_view=player_view, feet_per_pixel=feet,
+                    ))
+                    texts = root.findall(".//s:text", NS)
+                    self.assertTrue(texts)
+                    self.assertTrue(all(text.attrib["font-size"] == "0.9" for text in texts))
+                    self.assertTrue(set(grid.labels.values()) <= {text.text for text in texts})
+                    if not player_view:
+                        self.assertTrue({"S", "C", "T", "ramp up"} <= {text.text for text in texts})
+                    label = next(text for text in texts if text.text == "Longer area label")
+                    self.assertEqual(label.attrib["textLength"], "0.76")
+                    self.assertEqual(label.attrib["lengthAdjust"], "spacingAndGlyphs")
 
     def test_lowercase_doors_keep_uppercase_svg_labels_on_both_axes(self):
         self.assertEqual(DOORS, frozenset("dxc"))
@@ -348,9 +369,13 @@ class TerrainContractTests(unittest.TestCase):
                             text = annotation.find("s:text", NS)
                             self.assertEqual(text.text, "ramp " + ("up" if tile.isupper() else "down"))
                             size = float(text.attrib["font-size"])
-                            self.assertGreater(size, 0)
-                            self.assertLessEqual(size, 0.22)
-                            self.assertLessEqual(size * len(text.text) * 0.6, length - 0.4 + 1e-9)
+                            self.assertEqual(size, 0.9)
+                            text_width = (float(text.attrib["textLength"])
+                                          if "textLength" in text.attrib else size * len(text.text) * 0.6)
+                            self.assertLessEqual(text_width, length - 0.4 + 1e-9)
+                            self.assertEqual(text.attrib["dominant-baseline"], "central")
+                            if length == 1:
+                                self.assertEqual(text.attrib["lengthAdjust"], "spacingAndGlyphs")
                             self.assertTrue(annotation.attrib["transform"].endswith(
                                 "rotate(90)" if tile in "QqRr" else "rotate(-90)"
                             ))
@@ -543,6 +568,107 @@ class TerrainContractTests(unittest.TestCase):
         values = iter((0, 1, 1, 1, 0, 0, 1, 0))
         crossing = _wall_walk(vertices, 5, 5, 0.5, 4, 0.5, lambda: next(values))
         self.assertTrue(all(math.isfinite(value) for point in crossing for value in point))
+
+    def test_cavern_deviation_limit_bounds_entire_bezier_spans(self):
+        maps = (
+            "########\n#  ....#\n#  .##.#\n#  ....#\n########",
+            "#######\n###...#\n##/...#\n#.....#\n#######",
+            ".#.\n#.#\n.#.",
+            "#####\n#..~#\n#...#\n#####",
+        )
+        for text in maps:
+            grid = parse_ascii(text)
+            chains = _rough_wall_chains(_wall_edges(grid))
+            for limit in (0.00001, 0.05, 0.25, 0.5):
+                for intervals, roughness, radius, seed in ((2, 0.5, 0.5, 0), (4, 0, 0, 7),
+                                                          (4, 0.5, 0.5, 7)):
+                    with self.subTest(text=text, limit=limit, intervals=intervals,
+                                      roughness=roughness):
+                        root = ET.fromstring(svg_document(
+                            grid, max_wall_deviation=limit, rough_segments=intervals,
+                            roughness=roughness, corner_radius=radius, seed=seed,
+                        ))
+                        paths = root.findall("s:g[@id='walls']/s:path", NS)
+                        self.assertEqual(len(paths), len(chains))
+                        for path, chain in zip(paths, chains):
+                            edges, directions = [], []
+                            for start, end in zip(chain, chain[1:]):
+                                direction = tuple(end[axis] - start[axis] for axis in (0, 1))
+                                if directions and direction == directions[-1]:
+                                    start = edges.pop().start
+                                else:
+                                    directions.append(direction)
+                                edges.append(_Edge(start, end, True, (0, 0)))
+                            if chain[0] == chain[-1] and directions[0] == directions[-1]:
+                                last = edges.pop()
+                                edges[0] = _Edge(last.start, edges[0].end, True, (0, 0))
+                            segments = list(cubic_segments(path.attrib["d"]))
+                            for segment in segments:
+                                # A Bezier stays in its controls' convex hull, so this bounds all t.
+                                self.assertTrue(any(
+                                    all(boundary_distance(point, [edge]) <= limit + 1e-9
+                                        for point in segment)
+                                    for edge in edges
+                                ), (limit, segment))
+                            joins = list(zip(segments, segments[1:]))
+                            if chain[0] == chain[-1]:
+                                joins.append((segments[-1], segments[0]))
+                            for first, second in joins:
+                                for axis in (0, 1):
+                                    self.assertAlmostEqual(
+                                        first[3][axis] - first[2][axis],
+                                        second[1][axis] - second[0][axis],
+                                    )
+
+    def test_zero_cavern_deviation_matches_smooth_stone_wall_geometry(self):
+        for text in ("########\n#  ....#\n#  .##.#\n#  ....#\n########",
+                     "#######\n###...#\n##/...#\n#.....#\n#######",
+                     ".#.\n#.#\n.#.", "#####\n#..~#\n#...#\n#####"):
+            rough = ET.fromstring(svg_document(parse_ascii(text), max_wall_deviation=0))
+            smooth = ET.fromstring(svg_document(parse_ascii(text.replace(".", " "))))
+            self.assertEqual(
+                ET.tostring(rough.find("s:g[@id='walls']", NS)),
+                ET.tostring(smooth.find("s:g[@id='walls']", NS)),
+            )
+
+    def test_cavern_deviation_rejects_invalid_renderer_values(self):
+        for limit in (-0.01, 0.50001, math.nan, math.inf, -math.inf):
+            with self.subTest(limit=limit), self.assertRaisesRegex(ValueError, "max_wall_deviation"):
+                svg_document(parse_ascii("...\n..."), max_wall_deviation=limit)
+
+    def test_wall_deviation_cli_percentage_validation_and_svg_output(self):
+        directory = Path(__file__).parent
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "cavern.txt"
+            output = Path(temporary) / "cavern.svg"
+            source.write_text("#####\n#...#\n#####", encoding="utf-8")
+            for script in ("ascii_map_to_svg.py", "generate_dungeon_map.py"):
+                arguments = [sys.executable, str(directory / script)]
+                if script == "ascii_map_to_svg.py":
+                    arguments.append(str(source))
+                for deviation in ("-0.01", "0.50001", "25", "50", "nan", "inf", "-inf", "invalid"):
+                    result = subprocess.run(
+                        arguments + ["--max-wall-deviation=" + deviation],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn("--max-wall-deviation", result.stderr)
+                    if deviation != "invalid":
+                        self.assertIn("must be between 0 and 0.5", result.stderr)
+                    self.assertFalse(output.exists())
+            for deviation in (None, 0, 0.05, 0.25, 0.5):
+                arguments = [sys.executable, str(directory / "ascii_map_to_svg.py"), str(source)]
+                if deviation is not None:
+                    arguments += ["--max-wall-deviation", str(deviation)]
+                result = subprocess.run(
+                    arguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(output.read_text(encoding="utf-8"), svg_document(
+                    parse_ascii(source.read_text(encoding="utf-8")),
+                    max_wall_deviation=0.5 if deviation is None else deviation,
+                ))
 
     def test_cavern_paths_are_continuous_bounded_curves_with_exact_smooth_joins(self):
         maps = (

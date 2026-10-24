@@ -1603,7 +1603,7 @@ class EncounterTests(unittest.TestCase):
         root = xml(occupied.grid, encounter_labels=generate_encounters(
             occupied, rules=self.rules)[0].labels)
         text = root.find("s:g[@id='encounters']/s:g/s:text", NS)
-        self.assertEqual(text.attrib["y"], "0.14")
+        self.assertEqual(text.attrib["y"], "0.75")
 
     def test_incomplete_rules_and_level_keys_fail_explicitly(self):
         with tempfile.TemporaryDirectory() as directory:
