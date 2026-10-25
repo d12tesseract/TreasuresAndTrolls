@@ -1,0 +1,14 @@
+- file: map_2_pm.svg
+  scale: 1.0
+  stroke_scale: 1.0
+  flipx: false
+  flipy: false
+  rotation: 0
+  offset: [1, 1]
+- file: map2_caverns.svg
+  scale: 0.993
+  stroke_scale: 2.0
+  flipx: false
+  flipy: false
+  rotation: 0
+  offset: [246, 178]
