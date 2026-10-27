@@ -3,8 +3,9 @@
 """Generate the equilateral chamfered cube net using only the Python standard library.
 
 Run from any directory:
-    python tools/generate_chamfered_cube.py
-    python tools/generate_chamfered_cube.py --check
+    python tools/generate_map_projection.py
+    python tools/generate_map_projection.py --labels
+    python tools/generate_map_projection.py --labels --check
 
 Outputs default to doc/equilateral-chamfered-cube.{svg,json}, relative to this
 script's repository. --output-dir selects another directory. --check validates
@@ -21,10 +22,11 @@ The explicit hinge tree below is unfolded once, without layout search,
 optimization, or iterative geometry fitting. All coordinates are computed from
 the exact radical construction, not the rounded angles in the specification.
 
-Top attachments, left to right:    SH--SH--SH--
-Bottom attachments, left to right: HS--HS--HS--
+The net is viewed from the outside, with clockwise sectors running right to left.
+Top attachments, left to right:    --HS--HS--HS
+Bottom attachments, left to right: --SH--SH--SH
 Here S = square, H = hexagon, - = an unattached strip edge. Bottom pairs are
-reversed locally so squares attach to opposite edges of strip faces 1, 3, 5.
+reversed locally so squares attach to opposite edges of strip faces 2, 4, 6.
 A literal reversal of the entire top sequence would put squares on edges
 reserved for hexagons. The last bottom hexagon/strip junction wraps around the
 cut ends of the strip when folded. Three hexagons meet at a common SOLID vertex,
@@ -33,8 +35,11 @@ not necessarily at one point of the paper: their angle deficit is positive.
 JSON includes both the 3D solid and 2D net, ordered face boundaries, every edge,
 fold hinges, and paired cut seams. Coordinates are in edge-length units, with
 y up in the net; the SVG reverses y and uses 80 SVG units per edge. The SVG is
-plain geometry only: closed, unfilled face polygons with black outlines and no
-vertex markers or labels. Face IDs match the JSON; vertex correspondence remains
+plain geometry by default: closed, unfilled face polygons with black outlines and
+no vertex markers or labels. --labels adds centered, light-gray Greek sector
+letters with a font size one third of a square panel's side length, with their
+spelled-out names in smaller text below.
+Face IDs match the JSON; vertex correspondence remains
 in the JSON. JSON coordinates are rounded to 12 decimal places for reproducibility
 across Python versions. Equal
 cut-edge labels in the JSON are glued together, matching endpoints by their
@@ -54,6 +59,25 @@ g_dTolerance = 1e-9
 g_dAcuteAngle = math.degrees(math.acos(-1.0 / 3.0))
 g_dObtuseAngle = (360.0 - g_dAcuteAngle) / 2.0
 g_szStem = "equilateral-chamfered-cube"
+
+# North is (+1, -1, -1); eta's opposite vertex (+1, +1, -1)
+# sets the prime meridian. Equatorial labels run clockwise viewed from north.
+g_SectorLabels = {
+    "Hyz+-": "\u03b1", "Hxz--": "\u03b2", "Hxy--": "\u03b3",
+    "Hyz-+": "\u03b4", "Hxz++": "\u03b5", "Hxy++": "\u03b6",
+    "Hxz+-": "\u03b7", "Hyz--": "\u03b8", "Hxy+-": "\u03b9",
+    "Hxy-+": "\u03ba", "Hxz-+": "\u03bb", "Hyz++": "\u03bc",
+    "Sz-": "\u03bd", "Sy-": "\u03be", "Sx+": "\u03bf",
+    "Sx-": "\u03c0", "Sz+": "\u03c1", "Sy+": "\u03c3",
+}
+g_SectorNames = {
+    "\u03b1": "Alpha", "\u03b2": "Beta", "\u03b3": "Gamma",
+    "\u03b4": "Delta", "\u03b5": "Epsilon", "\u03b6": "Zeta",
+    "\u03b7": "Eta", "\u03b8": "Theta", "\u03b9": "Iota",
+    "\u03ba": "Kappa", "\u03bb": "Lambda", "\u03bc": "Mu",
+    "\u03bd": "Nu", "\u03be": "Xi", "\u03bf": "Omicron",
+    "\u03c0": "Pi", "\u03c1": "Rho", "\u03c3": "Sigma",
+}
 
 
 def Require(fCondition, szMessage):
@@ -185,8 +209,11 @@ def InitializeNet(Vertices, Faces, Strip):
     PointIds = {Point: szId for szId, Point in Vertices.items()}
     NetVertices, NetFaces, FaceMaps = {}, {}, {}
 
+    # Reflect the seed face so its outward winding is preserved in the net.
     RootMap = {
-        PointIds[SolidPoint]: AddNetVertex(NetVertices, PointIds[SolidPoint], FlatPoint)
+        PointIds[SolidPoint]: AddNetVertex(
+            NetVertices, PointIds[SolidPoint], (-FlatPoint[0], FlatPoint[1])
+        )
         for SolidPoint, FlatPoint in zip(RootSolid, RootFlat)
     }
     FaceMaps[Strip[0]] = RootMap
@@ -296,7 +323,7 @@ def BuildNet(Vertices, Faces, Edges):
             AttachNetFace(Vertices, Faces, Edges, NetVertices, NetFaces, FaceMaps,
                           szParent, szChild, "bottom")
     NetEdges = BuildNetEdges(NetVertices, NetFaces, Edges)
-    return NetVertices, NetFaces, NetEdges, Strip
+    return NetVertices, NetFaces, NetEdges, list(reversed(Strip))
 
 
 def InteriorsOverlap(First, Second):
@@ -360,6 +387,10 @@ def ValidateFaces(Vertices, Faces, Edges, NetVertices, NetFaces):
         SolidPolygon = [Vertices[szVertex] for szVertex in Face["vertices"]]
         NetFace = NetFaces[szId]
         FlatPolygon = [NetVertices[szVertex]["position"] for szVertex in NetFace["vertices"]]
+        Require(sum(
+            First[0] * Second[1] - Second[0] * First[1]
+            for First, Second in Boundary(FlatPolygon)
+        ) > 0.0, f"Net face must be viewed from outside: {szId}")
         Polygons[szId] = FlatPolygon
         Require([
             NetVertices[szVertex]["solid_vertex"] for szVertex in NetFace["vertices"]
@@ -435,6 +466,8 @@ def ValidateStrip(Faces, NetVertices, NetEdges, Strip, Polygons):
     Centers = [Center(Polygons[szId]) for szId in Strip]
     Require(max(Point[1] for Point in Centers) - min(Point[1] for Point in Centers) < g_dTolerance,
             "Strip centers are not horizontal")
+    Require(all(First[0] < Second[0] for First, Second in zip(Centers, Centers[1:])),
+            "Strip must be ordered left to right")
     for nIndex, szId in enumerate(Strip):
         for szSide in ("top", "bottom"):
             dCenterY = Centers[nIndex][1]
@@ -454,8 +487,8 @@ def ValidateStrip(Faces, NetVertices, NetEdges, Strip, Polygons):
                 next((Faces[szOther]["kind"] for szOther in Edge["faces"] if szOther != szId), "-")
                 for Edge in SideEdges
             ]
-            Expected = ["square", "hexagon"] if szSide == "top" else ["hexagon", "square"]
-            Require(Pattern == (Expected if nIndex % 2 == 0 else ["-", "-"]),
+            Expected = ["hexagon", "square"] if szSide == "top" else ["square", "hexagon"]
+            Require(Pattern == (Expected if nIndex % 2 == 1 else ["-", "-"]),
                     f"Incorrect {szSide} attachment pattern: {szId}")
 
 
@@ -522,13 +555,13 @@ def SerializeJson(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip
             "edges": list(Edges.values()), "faces": list(Faces.values()),
         },
         "net": {
-            "coordinate_system": "xy, x right, y up; unit edge length",
+            "coordinate_system": "xy, x right, y up; outside view; unit edge length",
             "coordinate_decimal_places": 12,
             "strip_left_to_right": Strip,
-            "top_left_to_right": "SH--SH--SH--",
-            "bottom_left_to_right": "HS--HS--HS--",
+            "top_left_to_right": "--HS--HS--HS",
+            "bottom_left_to_right": "--SH--SH--SH",
             "pattern_key": {"S": "square", "H": "hexagon", "-": "unattached strip edge"},
-            "bottom_order_note": "Pairs reverse locally, keeping squares opposite on strip faces 1, 3, 5.",
+            "bottom_order_note": "Pairs reverse locally, keeping squares opposite on strip faces 2, 4, 6.",
             "assembly": "Fold dashed edges; join equal solid_edge cut labels, matching solid_vertex endpoints.",
             "vertices": list(NetVertices.values()), "edges": list(NetEdges.values()),
             "faces": list(NetFaces.values()),
@@ -538,11 +571,12 @@ def SerializeJson(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip
     return json.dumps(Canonicalize(Data), indent=2, allow_nan=False) + "\n"
 
 
-def ValidateSvg(szSvg, Polygons):
-    """Verify the SVG contains precisely the ordered, unfilled face polygons."""
+def ValidateSvg(szSvg, Polygons, fLabels=False):
+    """Verify ordered, unfilled face polygons and optional centered sector labels."""
     Root = ET.fromstring(szSvg)
     szNamespace = "{http://www.w3.org/2000/svg}"
-    Require(Root.tag == szNamespace + "svg" and len(Root) == 1, "SVG must contain only a faces group")
+    Require(Root.tag == szNamespace + "svg" and len(Root) == (2 if fLabels else 1),
+            "SVG must contain faces and only the requested labels")
     Group = Root[0]
     Require(Group.tag == szNamespace + "g" and Group.attrib == {
         "id": "faces", "fill": "none", "stroke": "black", "stroke-width": "1",
@@ -557,10 +591,32 @@ def ValidateSvg(szSvg, Polygons):
                 and set(Polygon.attrib) == {"id", "points"}, f"SVG face must be a polygon: {szId}")
         szExpected = " ".join(f"{dX:.6f},{dY:.6f}" for dX, dY in Polygons[szId])
         Require(Polygon.get("points") == szExpected, f"SVG face boundary mismatch: {szId}")
+    if fLabels:
+        Labels = Root[1]
+        Require(Labels.tag == szNamespace + "g" and Labels.attrib == {
+            "id": "labels", "fill": "lightgray", "font-family": "sans-serif",
+            "font-size": f"{80.0 / 3.0:.6f}", "text-anchor": "middle",
+            "dominant-baseline": "central",
+        }, "SVG labels must be centered, light gray, and one third of a square side")
+        Require(len(Labels) == len(Polygons), "SVG must label every face once")
+        for Label, (szId, Points) in zip(Labels, Polygons.items()):
+            dX, dY = Center(Points)
+            Require(Label.tag == szNamespace + "text" and len(Label) == 1
+                    and Label.attrib == {
+                        "x": f"{dX:.6f}", "y": f"{dY:.6f}", "data-face": szId,
+                    } and Label.text == g_SectorLabels[szId],
+                    f"SVG sector label mismatch: {szId}")
+            Name = Label[0]
+            Require(Name.tag == szNamespace + "tspan" and len(Name) == 0
+                    and Name.attrib == {
+                        "x": f"{dX:.6f}", "y": f"{dY + 80.0 / 4.0:.6f}",
+                        "font-size": f"{80.0 / 8.0:.6f}",
+                    } and Name.text == g_SectorNames[g_SectorLabels[szId]],
+                    f"SVG sector name mismatch: {szId}")
 
 
-def SerializeSvg(NetVertices, NetFaces):
-    """Render the net as scaled black polygon outlines with a fixed margin."""
+def SerializeSvg(NetVertices, NetFaces, fLabels=False):
+    """Render black polygon outlines with optional light-gray sector letters and names."""
     dScale, dMargin = 80.0, 55.0
     Points = [Vertex["position"] for Vertex in NetVertices.values()]
     dMinX, dMaxX = min(Point[0] for Point in Points), max(Point[0] for Point in Points)
@@ -585,9 +641,25 @@ def SerializeSvg(NetVertices, NetFaces):
     for szId, Points in Polygons.items():
         szPoints = " ".join(f"{dX:.6f},{dY:.6f}" for dX, dY in Points)
         Lines.append(f'    <polygon id="{szId}" points="{szPoints}"/>')
-    Lines.extend(['  </g>', '</svg>'])
+    Lines.append('  </g>')
+    if fLabels:
+        Lines.append(
+            '  <g id="labels" fill="lightgray" font-family="sans-serif" '
+            f'font-size="{dScale / 3.0:.6f}" text-anchor="middle" dominant-baseline="central">'
+        )
+        for szId, Points in Polygons.items():
+            dX, dY = Center(Points)
+            Lines.append(
+                f'    <text x="{dX:.6f}" y="{dY:.6f}" data-face="{szId}">'
+                f'{g_SectorLabels[szId]}'
+                f'<tspan x="{dX:.6f}" y="{dY + dScale / 4.0:.6f}" '
+                f'font-size="{dScale / 8.0:.6f}">'
+                f'{g_SectorNames[g_SectorLabels[szId]]}</tspan></text>'
+            )
+        Lines.append('  </g>')
+    Lines.append('</svg>')
     szSvg = "\n".join(Lines) + "\n"
-    ValidateSvg(szSvg, Polygons)
+    ValidateSvg(szSvg, Polygons, fLabels)
     return szSvg
 
 
@@ -596,13 +668,15 @@ def Main():
     Parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     Parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parents[1] / "doc")
     Parser.add_argument("--check", action="store_true", help="Validate and compare existing exports without writing.")
+    Parser.add_argument("--labels", action="store_true",
+                        help="Label panels with light-gray Greek sector letters and names.")
     Args = Parser.parse_args()
     Vertices, Faces, Edges = BuildSolid()
     NetVertices, NetFaces, NetEdges, Strip = BuildNet(Vertices, Faces, Edges)
     Validation = Validate(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip)
     Outputs = {
         "json": SerializeJson(Vertices, Faces, Edges, NetVertices, NetFaces, NetEdges, Strip, Validation),
-        "svg": SerializeSvg(NetVertices, NetFaces),
+        "svg": SerializeSvg(NetVertices, NetFaces, Args.labels),
     }
     Data = json.loads(Outputs["json"])
     # Check the rounded, exported geometry too, not just the in-memory model.
