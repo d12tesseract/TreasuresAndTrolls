@@ -1,0 +1,14 @@
+- file: map_3_1_maze.svg
+  scale: 1.0
+  stroke_scale: 1.0
+  flipx: false
+  flipy: false
+  rotation: 0
+  offset: [1, 215]
+- file: map3_caverns.svg
+  scale: 0.993
+  stroke_scale: 1
+  flipx: false
+  flipy: false
+  rotation: 0
+  offset: [119,1]
