@@ -16,16 +16,17 @@ HERE = Path(__file__).resolve().parent
 class MapProjectionLabelTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.vertices, cls.faces, cls.edges = projection.BuildSolid()
-        cls.net_vertices, cls.net_faces, cls.net_edges, cls.strip = projection.BuildNet(
+        cls.vertices, cls.faces, cls.edges = projection.build_solid()
+        (cls.net_vertices, cls.net_faces,
+         cls.net_edges, cls.strip) = projection.build_net(
             cls.vertices, cls.faces, cls.edges
         )
         cls.sectors = {
-            label: face for face, label in projection.g_SectorLabels.items()
+            label: face for face, label in projection.SECTOR_LABELS.items()
         }
 
     def test_outside_view_orders_equatorial_sectors_right_to_left(self):
-        labeled = ET.fromstring(projection.SerializeSvg(
+        labeled = ET.fromstring(projection.serialize_svg(
             self.net_vertices, self.net_faces, True
         ))
         labels = labeled.find("s:g[@id='labels']", NS)
@@ -46,15 +47,17 @@ class MapProjectionLabelTests(unittest.TestCase):
                 points = [self.net_vertices[vertex]["position"]
                           for vertex in net_face["vertices"]]
                 area = sum(first[0] * second[1] - second[0] * first[1]
-                           for first, second in projection.Boundary(points))
+                           for first, second in projection.boundary(points))
                 self.assertGreater(area, 0)
 
     def test_hexagon_order_and_poles(self):
         north = (1, -1, -1)
         equator = [self.sectors[chr(code)] for code in range(0x3B1, 0x3B7)]
-        for first, second in projection.Boundary(equator):
-            self.assertAlmostEqual(projection.Dot(self.faces[first]["normal"], north), 0)
-            self.assertLess(projection.Dot(projection.Cross(
+        for first, second in projection.boundary(equator):
+            self.assertAlmostEqual(
+                projection.dot(self.faces[first]["normal"], north), 0
+            )
+            self.assertLess(projection.dot(projection.cross(
                 self.faces[first]["normal"], self.faces[second]["normal"]
             ), north), 0)
         for polar, neighbors in (
@@ -71,12 +74,14 @@ class MapProjectionLabelTests(unittest.TestCase):
                 set(self.faces[self.sectors[label]]["vertices"]) for label in labels
             ))
             self.assertEqual(len(common), 1)
-            for actual, expected in zip(projection.Unit(self.vertices[common.pop()]),
-                                        projection.Unit(direction)):
+            for actual, expected in zip(
+                projection.unit(self.vertices[common.pop()]),
+                projection.unit(direction)
+            ):
                 self.assertAlmostEqual(actual, expected)
 
     def test_square_sectors_have_requested_hexagon_neighbors(self):
-        self.assertEqual(set(projection.g_SectorLabels), set(self.faces))
+        self.assertEqual(set(projection.SECTOR_LABELS), set(self.faces))
         for square, neighbors in (
             ("\u03bd", "\u03b7\u03b8\u03b1\u03b2"),
             ("\u03be", "\u03b8\u03b9\u03b3\u03b4"),
@@ -94,8 +99,10 @@ class MapProjectionLabelTests(unittest.TestCase):
             self.assertEqual(adjacent, {self.sectors[label] for label in neighbors})
 
     def test_labels_are_optional_centered_and_scaled_to_square_side(self):
-        plain = ET.fromstring(projection.SerializeSvg(self.net_vertices, self.net_faces))
-        labeled = ET.fromstring(projection.SerializeSvg(
+        plain = ET.fromstring(projection.serialize_svg(
+            self.net_vertices, self.net_faces
+        ))
+        labeled = ET.fromstring(projection.serialize_svg(
             self.net_vertices, self.net_faces, True
         ))
         self.assertIsNone(plain.find("s:g[@id='labels']", NS))
@@ -115,8 +122,8 @@ class MapProjectionLabelTests(unittest.TestCase):
                                math.dist(square[0], square[1]) / 3, places=5)
         for text in group:
             face = text.get("data-face")
-            self.assertEqual(text.text, projection.g_SectorLabels[face])
-            center = projection.Center(polygons[face])
+            self.assertEqual(text.text, projection.SECTOR_LABELS[face])
+            center = projection.center(polygons[face])
             self.assertAlmostEqual(float(text.get("x")), center[0], places=5)
             self.assertAlmostEqual(float(text.get("y")), center[1], places=5)
 
@@ -126,7 +133,7 @@ class MapProjectionLabelTests(unittest.TestCase):
                 sys.executable, str(HERE / "generate_map_projection.py"),
                 "--output-dir", directory,
             ]
-            json_path = Path(directory) / (projection.g_szStem + ".json")
+            json_path = Path(directory) / (projection.OUTPUT_STEM + ".json")
             original_json = None
             for options in ([], ["--labels"]):
                 for check in ([], ["--check"]):
@@ -143,7 +150,7 @@ class MapProjectionLabelTests(unittest.TestCase):
             self.assertIn("Missing or stale export", result.stderr)
 
     def test_sector_names_are_spelled_out_smaller_and_below_letters(self):
-        labeled = ET.fromstring(projection.SerializeSvg(
+        labeled = ET.fromstring(projection.serialize_svg(
             self.net_vertices, self.net_faces, True
         ))
         group = labeled.find("s:g[@id='labels']", NS)
