@@ -22,531 +22,638 @@ ET.register_namespace("xlink", XLINK_NS)
 
 
 class SafeTreeBuilder(ET.TreeBuilder):
-    def doctype(self, szName, szPublicId, szSystemId):
+    def doctype(self, name, public_id, system_id):
         """Reject SVG document type declarations during parsing."""
         raise ValueError("SVG documents with a DOCTYPE are not supported")
 
 
-def Number(Value, szLabel):
+def number(value, label):
     """Validate and convert a finite numeric layout value."""
-    if isinstance(Value, bool) or not isinstance(Value, (int, float)):
-        raise ValueError(f"{szLabel} must be a finite number")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} must be a finite number")
     try:
-        dValue = float(Value)
-    except (OverflowError, ValueError) as Error:
-        raise ValueError(f"{szLabel} must be a finite number") from Error
-    if not math.isfinite(dValue):
-        raise ValueError(f"{szLabel} must be a finite number")
-    return dValue
+        resolved_value = float(value)
+    except (OverflowError, ValueError) as error:
+        raise ValueError(f"{label} must be a finite number") from error
+    if not math.isfinite(resolved_value):
+        raise ValueError(f"{label} must be a finite number")
+    return resolved_value
 
 
-def Length(szValue, szLabel):
+def length(raw_value, label):
     """Resolve a positive SVG absolute length to pixels."""
-    Match = re.fullmatch(
+    match = re.fullmatch(
         r"\s*([+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)"
-        r"\s*(px|in|cm|mm|pt|pc)?\s*", szValue
+        r"\s*(px|in|cm|mm|pt|pc)?\s*", raw_value
     )
-    if Match is None:
-        raise ValueError(f"{szLabel} must use absolute units (not percentages)")
-    Factors = {"": 1, "px": 1, "in": 96, "cm": 96 / 2.54,
+    if match is None:
+        raise ValueError(f"{label} must use absolute units (not percentages)")
+    factors = {"": 1, "px": 1, "in": 96, "cm": 96 / 2.54,
                "mm": 96 / 25.4, "pt": 96 / 72, "pc": 16}
-    dValue = float(Match[1]) * Factors[Match[2] or ""]
-    if not math.isfinite(dValue) or dValue <= 0:
-        raise ValueError(f"{szLabel} must be positive and finite")
-    return dValue
+    resolved_value = float(match[1]) * factors[match[2] or ""]
+    if not math.isfinite(resolved_value) or resolved_value <= 0:
+        raise ValueError(f"{label} must be positive and finite")
+    return resolved_value
 
 
-def Dimensions(Root):
+def dimensions(root):
     """Resolve SVG viewport dimensions without distorting its aspect ratio."""
-    ViewBox = None
-    if "viewBox" in Root.attrib:
+    view_box = None
+    if "viewBox" in root.attrib:
         try:
-            ViewBox = [float(szPart) for szPart in
-                       re.split(r"[\s,]+", Root.attrib["viewBox"].strip())]
-        except ValueError as Error:
-            raise ValueError("SVG viewBox must contain four finite numbers") from Error
-        if (len(ViewBox) != 4 or not all(math.isfinite(dPart) for dPart in ViewBox)
-                or ViewBox[2] <= 0 or ViewBox[3] <= 0):
+            view_box = [float(part) for part in
+                       re.split(r"[\s,]+", root.attrib["viewBox"].strip())]
+        except ValueError as error:
+            raise ValueError(
+                "SVG viewBox must contain four finite numbers"
+            ) from error
+        if (len(view_box) != 4
+                or not all(math.isfinite(component) for component in view_box)
+                or view_box[2] <= 0 or view_box[3] <= 0):
             raise ValueError("SVG viewBox must have positive width and height")
-    dWidth = Length(Root.attrib["width"], "SVG width") if "width" in Root.attrib else None
-    dHeight = Length(Root.attrib["height"], "SVG height") if "height" in Root.attrib else None
-    if ViewBox is not None:
-        if dWidth is None and dHeight is None:
-            dWidth, dHeight = ViewBox[2:]
-        elif dWidth is None:
-            dWidth = dHeight * ViewBox[2] / ViewBox[3]
-        elif dHeight is None:
-            dHeight = dWidth * ViewBox[3] / ViewBox[2]
-    if dWidth is None or dHeight is None:
+    width = (
+        length(root.attrib["width"], "SVG width")
+        if "width" in root.attrib else None
+    )
+    height = (
+        length(root.attrib["height"], "SVG height")
+        if "height" in root.attrib else None
+    )
+    if view_box is not None:
+        if width is None and height is None:
+            width, height = view_box[2:]
+        elif width is None:
+            width = height * view_box[2] / view_box[3]
+        elif height is None:
+            height = width * view_box[3] / view_box[2]
+    if width is None or height is None:
         raise ValueError("SVG needs width and height, or a viewBox")
-    if not all(math.isfinite(dValue) and dValue > 0 for dValue in (dWidth, dHeight)):
+    if not all(
+        math.isfinite(resolved_value) and resolved_value > 0
+        for resolved_value in (width, height)
+    ):
         raise ValueError("SVG dimensions must be positive and finite")
-    if (ViewBox is not None and "none" in Root.get("preserveAspectRatio", "").split()
-            and not math.isclose(dWidth / dHeight, ViewBox[2] / ViewBox[3])):
+    if (view_box is not None
+            and "none" in root.get("preserveAspectRatio", "").split()
+            and not math.isclose(width / height, view_box[2] / view_box[3])):
         raise ValueError("preserveAspectRatio='none' would distort angles; use meet or slice")
-    return dWidth, dHeight
+    return width, height
 
 
-def Declarations(szText):
+def declarations(text):
     """Parse CSS declarations, omitting whitespace, comments, and invalid entries."""
-    return [Declaration for Declaration in tinycss2.parse_declaration_list(
-        szText, skip_comments=True, skip_whitespace=True
-    ) if Declaration.type == "declaration"]
+    return [declaration for declaration in tinycss2.parse_declaration_list(
+        text, skip_comments=True, skip_whitespace=True
+    ) if declaration.type == "declaration"]
 
 
-def CssValue(Tokens):
+def css_value(tokens):
     """Serialize a CSS value without comments or surrounding whitespace."""
-    return tinycss2.serialize([Token for Token in Tokens if Token.type != "comment"]).strip()
+    return tinycss2.serialize([
+        token for token in tokens if token.type != "comment"
+    ]).strip()
 
 
-def CssUrls(Tokens, Replace):
+def css_urls(tokens, replace):
     """Recursively rewrite URL tokens in a mutable CSS token list."""
-    for nIndex, Token in enumerate(Tokens):
-        if Token.type == "url" or (Token.type == "function" and Token.lower_name == "url"):
-            Tokens[nIndex:nIndex + 1] = tinycss2.parse_component_value_list(
-                Replace(tinycss2.serialize([Token]))
+    for index, token in enumerate(tokens):
+        if (token.type == "url"
+                or (token.type == "function" and token.lower_name == "url")):
+            tokens[index:index + 1] = tinycss2.parse_component_value_list(
+                replace(tinycss2.serialize([token]))
             )
-        elif Token.type == "function":
-            CssUrls(Token.arguments, Replace)
-        elif hasattr(Token, "content"):
-            CssUrls(Token.content, Replace)
+        elif token.type == "function":
+            css_urls(token.arguments, replace)
+        elif hasattr(token, "content"):
+            css_urls(token.content, replace)
 
 
-def CssReferences(szText, Replace):
+def css_references(text, replace):
     """Rewrite URL references while retaining parsed CSS structure."""
-    Tokens = tinycss2.parse_component_value_list(szText)
-    CssUrls(Tokens, Replace)
-    return tinycss2.serialize(Tokens)
+    tokens = tinycss2.parse_component_value_list(text)
+    css_urls(tokens, replace)
+    return tinycss2.serialize(tokens)
 
 
-def StrokeMatcher(Root):
+def stroke_matcher(root):
     """Compile supported source stylesheet rules into a cascade matcher."""
-    Matcher = cssselect2.Matcher()
-    for Element in Root.iter(f"{{{SVG_NS}}}style"):
-        for Rule in tinycss2.parse_stylesheet(Element.text or "", skip_comments=True,
-                                             skip_whitespace=True):
-            if Rule.type == "at-rule":
-                if Rule.lower_at_keyword in ("import", "media", "supports", "layer",
-                                             "container", "scope", "keyframes"):
+    matcher = cssselect2.Matcher()
+    for element in root.iter(f"{{{SVG_NS}}}style"):
+        for rule in tinycss2.parse_stylesheet(
+            element.text or "", skip_comments=True, skip_whitespace=True
+        ):
+            if rule.type == "at-rule":
+                if rule.lower_at_keyword in (
+                    "import", "media", "supports", "layer",
+                    "container", "scope", "keyframes"
+                ):
                     raise ValueError("external or conditional stylesheets are not supported")
                 continue
-            if Rule.type != "qualified-rule":
+            if rule.type != "qualified-rule":
                 continue
             try:
-                Selectors = cssselect2.compile_selector_list(Rule.prelude)
-            except cssselect2.SelectorError as Error:
-                raise ValueError(f"unsupported CSS selector: {Error}") from Error
-            Rules = Declarations(tinycss2.serialize(Rule.content))
-            for Selector in Selectors:
-                if Selector.pseudo_element is None:
-                    Matcher.add_selector(Selector, Rules)
+                selectors = cssselect2.compile_selector_list(rule.prelude)
+            except cssselect2.SelectorError as error:
+                raise ValueError(
+                    f"unsupported CSS selector: {error}"
+                ) from error
+            rules = declarations(tinycss2.serialize(rule.content))
+            for selector in selectors:
+                if selector.pseudo_element is None:
+                    matcher.add_selector(selector, rules)
 
-    return Matcher
+    return matcher
 
 
-def CascadeWinners(Wrapper, Matcher):
+def cascade_winners(wrapper, matcher):
     """Resolve presentation, stylesheet, and inline declarations by priority."""
-    Element = Wrapper.etree_element
-    Winners = {}
+    element = wrapper.etree_element
+    winners = {}
 
-    def Apply(szName, szValue, Priority):
+    def apply(name, raw_value, priority):
         """Record a winning declaration, expanding font shorthand size first."""
-        if szName == "font":
-            Apply("font-size", FontShorthandSize(szValue), Priority)
-        if szName not in Winners or Priority >= Winners[szName][0]:
-            Winners[szName] = (Priority, szValue.strip())
+        if name == "font":
+            apply("font-size", font_shorthand_size(raw_value), priority)
+        if name not in winners or priority >= winners[name][0]:
+            winners[name] = (priority, raw_value.strip())
 
-    for szName in ("stroke-width", "vector-effect", "font-size"):
-        if szName in Element.attrib:
-            Apply(szName, Element.attrib[szName], (False, 0, (0, 0, 0), 0, 0))
-    for Specificity, nOrder, szPseudo, Rules in Matcher.match(Wrapper):
-        for nDeclaration, Declaration in enumerate(Rules):
-            Apply(Declaration.lower_name, CssValue(Declaration.value),
-                  (Declaration.important, 0, Specificity, nOrder, nDeclaration))
-    for nDeclaration, Declaration in enumerate(Declarations(Element.get("style", ""))):
-        Apply(Declaration.lower_name, CssValue(Declaration.value),
-              (Declaration.important, 1, (0, 0, 0), 0, nDeclaration))
+    for name in ("stroke-width", "vector-effect", "font-size"):
+        if name in element.attrib:
+            apply(name, element.attrib[name], (False, 0, (0, 0, 0), 0, 0))
+    for specificity, order, pseudo_element, rules in matcher.match(wrapper):
+        for declaration_index, declaration in enumerate(rules):
+            apply(
+                declaration.lower_name, css_value(declaration.value),
+                (
+                    declaration.important, 0, specificity, order,
+                    declaration_index
+                )
+            )
+    for declaration_index, declaration in enumerate(
+        declarations(element.get("style", ""))
+    ):
+        apply(declaration.lower_name, css_value(declaration.value),
+              (declaration.important, 1, (0, 0, 0), 0, declaration_index))
 
-    return Winners
+    return winners
 
 
-def ApplyStrokeStyle(Wrapper, Winners, Styles, Root, szProperty, szFactorProperty,
-                     dStrokeScale, dOrdinaryFactor):
-    """Pin one element's source cascade with typed, instance-aware stroke factors."""
-    Element = Wrapper.etree_element
-    ParentStyle = Styles.get(Wrapper.parent.etree_element) if Wrapper.parent else None
-    dParentFont = ParentStyle[1] if ParentStyle else 16
-    szFont = Winners.get("font-size", (None, "inherit"))[1]
-    dFont = FontSize(szFont, dParentFont, Styles.get(Root, ("none", 16))[1])
-    szEffect = Winners.get("vector-effect", (None, "none"))[1]
-    if szEffect in ("initial", "unset"):
-        szEffect = "none"
-    if szEffect not in ("none", "non-scaling-stroke", "inherit"):
-        raise ValueError(f"unsupported vector-effect: {szEffect}")
-    Styles[Element] = (szEffect, dFont)
+def apply_stroke_style(
+    wrapper, winners, styles, root, stroke_property, factor_property,
+    stroke_scale, ordinary_factor,
+):
+    """Pin one element's cascade with typed, instance-aware stroke factors."""
+    element = wrapper.etree_element
+    parent_style = (
+        styles.get(wrapper.parent.etree_element) if wrapper.parent else None
+    )
+    parent_font_size = parent_style[1] if parent_style else 16
+    font_value = winners.get("font-size", (None, "inherit"))[1]
+    resolved_font_size = font_size(
+        font_value, parent_font_size, styles.get(root, ("none", 16))[1]
+    )
+    vector_effect = winners.get("vector-effect", (None, "none"))[1]
+    if vector_effect in ("initial", "unset"):
+        vector_effect = "none"
+    if vector_effect not in ("none", "non-scaling-stroke", "inherit"):
+        raise ValueError(f"unsupported vector-effect: {vector_effect}")
+    styles[element] = (vector_effect, resolved_font_size)
 
-    szWidth = Winners.get("stroke-width", (None, None))[1]
-    if szWidth in ("inherit", "unset"):
-        szWidth = None
-    elif szWidth == "initial":
-        szWidth = "1"
-    elif szWidth in ("revert", "revert-layer"):
+    stroke_width = winners.get("stroke-width", (None, None))[1]
+    if stroke_width in ("inherit", "unset"):
+        stroke_width = None
+    elif stroke_width == "initial":
+        stroke_width = "1"
+    elif stroke_width in ("revert", "revert-layer"):
         raise ValueError("stroke-width cascade rollback keywords are not supported")
-    if szWidth is None and Element is Root:
-        szWidth = "1"
-    szStyle = Element.get("style", "").rstrip()
-    if szStyle and not szStyle.endswith(";"):
-        szStyle += ";"
-    if szWidth is not None:
-        szWidth = StrokeLength(szWidth, Styles[Root][1])
-        szStyle += f"{szProperty}:{szWidth} !important;"
-    szFactor = ("inherit" if szEffect == "inherit" else
-                repr(dStrokeScale if szEffect == "non-scaling-stroke" else dOrdinaryFactor))
+    if stroke_width is None and element is root:
+        stroke_width = "1"
+    style = element.get("style", "").rstrip()
+    if style and not style.endswith(";"):
+        style += ";"
+    if stroke_width is not None:
+        stroke_width = stroke_length(stroke_width, styles[root][1])
+        style += f"{stroke_property}:{stroke_width} !important;"
+    stroke_factor = (
+        "inherit" if vector_effect == "inherit" else repr(
+            stroke_scale if vector_effect == "non-scaling-stroke"
+            else ordinary_factor
+        )
+    )
     # Pin the source cascade without freezing relative font sizes in definitions.
     # A registered length computes em before inheritance, including in use shadows.
-    if (Element is Root or szFont.endswith("rem") or
-            re.fullmatch(r"[+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", szFont)):
-        szFont = f"{dFont!r}px"
-    Element.set("style", szStyle + (
-        f"font-size:{szFont} !important;vector-effect:{szEffect} !important;"
-        f"{szFactorProperty}:{szFactor} !important;"
-        f"stroke-width:calc(var({szProperty}) * var({szFactorProperty})) !important;"
+    if (element is root or font_value.endswith("rem") or
+            re.fullmatch(
+                r"[+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", font_value
+            )):
+        font_value = f"{resolved_font_size!r}px"
+    element.set("style", style + (
+        f"font-size:{font_value} !important;"
+        f"vector-effect:{vector_effect} !important;"
+        f"{factor_property}:{stroke_factor} !important;"
+        f"stroke-width:calc(var({stroke_property}) * "
+        f"var({factor_property})) !important;"
     ))
 
 
-def StrokeStyles(Root, dScale, dStrokeScale, nIndex):
-    """Resolve the cascade, leaving instance-dependent computation to typed CSS."""
-    Matcher = StrokeMatcher(Root)
-    szProperty = f"--svg{nIndex}-original-stroke-width"
-    szFactorProperty = f"--svg{nIndex}-stroke-factor"
-    dOrdinaryFactor = dStrokeScale / dScale
-    if not math.isfinite(dOrdinaryFactor):
+def stroke_styles(root, scale, stroke_scale, index):
+    """Resolve the cascade, leaving instance-dependent work to typed CSS."""
+    matcher = stroke_matcher(root)
+    stroke_property = f"--svg{index}-original-stroke-width"
+    factor_property = f"--svg{index}-stroke-factor"
+    ordinary_factor = stroke_scale / scale
+    if not math.isfinite(ordinary_factor):
         raise ValueError("stroke width multiplier must be finite")
-    Styles = {}
-    for Wrapper in cssselect2.ElementWrapper.from_xml_root(Root).iter_subtree():
-        Winners = CascadeWinners(Wrapper, Matcher)
-        ApplyStrokeStyle(Wrapper, Winners, Styles, Root, szProperty, szFactorProperty,
-                         dStrokeScale, dOrdinaryFactor)
+    styles = {}
+    for wrapper in (
+        cssselect2.ElementWrapper.from_xml_root(root).iter_subtree()
+    ):
+        winners = cascade_winners(wrapper, matcher)
+        apply_stroke_style(
+            wrapper, winners, styles, root, stroke_property, factor_property,
+            stroke_scale, ordinary_factor
+        )
     # Registration is document-wide, and names are unique for each input. Untyped
     # properties would inherit the text "1em" and recompute it on every descendant.
-    Registration = ET.SubElement(Root, f"{{{SVG_NS}}}style")
-    Registration.text = (
-        f'@property {szProperty} {{syntax:"<length-percentage>";inherits:true;initial-value:1px;}}'
-        f'@property {szFactorProperty} {{syntax:"<number>";inherits:false;'
-        f'initial-value:{dOrdinaryFactor!r};}}'
+    registration = ET.SubElement(root, f"{{{SVG_NS}}}style")
+    registration.text = (
+        f'@property {stroke_property} {{syntax:"<length-percentage>";'
+        'inherits:true;initial-value:1px;}'
+        f'@property {factor_property} {{syntax:"<number>";inherits:false;'
+        f'initial-value:{ordinary_factor!r};}}'
     )
 
 
-def FontShorthandSize(szValue):
+def font_shorthand_size(raw_value):
     """Extract a supported font size from a complete CSS font shorthand."""
-    if szValue in ("inherit", "unset", "initial"):
-        return szValue
-    Tokens = [Token for Token in tinycss2.parse_component_value_list(szValue)
-              if Token.type not in ("whitespace", "comment")]
-    Sizes = {"xx-small", "x-small", "small", "medium", "large", "x-large",
+    if raw_value in ("inherit", "unset", "initial"):
+        return raw_value
+    tokens = [token for token in tinycss2.parse_component_value_list(raw_value)
+              if token.type not in ("whitespace", "comment")]
+    sizes = {"xx-small", "x-small", "small", "medium", "large", "x-large",
              "xx-large", "xxx-large", "larger", "smaller"}
-    Prefixes = {"normal", "italic", "oblique", "small-caps", "bold", "bolder",
+    prefixes = {"normal", "italic", "oblique", "small-caps", "bold", "bolder",
                 "lighter", "ultra-condensed", "extra-condensed", "condensed",
                 "semi-condensed", "semi-expanded", "expanded", "extra-expanded",
                 "ultra-expanded"}
-    for nIndex, Token in enumerate(Tokens):
-        if (Token.type in ("dimension", "percentage") or
-                (Token.type == "ident" and Token.lower_value in Sizes) or
-                (Token.type == "number" and Token.value == 0)):
-            szSize = CssValue([Token])
+    for index, token in enumerate(tokens):
+        if (token.type in ("dimension", "percentage") or
+                (token.type == "ident" and token.lower_value in sizes) or
+                (token.type == "number" and token.value == 0)):
+            size_value = css_value([token])
             try:
-                FontSize(szSize, 16, 16)
-            except ValueError as Error:
-                raise ValueError(f"unsupported font shorthand for stroke resolution: {szValue}") from Error
-            nFamily = nIndex + 1
-            if nFamily < len(Tokens) and Tokens[nFamily].type == "literal" and Tokens[nFamily].value == "/":
-                nFamily += 1
-                if nFamily >= len(Tokens):
+                font_size(size_value, 16, 16)
+            except ValueError as error:
+                raise ValueError(
+                    f"unsupported font shorthand for stroke resolution: "
+                    f"{raw_value}"
+                ) from error
+            family_index = index + 1
+            if (family_index < len(tokens)
+                    and tokens[family_index].type == "literal"
+                    and tokens[family_index].value == "/"):
+                family_index += 1
+                if family_index >= len(tokens):
                     break
-                LineHeight = Tokens[nFamily]
-                if not (LineHeight.type in ("dimension", "percentage", "number") or
-                        (LineHeight.type == "ident" and LineHeight.lower_value == "normal")):
+                line_height = tokens[family_index]
+                if not (
+                    line_height.type in ("dimension", "percentage", "number")
+                    or (line_height.type == "ident"
+                        and line_height.lower_value == "normal")
+                ):
                     break
-                if LineHeight.type != "ident" and LineHeight.value < 0:
+                if line_height.type != "ident" and line_height.value < 0:
                     break
-                nFamily += 1
-            Family = Tokens[nFamily:]
-            if (not Family or Family[0].type == "literal" or Family[-1].type == "literal" or
-                    any(Part.type not in ("ident", "string") and
-                        not (Part.type == "literal" and Part.value == ",") for Part in Family)):
+                family_index += 1
+            family = tokens[family_index:]
+            if (
+                not family or family[0].type == "literal"
+                or family[-1].type == "literal"
+                or any(
+                    part.type not in ("ident", "string")
+                    and not (part.type == "literal" and part.value == ",")
+                    for part in family
+                )
+            ):
                 break
-            return szSize
-        if not ((Token.type == "ident" and Token.lower_value in Prefixes) or
-                (Token.type == "number" and 1 <= Token.value <= 1000)):
+            return size_value
+        if not ((token.type == "ident" and token.lower_value in prefixes) or
+                (token.type == "number" and 1 <= token.value <= 1000)):
             break
-    raise ValueError(f"unsupported font shorthand for stroke resolution: {szValue}")
-
-
-def FontSize(szValue, dParent, dRoot):
-    """Resolve a supported font size against its parent and root sizes."""
-    if szValue in ("inherit", "unset"):
-        return dParent
-    Sizes = {"xx-small": 9, "x-small": 10, "small": 13, "medium": 16,
-             "large": 18, "x-large": 24, "xx-large": 32, "xxx-large": 48,
-             "initial": 16, "larger": dParent * 1.2, "smaller": dParent / 1.2}
-    if szValue in Sizes:
-        return Sizes[szValue]
-    Match = re.fullmatch(r"([+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)([a-z%]*)", szValue)
-    if Match is None:
-        raise ValueError(f"unsupported font-size for stroke resolution: {szValue}")
-    dValue = float(Match[1])
-    szUnit = Match[2]
-    if szUnit in ("em", "%", "rem"):
-        dValue *= {"em": dParent, "%": dParent / 100, "rem": dRoot}[szUnit]
-    elif szUnit not in ("", "px"):
-        dValue = Length(szValue, "font-size")
-    if not math.isfinite(dValue) or dValue < 0:
-        raise ValueError("font-size must be nonnegative and finite")
-    return dValue
-
-
-def StrokeLength(szValue, dRootFont):
-    """Validate a static stroke length and resolve root-relative units."""
-    Match = re.fullmatch(
-        r"\s*([+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([a-z%]*)\s*", szValue
+    raise ValueError(
+        f"unsupported font shorthand for stroke resolution: {raw_value}"
     )
-    if Match is None or Match[2] not in ("", "px", "in", "cm", "mm", "pt", "pc", "%", "em", "rem"):
-        raise ValueError(f"stroke-width must be a nonnegative static length: {szValue}")
-    dValue = float(Match[1])
-    if not math.isfinite(dValue):
+
+
+def font_size(raw_value, parent_size, root_size):
+    """Resolve a supported font size against its parent and root sizes."""
+    if raw_value in ("inherit", "unset"):
+        return parent_size
+    sizes = {
+        "xx-small": 9, "x-small": 10, "small": 13, "medium": 16,
+        "large": 18, "x-large": 24, "xx-large": 32, "xxx-large": 48,
+        "initial": 16, "larger": parent_size * 1.2,
+        "smaller": parent_size / 1.2
+    }
+    if raw_value in sizes:
+        return sizes[raw_value]
+    match = re.fullmatch(
+        r"([+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)([a-z%]*)",
+        raw_value
+    )
+    if match is None:
+        raise ValueError(
+            f"unsupported font-size for stroke resolution: {raw_value}"
+        )
+    resolved_value = float(match[1])
+    unit = match[2]
+    if unit in ("em", "%", "rem"):
+        resolved_value *= {
+            "em": parent_size, "%": parent_size / 100, "rem": root_size
+        }[unit]
+    elif unit not in ("", "px"):
+        resolved_value = length(raw_value, "font-size")
+    if not math.isfinite(resolved_value) or resolved_value < 0:
+        raise ValueError("font-size must be nonnegative and finite")
+    return resolved_value
+
+
+def stroke_length(raw_value, root_font_size):
+    """Validate a static stroke length and resolve root-relative units."""
+    match = re.fullmatch(
+        r"\s*([+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([a-z%]*)\s*",
+        raw_value
+    )
+    if match is None or match[2] not in (
+        "", "px", "in", "cm", "mm", "pt", "pc", "%", "em", "rem"
+    ):
+        raise ValueError(
+            f"stroke-width must be a nonnegative static length: {raw_value}"
+        )
+    resolved_value = float(match[1])
+    if not math.isfinite(resolved_value):
         raise ValueError("stroke-width must be finite")
-    szUnit = Match[2]
-    if szUnit == "rem":
-        dValue *= dRootFont
-        szUnit = "px"
-    if not math.isfinite(dValue):
+    unit = match[2]
+    if unit == "rem":
+        resolved_value *= root_font_size
+        unit = "px"
+    if not math.isfinite(resolved_value):
         raise ValueError("resolved stroke-width must be finite")
-    return f"{dValue!r}{szUnit or 'px'}"
+    return f"{resolved_value!r}{unit or 'px'}"
 
 
-def CollectIds(Root, nIndex):
+def collect_ids(root, index):
     """Assign input-specific identifiers, rejecting duplicate source IDs."""
-    Ids = {}
-    for Element in Root.iter():
-        szId = Element.get("id")
-        if szId is not None:
-            if szId in Ids:
-                raise ValueError(f"duplicate SVG id: {szId}")
-            Ids[szId] = f"svg{nIndex}_{szId}"
-    return Ids
+    ids = {}
+    for element in root.iter():
+        identifier = element.get("id")
+        if identifier is not None:
+            if identifier in ids:
+                raise ValueError(f"duplicate SVG id: {identifier}")
+            ids[identifier] = f"svg{index}_{identifier}"
+    return ids
 
 
-def IsolateIds(Root, nIndex):
+def isolate_ids(root, index):
     """Namespace IDs and rewrite their XML, accessibility, and CSS references."""
-    Ids = CollectIds(Root, nIndex)
+    ids = collect_ids(root, index)
 
-    def ReplaceUrl(Match):
+    def replace_url(match):
         """Replace a known local fragment while retaining unknown URL text."""
-        szId = Match["id"]
-        if szId not in Ids:
-            return Match[0]
-        return f"url(#{Ids[szId]})"
+        identifier = match["id"]
+        if identifier not in ids:
+            return match[0]
+        return f"url(#{ids[identifier]})"
 
-    def References(szText):
+    def references(text):
         """Rewrite local fragment URLs in an attribute or CSS value."""
         return re.sub(
             r"""url\(\s*(?P<quote>['"]?)#(?P<id>[^'")\s]+)(?P=quote)\s*\)""",
-            ReplaceUrl, szText
+            replace_url, text
         )
 
-    def Selectors(Tokens):
+    def selectors(tokens):
         """Rewrite identifier hashes in selectors and nested selector functions."""
-        for Token in Tokens:
-            if Token.type == "hash" and Token.is_identifier:
-                Token.value = Ids.get(Token.value, Token.value)
-            elif Token.type == "function":
-                Selectors(Token.arguments)
+        for token in tokens:
+            if token.type == "hash" and token.is_identifier:
+                token.value = ids.get(token.value, token.value)
+            elif token.type == "function":
+                selectors(token.arguments)
 
-    for Element in Root.iter():
-        for szKey, szValue in list(Element.attrib.items()):
-            if szKey == "id":
-                Element.set(szKey, Ids[szValue])
-            elif szKey in ("href", f"{{{XLINK_NS}}}href") and szValue.startswith("#"):
-                Element.set(szKey, "#" + Ids.get(szValue[1:], szValue[1:]))
-            elif szKey in ("aria-labelledby", "aria-describedby"):
-                Element.set(szKey, " ".join(Ids.get(szId, szId) for szId in szValue.split()))
-            elif szKey == "style":
-                Element.set(szKey, CssReferences(szValue, References))
+    for element in root.iter():
+        for attribute_name, raw_value in list(element.attrib.items()):
+            if attribute_name == "id":
+                element.set(attribute_name, ids[raw_value])
+            elif (attribute_name in ("href", f"{{{XLINK_NS}}}href")
+                    and raw_value.startswith("#")):
+                element.set(
+                    attribute_name, "#" + ids.get(raw_value[1:], raw_value[1:])
+                )
+            elif attribute_name in ("aria-labelledby", "aria-describedby"):
+                element.set(attribute_name, " ".join(
+                    ids.get(identifier, identifier)
+                    for identifier in raw_value.split()
+                ))
+            elif attribute_name == "style":
+                element.set(
+                    attribute_name, css_references(raw_value, references)
+                )
             else:
-                Element.set(szKey, References(szValue))
-        if Element.tag == f"{{{SVG_NS}}}style" and Element.text:
-            Rules = tinycss2.parse_stylesheet(Element.text)
-            for Rule in Rules:
-                if Rule.type == "qualified-rule":
-                    Selectors(Rule.prelude)
-                    CssUrls(Rule.content, References)
-                elif Rule.type == "at-rule":
-                    CssUrls(Rule.prelude, References)
-                    if Rule.content is not None:
-                        CssUrls(Rule.content, References)
-            Element.text = tinycss2.serialize(Rules)
+                element.set(attribute_name, references(raw_value))
+        if element.tag == f"{{{SVG_NS}}}style" and element.text:
+            rules = tinycss2.parse_stylesheet(element.text)
+            for rule in rules:
+                if rule.type == "qualified-rule":
+                    selectors(rule.prelude)
+                    css_urls(rule.content, references)
+                elif rule.type == "at-rule":
+                    css_urls(rule.prelude, references)
+                    if rule.content is not None:
+                        css_urls(rule.content, references)
+            element.text = tinycss2.serialize(rules)
 
 
-def ResolveResources(Element, szBase, szDocument):
-    """Resolve inherited XML bases and external URLs while retaining local fragments."""
-    szBase = urljoin(szBase, Element.attrib.pop(f"{{{XML_NS}}}base", ""))
+def resolve_resources(element, base_url, document_url):
+    """Resolve XML bases and external URLs, retaining local fragments."""
+    base_url = urljoin(base_url, element.attrib.pop(f"{{{XML_NS}}}base", ""))
 
-    def Reference(szUrl):
+    def reference(url):
         """Resolve one URL and collapse same-document fragment references."""
-        szResolved = urljoin(szBase, szUrl)
-        szTarget, szFragment = urldefrag(szResolved)
-        if szFragment and szTarget == urldefrag(szDocument)[0]:
-            return "#" + szFragment
-        return szResolved
+        resolved_url = urljoin(base_url, url)
+        target_url, fragment = urldefrag(resolved_url)
+        if fragment and target_url == urldefrag(document_url)[0]:
+            return "#" + fragment
+        return resolved_url
 
-    def AbsoluteUrl(Match):
+    def absolute_url(match):
         """Rewrite a CSS URL while preserving its optional quoting."""
-        szQuote = Match[1] or ""
-        szUrl = (Match[2] if Match[1] else Match[3]).strip()
-        if not szUrl:
-            return Match[0]
-        return f"url({szQuote}{Reference(szUrl)}{szQuote})"
+        quote = match[1] or ""
+        url = (match[2] if match[1] else match[3]).strip()
+        if not url:
+            return match[0]
+        return f"url({quote}{reference(url)}{quote})"
 
-    def Urls(szText):
+    def urls(text):
         """Resolve every CSS URL embedded in the supplied text."""
-        return re.sub(r"""url\(\s*(?:(['"])(.*?)\1|([^)]*?))\s*\)""", AbsoluteUrl, szText)
+        return re.sub(
+            r"""url\(\s*(?:(['"])(.*?)\1|([^)]*?))\s*\)""", absolute_url, text
+        )
 
-    for szKey, szValue in list(Element.attrib.items()):
-        if szKey in ("href", f"{{{XLINK_NS}}}href") and szValue:
-            Element.set(szKey, Reference(szValue))
-        elif szKey == "style":
-            Element.set(szKey, CssReferences(szValue, Urls))
+    for attribute_name, raw_value in list(element.attrib.items()):
+        if attribute_name in ("href", f"{{{XLINK_NS}}}href") and raw_value:
+            element.set(attribute_name, reference(raw_value))
+        elif attribute_name == "style":
+            element.set(attribute_name, css_references(raw_value, urls))
         else:
-            Element.set(szKey, Urls(szValue))
-    if Element.tag == f"{{{SVG_NS}}}style" and Element.text:
-        Element.text = CssReferences(Element.text, Urls)
-    for Child in Element:
-        ResolveResources(Child, szBase, szDocument)
+            element.set(attribute_name, urls(raw_value))
+    if element.tag == f"{{{SVG_NS}}}style" and element.text:
+        element.text = css_references(element.text, urls)
+    for child in element:
+        resolve_resources(child, base_url, document_url)
 
 
-def LayoutEntry(Entry, nIndex, LayoutPath, OutputPath):
+def layout_entry(entry, index, layout_path, output_path):
     """Validate an entry and resolve its source and transform parameters."""
-    if isinstance(Entry, str):
-        Entry = {"file": Entry}
-    if not isinstance(Entry, dict) or set(Entry) - {
-            "file", "scale", "rotation", "offset", "stroke_scale", "flipx", "flipy"}:
-        raise ValueError(f"entry {nIndex + 1}: unexpected SVG layout fields")
-    szFile = Entry.get("file")
-    if not isinstance(szFile, str) or not szFile.strip():
-        raise ValueError(f"entry {nIndex + 1}: file must be a non-empty string")
-    dScale = Number(Entry.get("scale", 1), "scale")
-    if dScale <= 0:
+    if isinstance(entry, str):
+        entry = {"file": entry}
+    if not isinstance(entry, dict) or set(entry) - {
+            "file", "scale", "rotation", "offset",
+            "stroke_scale", "flipx", "flipy"}:
+        raise ValueError(f"entry {index + 1}: unexpected SVG layout fields")
+    filename = entry.get("file")
+    if not isinstance(filename, str) or not filename.strip():
+        raise ValueError(f"entry {index + 1}: file must be a non-empty string")
+    scale = number(entry.get("scale", 1), "scale")
+    if scale <= 0:
         raise ValueError("scale must be positive")
-    dStrokeScale = Number(Entry.get("stroke_scale", 1), "stroke_scale")
-    if dStrokeScale < 0:
+    stroke_scale = number(entry.get("stroke_scale", 1), "stroke_scale")
+    if stroke_scale < 0:
         raise ValueError("stroke_scale must be nonnegative")
-    for szField in ("flipx", "flipy"):
-        if not isinstance(Entry.get(szField, False), bool):
-            raise ValueError(f"{szField} must be a boolean")
-    dScaleX = -dScale if Entry.get("flipx", False) else dScale
-    dScaleY = -dScale if Entry.get("flipy", False) else dScale
-    dRotation = Number(Entry.get("rotation", 0), "rotation") % 360
-    Offset = Entry.get("offset", [0, 0])
-    if not isinstance(Offset, list) or len(Offset) != 2:
+    for field in ("flipx", "flipy"):
+        if not isinstance(entry.get(field, False), bool):
+            raise ValueError(f"{field} must be a boolean")
+    scale_x = -scale if entry.get("flipx", False) else scale
+    scale_y = -scale if entry.get("flipy", False) else scale
+    rotation = number(entry.get("rotation", 0), "rotation") % 360
+    offset = entry.get("offset", [0, 0])
+    if not isinstance(offset, list) or len(offset) != 2:
         raise ValueError("offset must be a two-number list [x, y]")
-    dX, dY = (Number(Value, "offset") for Value in Offset)
-    SvgPath = (LayoutPath.parent / szFile).resolve()
-    if SvgPath == OutputPath.resolve():
+    x, y = (number(value, "offset") for value in offset)
+    svg_path = (layout_path.parent / filename).resolve()
+    if svg_path == output_path.resolve():
         raise ValueError("output must not overwrite an input SVG")
-    return SvgPath, dScale, dStrokeScale, dScaleX, dScaleY, dRotation, dX, dY
+    return svg_path, scale, stroke_scale, scale_x, scale_y, rotation, x, y
 
 
-def LoadSvg(SvgPath, dScale, dStrokeScale, nIndex):
+def load_svg(svg_path, scale, stroke_scale, index):
     """Parse and isolate a source SVG, attaching its path to expected errors."""
     try:
-        Root = ET.parse(SvgPath, parser=ET.XMLParser(target=SafeTreeBuilder())).getroot()
-        if Root.tag != f"{{{SVG_NS}}}svg":
+        root = ET.parse(
+            svg_path, parser=ET.XMLParser(target=SafeTreeBuilder())
+        ).getroot()
+        if root.tag != f"{{{SVG_NS}}}svg":
             raise ValueError("document root must be an SVG in the SVG namespace")
-        dWidth, dHeight = Dimensions(Root)
-        StrokeStyles(Root, dScale, dStrokeScale, nIndex)
-        ResolveResources(Root, SvgPath.as_uri(), SvgPath.as_uri())
-        IsolateIds(Root, nIndex)
-    except (OSError, ET.ParseError, ValueError) as Error:
-        raise ValueError(f"{SvgPath}: {Error}") from Error
-    return Root, dWidth, dHeight
+        width, height = dimensions(root)
+        stroke_styles(root, scale, stroke_scale, index)
+        resolve_resources(root, svg_path.as_uri(), svg_path.as_uri())
+        isolate_ids(root, index)
+    except (OSError, ET.ParseError, ValueError) as error:
+        raise ValueError(f"{svg_path}: {error}") from error
+    return root, width, height
 
 
-def PlaceSvg(Output, Bounds, Root, dWidth, dHeight,
-             dScaleX, dScaleY, dRotation, dX, dY):
+def place_svg(output, bounds, root, width, height,
+              scale_x, scale_y, rotation, x, y):
     """Append a transformed viewport and accumulate its finite corner bounds."""
-    dCos = math.cos(math.radians(dRotation))
-    dSin = math.sin(math.radians(dRotation))
+    cosine = math.cos(math.radians(rotation))
+    sine = math.sin(math.radians(rotation))
     # Keep exact quarter turns from adding tiny floating-point margins.
-    if abs(dCos) < 1e-15:
-        dCos = 0
-    if abs(dSin) < 1e-15:
-        dSin = 0
-    Corners = [
-        (dX + dCos * dScaleX * dCornerX - dSin * dScaleY * dCornerY,
-         dY + dSin * dScaleX * dCornerX + dCos * dScaleY * dCornerY)
-        for dCornerX, dCornerY in ((0, 0), (dWidth, 0), (0, dHeight), (dWidth, dHeight))
+    if abs(cosine) < 1e-15:
+        cosine = 0
+    if abs(sine) < 1e-15:
+        sine = 0
+    corners = [
+        (x + cosine * scale_x * corner_x - sine * scale_y * corner_y,
+         y + sine * scale_x * corner_x + cosine * scale_y * corner_y)
+        for corner_x, corner_y in (
+            (0, 0), (width, 0), (0, height), (width, height)
+        )
     ]
-    if not all(math.isfinite(dValue) for Corner in Corners for dValue in Corner):
+    if not all(
+        math.isfinite(resolved_value)
+        for corner in corners for resolved_value in corner
+    ):
         raise ValueError("scaled SVG bounds must be finite")
-    Bounds.append((min(Corner[0] for Corner in Corners),
-                   min(Corner[1] for Corner in Corners),
-                   max(Corner[0] for Corner in Corners),
-                   max(Corner[1] for Corner in Corners)))
-    Group = ET.SubElement(Output, f"{{{SVG_NS}}}g", {
-        "transform": (f"translate({dX!r} {dY!r}) rotate({dRotation!r}) "
-                      + (f"scale({dScaleX!r} {dScaleY!r})"
-                         if dScaleX != dScaleY else f"scale({dScaleX!r})"))
+    bounds.append((min(corner[0] for corner in corners),
+                   min(corner[1] for corner in corners),
+                   max(corner[0] for corner in corners),
+                   max(corner[1] for corner in corners)))
+    group = ET.SubElement(output, f"{{{SVG_NS}}}g", {
+        "transform": (f"translate({x!r} {y!r}) rotate({rotation!r}) "
+                      + (f"scale({scale_x!r} {scale_y!r})"
+                         if scale_x != scale_y else f"scale({scale_x!r})"))
     })
-    Root.set("x", "0")
-    Root.set("y", "0")
-    Root.set("width", repr(dWidth))
-    Root.set("height", repr(dHeight))
-    Group.append(Root)
+    root.set("x", "0")
+    root.set("y", "0")
+    root.set("width", repr(width))
+    root.set("height", repr(height))
+    group.append(root)
 
 
-def MergeSvg(LayoutPath, OutputPath):
-    """Merge validated layout entries into a bounded, resource-safe SVG document."""
-    with LayoutPath.open(encoding="utf-8") as Stream:
-        Entries = yaml.safe_load(Stream)
-    if not isinstance(Entries, list) or not Entries:
+def merge_svg(layout_path, output_path):
+    """Merge layout entries into a bounded, resource-safe SVG document."""
+    with layout_path.open(encoding="utf-8") as stream:
+        entries = yaml.safe_load(stream)
+    if not isinstance(entries, list) or not entries:
         raise ValueError("YAML must contain a non-empty list of SVG files")
 
-    Output = ET.Element(f"{{{SVG_NS}}}svg", {"version": "1.1"})
-    Bounds = []
-    for nIndex, Entry in enumerate(Entries):
-        SvgPath, dScale, dStrokeScale, dScaleX, dScaleY, dRotation, dX, dY = LayoutEntry(
-            Entry, nIndex, LayoutPath, OutputPath
+    output = ET.Element(f"{{{SVG_NS}}}svg", {"version": "1.1"})
+    bounds = []
+    for index, entry in enumerate(entries):
+        (svg_path, scale, stroke_scale, scale_x,
+         scale_y, rotation, x, y) = layout_entry(
+            entry, index, layout_path, output_path
         )
-        Root, dWidth, dHeight = LoadSvg(SvgPath, dScale, dStrokeScale, nIndex)
-        PlaceSvg(Output, Bounds, Root, dWidth, dHeight,
-                 dScaleX, dScaleY, dRotation, dX, dY)
+        root, width, height = load_svg(svg_path, scale, stroke_scale, index)
+        place_svg(output, bounds, root, width, height,
+                  scale_x, scale_y, rotation, x, y)
 
-    dLeft = min(0, *(Bound[0] for Bound in Bounds))
-    dTop = min(0, *(Bound[1] for Bound in Bounds))
-    dWidth = max(0, *(Bound[2] for Bound in Bounds)) - dLeft
-    dHeight = max(0, *(Bound[3] for Bound in Bounds)) - dTop
-    if not all(math.isfinite(dValue) and dValue > 0 for dValue in (dWidth, dHeight)):
+    left = min(0, *(bound[0] for bound in bounds))
+    top = min(0, *(bound[1] for bound in bounds))
+    width = max(0, *(bound[2] for bound in bounds)) - left
+    height = max(0, *(bound[3] for bound in bounds)) - top
+    if not all(
+        math.isfinite(resolved_value) and resolved_value > 0
+        for resolved_value in (width, height)
+    ):
         raise ValueError("output dimensions must be positive and finite")
-    Output.set("viewBox", " ".join(repr(dValue) for dValue in (dLeft, dTop, dWidth, dHeight)))
-    Output.set("width", repr(dWidth))
-    Output.set("height", repr(dHeight))
-    if OutputPath.resolve() == LayoutPath.resolve():
+    output.set("viewBox", " ".join(
+        repr(resolved_value) for resolved_value in (left, top, width, height)
+    ))
+    output.set("width", repr(width))
+    output.set("height", repr(height))
+    if output_path.resolve() == layout_path.resolve():
         raise ValueError("output must not overwrite the YAML input")
-    ET.ElementTree(Output).write(OutputPath, encoding="utf-8", xml_declaration=True)
+    ET.ElementTree(output).write(
+        output_path, encoding="utf-8", xml_declaration=True
+    )
 
 
-def Main():
+def main():
     """Run the merger CLI and report supported input and filesystem failures."""
-    Parser = argparse.ArgumentParser(description=__doc__)
-    Parser.add_argument("layout", type=Path, help="YAML list; file paths are relative to this file")
-    Parser.add_argument("output", type=Path, help="destination SVG")
-    Args = Parser.parse_args()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "layout", type=Path,
+        help="YAML list; file paths are relative to this file"
+    )
+    parser.add_argument("output", type=Path, help="destination SVG")
+    args = parser.parse_args()
     try:
-        MergeSvg(Args.layout.resolve(), Args.output)
-    except (OSError, ValueError, ET.ParseError, yaml.YAMLError) as Error:
-        Parser.exit(1, f"error: {Error}\n")
+        merge_svg(args.layout.resolve(), args.output)
+    except (OSError, ValueError, ET.ParseError, yaml.YAMLError) as error:
+        parser.exit(1, f"error: {error}\n")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(Main())
+    sys.exit(main())
